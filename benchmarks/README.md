@@ -46,11 +46,15 @@ uv run decisio compare \
   --input .artifacts/scorer-gate-v1.jsonl \
   --output-dir .artifacts/scorer-gate-v1 \
   --device cuda \
-  --dtype bfloat16
+  --dtype bfloat16 \
+  --warmup-rounds 1 \
+  --performance-rounds 8
 ```
 
 The output directory contains raw JSONL evidence for v2, v1, letters and generated JSON in original
-and reversed candidate order, plus `comparison.json` and `comparison.md`.
+and reversed candidate order, plus `comparison.json` and `comparison.md`. Representative runs
+also include repeated, CUDA-synchronized full-workload timing with balanced scorer order, throughput
+and peak-memory evidence. Omit the performance flags for cheap functional smoke runs.
 
 The stable-scorer decision requires the pinned Qwen3.5-4B BF16/CUDA execution contract and the
 precommitted margins in the methodology. Smaller-model or hosted-CPU results are directional only.
