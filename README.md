@@ -40,7 +40,7 @@ The product hypothesis is simple:
 Decisio is currently an experimental Python package. Python 3.11+ is supported.
 
 ```bash
-uv sync --extra qwen --extra dev
+uv sync --frozen --extra qwen --extra dev
 ```
 
 For a cheap **functional smoke** on CPU, use the smaller Qwen3.5-0.8B checkpoint:
