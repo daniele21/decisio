@@ -72,4 +72,4 @@ Every performance optimization that changes outputs must report the changed rows
 - benchmark methodology/results: `benchmarks/` and focused result docs once implemented
 - repository usability/reproducibility hardening: `docs/repository-quality.md`
 
-The repository was bootstrapped from `repo-template-sw` and still contains inherited baseline material. Treat that as migration residue until specialization/cleanup is complete; do not confuse the baseline's own README/contracts with Decisio product truth.
+The repository was bootstrapped from `repo-template-sw`. Root `.engineering/`, `skills/`, `scripts/`, workflows and Decisio docs are the operational authority. The embedded `template/` tree is baseline source material only and must not override local project contracts.
