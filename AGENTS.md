@@ -8,6 +8,7 @@ Before substantial product or architecture work, read:
 2. `docs/architecture.md` — scoring semantics and proposed system boundaries.
 3. `docs/roadmap.md` — evidence-driven implementation order.
 4. `docs/current-state.md` — integrated/blocked/next truth.
+5. `docs/repository-quality.md` — only when the task affects repository usability, reproducibility, documentation structure or contributor experience.
 
 ## Product invariant
 
@@ -69,5 +70,6 @@ Every performance optimization that changes outputs must report the changed rows
 - integrated/blocked/next: `docs/current-state.md`
 - durable architectural rationale: `docs/adr/`
 - benchmark methodology/results: `benchmarks/` and focused result docs once implemented
+- repository usability/reproducibility hardening: `docs/repository-quality.md`
 
 The repository was bootstrapped from `repo-template-sw` and still contains inherited baseline material. Treat that as migration residue until specialization/cleanup is complete; do not confuse the baseline's own README/contracts with Decisio product truth.
