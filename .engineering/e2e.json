@@ -10,7 +10,7 @@
     "execution_capability_separate_from_environment_fidelity": true,
     "lowest_sufficient_test_level": true,
     "critical_journeys_only": true,
-    "built_artifact_when_material": false,
+    "built_artifact_when_material": true,
     "residual_fidelity_gaps_explicit": true,
     "ui_evidence_risk_based": true
   },
