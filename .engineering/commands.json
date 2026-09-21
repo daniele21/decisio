@@ -16,7 +16,7 @@
     },
     "check": {
       "status": "required",
-      "run": "uv run ruff check src tests examples && uv run python -m compileall -q src tests examples"
+      "run": "uv run python scripts/verify_repository.py && uv run python scripts/verify_operations.py && uv run python scripts/verify_validation_cadence.py && uv run python scripts/verify_e2e.py && uv run python scripts/verify_stage_environment_policy.py && uv run python scripts/verify_infrastructure.py && uv run python scripts/verify_product_development.py && uv run python scripts/verify_product_experience.py && uv run python scripts/verify_docs.py && uv run python scripts/verify_agent_context.py && uv run ruff check src tests examples && uv run python -m compileall -q src tests examples"
     },
     "test": {
       "status": "required",
@@ -155,7 +155,7 @@
   },
   "remote_preflight": {
     "status": "recommended",
-    "trigger": "GitHub Actions pull-request workflows",
+    "trigger": "GitHub Actions integration-preflight workflow",
     "default_profile": "auto",
     "stronger_profile_override_allowed": true,
     "weaker_profile_override_requires_explicit_justification": true,
