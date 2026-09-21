@@ -1,0 +1,69 @@
+name: Real model smoke
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - ".github/workflows/model-smoke.yml"
+      - "pyproject.toml"
+      - "src/decisio/backends/qwen.py"
+      - "src/decisio/compiler.py"
+      - "src/decisio/schema.py"
+      - "src/decisio/scorers/semantic.py"
+      - "benchmarks/fixtures/ci-smoke.json"
+
+permissions:
+  contents: read
+
+jobs:
+  qwen-cpu-smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      HF_HUB_DISABLE_TELEMETRY: "1"
+      TOKENIZERS_PARALLELISM: "false"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install Decisio with Qwen runtime
+        run: python -m pip install -e ".[qwen]"
+
+      - name: Run real Qwen3.5 semantic scorer
+        run: |
+          decisio score \
+            --input benchmarks/fixtures/ci-smoke.json \
+            --scorer semantic \
+            --model Qwen/Qwen3.5-0.8B \
+            --revision 2fc06364 \
+            --device cpu \
+            --dtype bfloat16 \
+            > /tmp/decisio-real-model-smoke.json
+
+      - name: Verify zero-generation result contract
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          path = Path("/tmp/decisio-real-model-smoke.json")
+          result = json.loads(path.read_text())
+
+          assert result["generated_tokens"] == 0, result
+          assert result["scorer"] == "semantic_binary_logodds_v1", result
+          assert result["probability_status"] == "uncalibrated_conditional_scores", result
+          assert result["choice"] in {"billing", "technical"}, result
+          assert set(result["distribution"]) == {"billing", "technical"}, result
+          assert abs(sum(result["distribution"].values()) - 1.0) < 1e-6, result
+          assert result["model"]["model"] == "Qwen/Qwen3.5-0.8B", result
+          assert result["model"]["model_type"] == "qwen3_5_text", result
+
+          print(json.dumps({
+              "choice": result["choice"],
+              "distribution": result["distribution"],
+              "generated_tokens": result["generated_tokens"],
+              "model": result["model"],
+          }, indent=2, sort_keys=True))
+          PY
