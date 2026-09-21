@@ -21,13 +21,16 @@ The supported development runtime is Python 3.11+.
 uv sync --frozen --extra qwen --extra dev
 ```
 
-For core tests that do not load a real model:
+For the cheap deterministic loop:
 
 ```bash
-python -m pip install -e ".[dev]"
-pytest
-ruff check src tests examples
+uv sync --frozen --extra dev
+uv run ruff check src tests examples
+uv run pytest
+uv run python -m compileall -q src tests examples
 ```
+
+Repository/governance checks are owned by `scripts/verify_*.py` and run in the Repository health workflow. Canonical command intent lives in `.engineering/commands.json`.
 
 ## Change rules
 
