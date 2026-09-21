@@ -9,6 +9,7 @@ Start here:
 - [Roadmap](roadmap.md) — evidence-driven implementation plan and feature order.
 - [Current state](current-state.md) — what is integrated and what should happen next.
 - [ADR 0001](adr/0001-training-free-semantic-scoring.md) — why v1 is training-free and semantic-scoring-first.
+- [ADR 0002](adr/0002-constrain-before-score.md) — why deterministic constraints precede semantic scoring and why v2 is comparative.
 
 ## Documentation rule
 
