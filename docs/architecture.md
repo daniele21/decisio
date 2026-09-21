@@ -7,7 +7,31 @@ Owner: repository
 
 Decisio converts a compatible causal language model into a bounded semantic decision engine without running an autoregressive answer-generation loop.
 
-The first implementation uses Qwen 3.5 4B as the reference model and treats the model as a semantic scorer. The runtime compiles state, question and candidates into deterministic scoring prompts, reuses shared context when possible, reads only the logits needed by the scorer, and post-processes them into an explicitly typed result.
+The first implementation uses Qwen 3.5 4B as the reference model and treats the model as a semantic scorer. Applications provide only alternatives that remain valid after deterministic domain constraints. The runtime compiles state, question and candidates into comparative scoring prompts, batches candidate prompts when supported, reads only the requested readout logits, and post-processes them into an explicitly typed result.
+
+## Constraint boundary
+
+Decisio chooses among **valid alternatives**; it does not replace deterministic rules.
+
+```text
+raw domain state + raw actions
+            |
+            v
+ deterministic/domain constraints
+            |
+            v
+       valid candidates
+            |
+            v
+          Decisio
+            |
+            v
+  semantic preference among them
+```
+
+Examples include geometry, schema validity, hard policy requirements, resource bounds, and other conditions whose truth is already known deterministically. The owning application is responsible for those constraints. If exactly one valid alternative remains, callers may resolve it without model inference.
+
+This boundary avoids spending model compute on impossible options and prevents a probabilistic scorer from overruling facts such as "this move hits a wall."
 
 ## Reference decision flow
 
@@ -50,13 +74,13 @@ No answer token needs to be sampled or appended to the sequence.
 
 ## Primary scoring method
 
-For each candidate `c_i`, compile a binary semantic judgment whose valid readout is `YES` versus `NO`.
+For each candidate `c_i`, compile a binary comparative judgment whose valid readout is `YES` versus `NO`. The prompt includes the complete alternative set and asks whether `c_i` is the best answer among those alternatives.
 
 The raw candidate score is:
 
 ```text
-score_i = logit(YES | state, question, candidate_i)
-        - logit(NO  | state, question, candidate_i)
+score_i = logit(YES | state, question, alternatives, candidate_i)
+        - logit(NO  | state, question, alternatives, candidate_i)
 ```
 
 For mutually exclusive choice candidates, derive a conditional distribution:
@@ -180,8 +204,8 @@ Qwen 3.5 4B is the reference implementation, not a permanent dependency boundary
 
 ## Runtime priorities
 
-1. correctness-equivalent fresh semantic scoring;
-2. candidate batching;
+1. correctness-equivalent comparative semantic scoring;
+2. candidate batching + selected-vocabulary projection;
 3. shared state/question reuse;
 4. multi-question reuse;
 5. backend portability;
@@ -199,6 +223,7 @@ Benchmark artifacts must avoid embedding sensitive user data.
 
 - generated answer tokens = 0 on native Decisio scoring paths;
 - no silent input truncation;
+- deterministic invalid candidates are excluded before semantic scoring when the caller can know validity exactly;
 - candidate IDs remain independent from their rendered order;
 - scoring/readout tokens are validated against the tokenizer;
 - uncalibrated values are labeled as such;
@@ -220,6 +245,6 @@ These should be answered by evidence rather than preference:
 
 ## Current implementation boundary
 
-Milestone 0 implements the simple fresh reference path only: each semantic candidate is compiled and evaluated independently, while the letter-token baseline uses one forward pass for the complete option set.
+The current reference path implements comparative semantic scoring and backend candidate batching. All candidate prompts are padded into one model batch, final hidden states are selected at each real sequence end, and only requested vocabulary rows are projected. This removes sequential full forwards and full-vocabulary projection without changing the zero-generation contract.
 
-The Qwen adapter uses Transformers' text-only causal-LM mapping for the pinned `Qwen/Qwen3.5-4B` checkpoint and requests only the final-position logits. Cache sharing, candidate micro-batching and multi-question reuse remain deliberately outside this reference path until semantic behavior is measured.
+The batch still duplicates the common state/question tokens across rows. Qwen3.5 uses a hybrid 3:1 Gated DeltaNet/full-attention text stack, so true shared-prefix/cache branching requires model-specific equivalence work rather than assuming a conventional KV-only decoder cache. Shared-prefix and multi-question reuse therefore remain pending.
