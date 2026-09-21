@@ -18,7 +18,7 @@ Read only the context relevant to your change:
 The supported development runtime is Python 3.11+.
 
 ```bash
-uv sync --extra qwen --extra dev
+uv sync --frozen --extra qwen --extra dev
 ```
 
 For core tests that do not load a real model:
