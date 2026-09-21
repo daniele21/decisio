@@ -262,6 +262,25 @@ The repository should be self-contained and product-specific:
 - keep `docs/current-state.md` exact and fresh;
 - keep release history about Decisio, not about the template used to bootstrap it.
 
+## Implementation progress
+
+| ID | State on this branch | Evidence / remaining work |
+| --- | --- | --- |
+| RQ-01 | IMPLEMENTED, evidence pending | repeated balanced performance trials, CUDA synchronization, throughput and peak-memory reporting are implemented; representative 4B/CUDA run still required |
+| RQ-02 | PENDING | default branch still needs branch convergence/merge |
+| RQ-03 | IN PROGRESS | baseline, command and E2E contracts are specialized; inherited template-source residue and full repository-health adoption remain |
+| RQ-04 | IMPLEMENTED | committed `uv.lock`, frozen setup commands and CI lock verification |
+| RQ-05 | IMPLEMENTED | Apache-2.0 `LICENSE` added |
+| RQ-06 | IMPLEMENTED for current choice contract | strict strings/JSON state, finite result validation, duplicate-description rejection and deterministic ties |
+| RQ-07 | IMPLEMENTED | architecture now separates current owners from planned target components |
+| RQ-08 | BLOCKED BY SCORER GATE | stable high-level Python API intentionally waits for scorer semantics |
+| RQ-09 | IMPLEMENTED | README is reorganized around identity, quickstart, semantics, status and deeper docs |
+| RQ-10 | IMPLEMENTED | concise `CONTRIBUTING.md` and `SECURITY.md` added |
+| RQ-11 | PARTIAL | malformed contracts, numerical edge cases and exact ties are covered; backend/tokenizer/context-limit negatives can expand later |
+| RQ-12 | PRESERVED | benchmark methodology keeps internal scorer evidence in Decisio and external endpoint evaluation in Performance Lab |
+| RQ-13 | PLACEHOLDERS ADDED | README and repository-quality docs specify the required future visuals; polished assets wait for stable semantics |
+| RQ-14 | PARTIAL | Decisio-specific version/changelog exist; release package workflow remains future work |
+
 ## Improvement backlog
 
 Priority meanings:
