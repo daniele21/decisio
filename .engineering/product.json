@@ -45,5 +45,17 @@
     "least_invasive_sufficient_evidence": true,
     "privacy_preserving_by_default": true,
     "material_assumptions_distinguished_from_facts": true
+  },
+  "handoffs": {
+    "product_experience_skill": "skills/design-product-experience/SKILL.md",
+    "product_shaping_skill": "skills/shape-product-change/SKILL.md",
+    "engineering_workstream_skill": "skills/plan-workstream/SKILL.md"
+  },
+  "post_release_learning": {
+    "required_when_material": true,
+    "default_for_depths": [
+      "product_feature",
+      "product_strategic"
+    ]
   }
 }
