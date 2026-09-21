@@ -1,0 +1,57 @@
+name: Integration preflight
+
+on:
+  pull_request:
+    types: [ready_for_review, synchronize, reopened]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: integration-preflight-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  integration-preflight:
+    if: github.event_name == 'workflow_dispatch' || github.event.pull_request.draft == false
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install uv
+        run: python -m pip install "uv==0.10.0"
+      - name: Verify locked environment
+        run: |
+          uv lock --check
+          uv sync --frozen --extra dev
+      - name: Verify repository contracts
+        run: |
+          uv run python scripts/verify_repository.py
+          uv run python scripts/verify_operations.py
+          uv run python scripts/verify_validation_cadence.py
+          uv run python scripts/verify_e2e.py
+          uv run python scripts/verify_stage_environment_policy.py
+          uv run python scripts/verify_infrastructure.py
+          uv run python scripts/verify_product_development.py
+          uv run python scripts/verify_product_experience.py
+          uv run python scripts/verify_docs.py
+          uv run python scripts/verify_agent_context.py
+      - name: Lint
+        run: uv run ruff check src tests examples
+      - name: Test
+        run: uv run pytest
+      - name: Compile
+        run: uv run python -m compileall -q src tests examples
+      - name: Build package
+        run: uv build
+      - name: Smoke installed wheel
+        run: |
+          python -m venv /tmp/decisio-wheel-smoke
+          /tmp/decisio-wheel-smoke/bin/python -m pip install dist/*.whl
+          /tmp/decisio-wheel-smoke/bin/python -c "import decisio; print(decisio.__version__)"
+          /tmp/decisio-wheel-smoke/bin/decisio --help

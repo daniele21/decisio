@@ -1,0 +1,42 @@
+{
+  "schema_version": 1,
+  "contract_version": "0.1.0",
+  "status": "n/a",
+  "default_for_new_cloud_projects_without_existing_iac": "terraform",
+  "preserve_existing_iac_when_fit": true,
+  "manual_shared_infrastructure": "exception_only",
+  "drift_reconciled_to_code": true,
+  "mechanism": "n/a",
+  "root": "n/a",
+  "environment_policy": {
+    "explicit_target_required": true,
+    "production_implicit_default_forbidden": true,
+    "feature_branch_production_apply": false,
+    "production_apply_stage": "release"
+  },
+  "plan_apply_policy": {
+    "plan_before_apply": true,
+    "review_destructive_changes": true,
+    "review_policy_network_data_cost_risk": true,
+    "post_apply_verification": true
+  },
+  "state": {
+    "shared_environment_remote_state": true,
+    "environment_isolation": true,
+    "locking_or_concurrency_guard": true,
+    "state_is_sensitive": true,
+    "state_files_committed": false
+  },
+  "secrets": {
+    "secret_values_in_source_forbidden": true,
+    "secret_resources_and_references_in_iac_allowed": true
+  },
+  "terraform_defaults": {
+    "preferred_for_new_cloud_projects_without_existing_iac": true,
+    "provider_lock_file_committed": true,
+    "generated_directory_committed": false,
+    "plan_files_committed": false,
+    "remote_state_for_shared_environments": true,
+    "state_locking_or_equivalent": true
+  }
+}
