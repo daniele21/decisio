@@ -4,7 +4,7 @@
   "commands": {
     "setup": {
       "status": "required",
-      "run": "uv sync --extra qwen --extra dev"
+      "run": "uv sync --frozen --extra qwen --extra dev"
     },
     "doctor": {
       "status": "recommended",
