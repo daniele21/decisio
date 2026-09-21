@@ -86,6 +86,14 @@ class QwenTransformersBackend:
         cuda_device_name = (
             self._torch.cuda.get_device_name() if self.device == "cuda" else None
         )
+        cuda_device_capability = (
+            list(self._torch.cuda.get_device_capability()) if self.device == "cuda" else None
+        )
+        cuda_total_memory_bytes = (
+            int(self._torch.cuda.get_device_properties(0).total_memory)
+            if self.device == "cuda"
+            else None
+        )
         return {
             "backend": "transformers",
             "model": self.config.model,
@@ -98,6 +106,8 @@ class QwenTransformersBackend:
             "torch": self._torch.__version__,
             "cuda_runtime": self._torch.version.cuda,
             "cuda_device_name": cuda_device_name,
+            "cuda_device_capability": cuda_device_capability,
+            "cuda_total_memory_bytes": cuda_total_memory_bytes,
             "batched_candidate_scoring": True,
             "selected_vocab_projection": True,
         }
