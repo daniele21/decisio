@@ -1,0 +1,159 @@
+{
+  "schema_version": 2,
+  "estimated_token_characters": 4,
+  "budgets": {
+    "root_agents": {
+      "max_lines": 120,
+      "max_estimated_tokens": 1200
+    },
+    "scoped_agents": {
+      "max_lines": 150,
+      "max_estimated_tokens": 2000
+    },
+    "product": {
+      "max_lines": 220,
+      "max_estimated_tokens": 3000
+    },
+    "current_state": {
+      "max_lines": 120,
+      "max_estimated_tokens": 1500
+    },
+    "active_workstream": {
+      "max_lines": 220,
+      "max_estimated_tokens": 3000
+    },
+    "architecture": {
+      "max_lines": 400,
+      "max_estimated_tokens": 5500
+    },
+    "feature_doc": {
+      "max_lines": 400,
+      "max_estimated_tokens": 5500
+    }
+  },
+  "context_targets": {
+    "bootstrap_max_estimated_tokens": 1200,
+    "root_scoped_workstream_max_estimated_tokens": 6000
+  },
+  "duplicate_min_characters": 240,
+  "completed_workstream_markers": [
+    "Status: complete",
+    "Status: completed",
+    "Status: done"
+  ],
+  "context_exclude_directories": [
+    ".git",
+    "node_modules",
+    ".venv",
+    "venv",
+    ".gradle",
+    ".build",
+    "__pycache__"
+  ],
+  "context_routes": {
+    "docs": {
+      "read_when": "Pure documentation/copy without executable or policy changes; readiness is a separate route.",
+      "files": [
+        "AGENTS.md",
+        "docs/README.md"
+      ],
+      "include_scoped_guides": true,
+      "include_workstream": false,
+      "max_estimated_tokens": 5000
+    },
+    "bug": {
+      "read_when": "Meaningful owner-local bug during iteration.",
+      "files": [
+        "AGENTS.md",
+        ".engineering/commands.json",
+        "skills/structured-change/SKILL.md",
+        "skills/validate-change/SKILL.md"
+      ],
+      "include_scoped_guides": true,
+      "include_workstream": false,
+      "max_estimated_tokens": 6500
+    },
+    "product": {
+      "read_when": "Material product behavior, capability or strategy shaping before substantial implementation.",
+      "files": [
+        "AGENTS.md",
+        ".engineering/product.json",
+        "docs/product.md",
+        "skills/shape-product-change/SKILL.md"
+      ],
+      "include_scoped_guides": true,
+      "include_workstream": false,
+      "max_estimated_tokens": 6500
+    },
+    "contract": {
+      "read_when": "Shared-boundary implementation; add actual owner/consumer source reads.",
+      "files": [
+        "AGENTS.md",
+        ".engineering/commands.json",
+        "skills/structured-change/SKILL.md",
+        "skills/validate-change/SKILL.md",
+        "docs/architecture.md"
+      ],
+      "include_scoped_guides": true,
+      "include_workstream": false,
+      "max_estimated_tokens": 10000
+    },
+    "ui": {
+      "read_when": "Material product-ui iteration; headless projects keep this route dormant.",
+      "files": [
+        "AGENTS.md",
+        ".engineering/commands.json",
+        "skills/structured-change/SKILL.md",
+        "skills/validate-change/SKILL.md",
+        "skills/design-product-experience/SKILL.md",
+        "design/ux-contract.json",
+        "design/brand-kit.json",
+        ".engineering/e2e.json"
+      ],
+      "include_scoped_guides": true,
+      "include_workstream": false,
+      "max_estimated_tokens": 11000,
+      "requires_profile": "product-ui"
+    },
+    "integration": {
+      "read_when": "Candidate readiness, including a remote handoff when required.",
+      "files": [
+        "AGENTS.md",
+        ".engineering/commands.json",
+        "skills/preflight-change/SKILL.md",
+        ".engineering/e2e.json",
+        "skills/remote-preflight/SKILL.md",
+        "docs/README.md"
+      ],
+      "include_scoped_guides": true,
+      "include_workstream": false,
+      "max_estimated_tokens": 9500
+    },
+    "release": {
+      "read_when": "Release readiness; add applicable project release runbooks/evidence.",
+      "files": [
+        "AGENTS.md",
+        ".engineering/commands.json",
+        "skills/preflight-change/SKILL.md",
+        ".engineering/e2e.json",
+        "skills/remote-preflight/SKILL.md",
+        "docs/README.md"
+      ],
+      "include_scoped_guides": true,
+      "include_workstream": false,
+      "max_estimated_tokens": 9500
+    },
+    "resume": {
+      "read_when": "Resume a multi-session bug or implementation workstream.",
+      "files": [
+        "AGENTS.md",
+        ".engineering/commands.json",
+        "skills/structured-change/SKILL.md",
+        "skills/validate-change/SKILL.md"
+      ],
+      "include_scoped_guides": true,
+      "include_workstream": true,
+      "max_estimated_tokens": 9500
+    }
+  }
+}
