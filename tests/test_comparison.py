@@ -24,6 +24,25 @@ class FakeResult:
         }
 
 
+class TimingBackend:
+    def __init__(self):
+        self.sync_calls = 0
+        self.reset_calls = 0
+
+    @property
+    def identity(self):
+        return {"backend": "fake", "device": "cuda", "dtype": "bfloat16"}
+
+    def synchronize(self):
+        self.sync_calls += 1
+
+    def reset_peak_memory(self):
+        self.reset_calls += 1
+
+    def peak_memory_bytes(self):
+        return 1024
+
+
 class FakeScorer:
     def __init__(
         self,
@@ -32,11 +51,13 @@ class FakeScorer:
         *,
         reverse_choices: dict[str, str | None] | None = None,
         generated_tokens: int = 0,
+        backend: Any | None = None,
     ):
         self.name = name
         self.choices = choices
         self.reverse_choices = reverse_choices or {}
         self.generated_tokens = generated_tokens
+        self.backend = backend
 
     def score(self, request: ChoiceRequest) -> FakeResult:
         assert request.id is not None
@@ -122,33 +143,40 @@ def test_benchmark_reports_invalid_and_family_breakdown(tmp_path: Path):
     assert summary["families"]["policy"]["accuracy"] == 0.5
 
 
-def test_comparison_is_paired_and_measures_order_sensitivity(tmp_path: Path):
-    input_path = tmp_path / "fixture.jsonl"
-    output_dir = tmp_path / "matrix"
-    _write_fixture(input_path)
-
+def _comparison_scorers(*, backend: Any | None = None):
     truth = {"a": "yes", "b": "no", "c": "yes", "d": "no"}
-    scorers = {
-        "semantic": FakeScorer("semantic-v2", truth),
+    return {
+        "semantic": FakeScorer("semantic-v2", truth, backend=backend),
         "semantic-independent": FakeScorer(
             "semantic-v1",
             {"a": "yes", "b": "yes", "c": "yes", "d": "no"},
+            backend=backend,
         ),
         "letters": FakeScorer(
             "letters",
             truth,
             reverse_choices={"a": "no"},
+            backend=backend,
         ),
         "generated": FakeScorer(
             "generated",
             {"a": "yes", "b": "no", "c": None, "d": "no"},
             generated_tokens=3,
+            backend=backend,
         ),
     }
 
-    report = run_comparison(input_path, output_dir, scorers)
+
+def test_comparison_is_paired_and_measures_order_sensitivity(tmp_path: Path):
+    input_path = tmp_path / "fixture.jsonl"
+    output_dir = tmp_path / "matrix"
+    _write_fixture(input_path)
+
+    report = run_comparison(input_path, output_dir, _comparison_scorers())
 
     assert report["examples"] == 4
+    assert report["schema_version"] == 2
+    assert report["performance"]["enabled"] is False
     assert report["scorers"]["semantic"]["normal"]["accuracy"] == 1.0
     assert report["scorers"]["letters"]["order_sensitivity"]["choice_changes"] == 1
     assert report["scorers"]["generated"]["normal"]["invalid"] == 1
@@ -166,3 +194,46 @@ def test_comparison_is_paired_and_measures_order_sensitivity(tmp_path: Path):
     markdown = (output_dir / "comparison.md").read_text(encoding="utf-8")
     assert "Paired correctness versus semantic v2" in markdown
     assert "integration/directional evidence only" in markdown
+
+
+def test_comparison_performance_trials_rotate_order_and_capture_memory(tmp_path: Path):
+    input_path = tmp_path / "fixture.jsonl"
+    output_dir = tmp_path / "matrix"
+    _write_fixture(input_path)
+    backend = TimingBackend()
+
+    report = run_comparison(
+        input_path,
+        output_dir,
+        _comparison_scorers(backend=backend),
+        warmup_rounds=1,
+        performance_rounds=4,
+    )
+
+    performance = report["performance"]
+    assert performance["enabled"] is True
+    assert performance["warmup_rounds"] == 1
+    assert performance["measured_rounds"] == 4
+    assert len({tuple(order) for order in performance["execution_order"]}) == 4
+    assert performance["backend_identity"]["device"] == "cuda"
+    assert performance["scorers"]["semantic"]["peak_memory_bytes"]["max"] == 1024
+    assert performance["scorers"]["semantic"]["duration_seconds"]["p95"] >= 0.0
+    assert backend.reset_calls == 20
+    assert backend.sync_calls == 40
+
+
+def test_comparison_rejects_warmup_without_measurement(tmp_path: Path):
+    input_path = tmp_path / "fixture.jsonl"
+    _write_fixture(input_path)
+
+    try:
+        run_comparison(
+            input_path,
+            tmp_path / "matrix",
+            _comparison_scorers(),
+            warmup_rounds=1,
+        )
+    except ValueError as exc:
+        assert "requires performance_rounds" in str(exc)
+    else:  # pragma: no cover - defensive
+        raise AssertionError("expected invalid performance configuration")
