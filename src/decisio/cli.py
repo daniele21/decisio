@@ -81,6 +81,18 @@ def build_parser() -> argparse.ArgumentParser:
     )
     compare.add_argument("--input", type=Path, required=True)
     compare.add_argument("--output-dir", type=Path, required=True)
+    compare.add_argument(
+        "--warmup-rounds",
+        type=int,
+        default=0,
+        help="full-workload warm-up rounds before repeated performance measurement",
+    )
+    compare.add_argument(
+        "--performance-rounds",
+        type=int,
+        default=0,
+        help="repeated full-workload performance rounds; zero disables performance trials",
+    )
     _add_model_args(compare)
     return parser
 
@@ -108,7 +120,13 @@ def main(argv: list[str] | None = None) -> int:
         return 0
 
     scorers = {name: _scorer(name, backend) for name in SCORER_KEYS}
-    report = run_comparison(args.input, args.output_dir, scorers)
+    report = run_comparison(
+        args.input,
+        args.output_dir,
+        scorers,
+        warmup_rounds=args.warmup_rounds,
+        performance_rounds=args.performance_rounds,
+    )
     print(
         json.dumps(
             {
