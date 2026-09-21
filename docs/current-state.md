@@ -12,7 +12,7 @@ Validate the scoring hypothesis and runtime shape on the pinned Qwen 3.5 4B refe
 | Workstream | Current executable slice | State | Blocker |
 | --- | --- | --- | --- |
 | Product foundation | Scope, architecture, scorer hypothesis, constraint boundary and roadmap | ACTIVE | pending merge |
-| Decision laboratory | Comparative semantic v2 + independent semantic v1 + letters + generated JSON | ACTIVE | representative Qwen3.5-4B/CUDA evidence not run yet |
+| Decision laboratory | Frozen paired v2/v1/letters/generated scorer gate + order reversal | ACTIVE | representative Qwen3.5-4B/CUDA gate not run yet |
 | Runtime | One-batch candidate execution + selected-vocabulary projection | ACTIVE | shared-prefix/cache reuse not implemented |
 | Examples | Constraint-first Snake, support routing and policy gate | ACTIVE | behavioral quality not benchmarked |
 
@@ -27,7 +27,7 @@ Validate the scoring hypothesis and runtime shape on the pinned Qwen 3.5 4B refe
 - generated JSON comparison baseline with invalid-output accounting;
 - tokenizer verification for one-token readout slots;
 - Qwen 3.5 4B Transformers backend pinned to an exact model revision;
-- CLI for single scoring and JSONL benchmarks;
+- CLI for single scoring, one-scorer JSONL benchmarks and the paired four-scorer comparison matrix;\n- frozen 64-example scorer-gate v1 workload with per-family metrics and exact input SHA-256;\n- paired v2-vs-baseline correctness, exact McNemar/binomial evidence and candidate-order sensitivity reporting;
 - auditable result records with scorer/model/prompt provenance;
 - candidate-order reversal perturbation and input SHA-256 tracking;
 - fixed-state Snake scorer fixtures;
@@ -69,7 +69,7 @@ All native decisions reported zero generated answer tokens. The previous wall-co
 
 ## Next
 
-- Run comparative v2, independent v1, letters and generated output on the same frozen Qwen3.5-4B/CUDA workload.
+- Run the frozen 64-example v2/v1/letters/generated scorer gate on pinned Qwen3.5-4B BF16/CUDA and retain the raw + JSON/Markdown reports.
 - Expand perturbations beyond candidate reversal: paraphrase/wrapping, irrelevant context, missing evidence and candidate-count scaling.
 - Compare batched versus sequential execution for output equivalence, latency and peak memory on representative hardware.
 - Decide from evidence whether comparative semantic log-odds remains the default scorer.
