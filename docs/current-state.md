@@ -5,92 +5,92 @@ Owner: repository
 
 ## Current milestone
 
-Validate the scoring hypothesis and runtime shape on the pinned Qwen 3.5 4B reference model while hardening the repository enough that the resulting evidence is reproducible and understandable.
+Decide whether comparative semantic v2 is a strong enough default on the pinned Qwen3.5-4B reference model, while keeping the repository reproducible and integration-ready.
 
 ## Active workstreams
 
 | Workstream | Current executable slice | State | Blocker |
 | --- | --- | --- | --- |
-| Product foundation | Scope, architecture, scorer hypothesis, constraint boundary and roadmap | ACTIVE | pending merge |
-| Decision laboratory | Frozen paired v2/v1/letters/generated scorer gate + order reversal | ACTIVE | representative Qwen3.5-4B/CUDA gate not run yet |
-| Runtime | One-batch candidate execution + selected-vocabulary projection | ACTIVE | shared-prefix/cache reuse not implemented |
-| Examples | Constraint-first Snake, support routing and policy gate | ACTIVE | behavioral quality not benchmarked |
-| Repository quality | Vertical hardening plan for onboarding, trust, reproducibility and maintainability | ACTIVE | P0 items tracked in `docs/repository-quality.md` |
+| Product foundation | Scope, architecture, constraints and roadmap | ACTIVE | stacked branches not yet converged to `main` |
+| Scorer decision | Frozen v2/v1/letters/generated gate + order reversal | ACTIVE | representative Qwen3.5-4B BF16/CUDA run |
+| Runtime | Candidate batching + selected-vocabulary projection | ACTIVE | shared-prefix/cache reuse not implemented |
+| Repository quality | Root Decisio baseline, locked setup, health/package gates | ACTIVE | final stacked-branch convergence |
+| Examples | Snake, support routing and policy gate | ACTIVE | examples remain exploratory rather than quality evidence |
 
-## Integrated on the product / benchmark branches
+## Implemented on the active branches
 
-- dependency-free decision schema and deterministic compiler;
-- comparative semantic v2 scorer using Yes/No log-odds across the complete alternative set;
-- original candidate-independent semantic v1 scorer retained as a baseline;
-- one-batch candidate execution in the Qwen backend;
-- selected-vocabulary projection for requested readout tokens;
-- A/B/C direct-logit baseline;
-- generated JSON comparison baseline with invalid-output accounting;
-- tokenizer verification for one-token readout slots;
-- Qwen 3.5 4B Transformers backend pinned to an exact model revision;
-- CLI for single scoring, one-scorer JSONL benchmarks and the paired four-scorer comparison matrix;
-- frozen 64-example scorer-gate v1 workload with per-family metrics and exact input SHA-256;
-- paired v2-vs-baseline correctness, exact McNemar/binomial evidence and candidate-order sensitivity reporting;
-- auditable result records with scorer/model/prompt provenance;
-- candidate-order reversal perturbation and input SHA-256 tracking;
-- fixed-state Snake scorer fixtures;
-- constraint-first Snake controller that removes deterministic reverse/wall/body failures before model scoring;
-- no-model fast path when exactly one safe Snake action remains;
-- runnable Snake, support-routing and policy-gate examples;
-- CI-generated Snake video and JSONL trace;
-- project CI for lint/test/compile;
-- real-model Qwen3.5-0.8B CPU integration smoke;
-- real-model four-scorer directional matrix smoke.
+### Decision path
 
-## Last validated implementation evidence
+- strict choice/request/result contracts with deterministic JSON state validation;
+- comparative semantic v2 scorer and independent semantic v1 baseline;
+- direct A/B/C baseline and generated JSON baseline;
+- deterministic compiler and one-token readout verification;
+- Qwen3.5 Transformers backend pinned to an exact model revision;
+- one-batch candidate scoring and selected-vocabulary projection;
+- deterministic candidate-ID tie breaking;
+- zero generated answer tokens on native scoring paths;
+- scorer/model/prompt provenance and frozen input SHA-256.
 
-Implementation head `be12009660f7bd9c22cef3d7e7979a9cfe36371f`:
+### Evidence
 
-- Decisio CI: PASS — https://github.com/daniele21/decisio/actions/runs/35641019755
-- Scorer matrix smoke: PASS — https://github.com/daniele21/decisio/actions/runs/35641019750
+- frozen 64-example scorer-gate v1 workload across four semantic families;
+- paired correctness and exact McNemar/binomial evidence;
+- normal/reversed candidate-order comparison;
+- generated-output invalid-rate accounting;
+- repeated performance trials with warm-up, balanced scorer position, CUDA synchronization, p50/p95 workload latency, decisions/sec and peak CUDA memory;
+- 8-case Qwen3.5-0.8B hosted-CPU directional scorer matrix;
+- real-model semantic/Snake integration smoke.
 
-The scorer-matrix smoke uses official Qwen3.5-0.8B on a hosted CPU runner. It proves real-model integration and evidence-format behavior only; it does **not** establish representative latency or quality.
+### Repository
 
-Directional 8-case matrix at that head:
+- `uv.lock` with frozen setup and lock verification;
+- Apache-2.0 license, contribution/security guidance and Decisio-specific changelog/version;
+- root `.engineering`, `skills/` and `scripts/` as the operational engineering authority;
+- Repository health and integration-preflight workflows;
+- CI lint/test/compile plus wheel build/install smoke;
+- current-vs-target architecture separated in documentation;
+- inherited repo-template contracts removed from the repository root;
+- embedded `template/` retained only as baseline source material.
 
-- semantic v2: 7/8 correct, 0/8 order changes, zero generated answer tokens;
-- semantic v1: 7/8 correct, 0/8 order changes, zero generated answer tokens;
-- letters: 7/8 correct, 1/8 order changes, zero generated answer tokens;
-- generated JSON: 7/8 correct, 2/8 order changes, 74 generated tokens.
+## Last validated automated evidence
 
-Hosted-CPU latency from that run is explicitly non-representative.
+Repository-specialization head `c7577c6a679e2574c80e80efffa0c987ed84f6ee`:
 
-## Repository blockers
+- Repository health: PASS — run `35655630899`;
+- Decisio CI: PASS — run `35655631123`;
+- CI includes lock verification, lint, tests, compile, wheel build and installed-wheel smoke.
+
+Runtime-hardening head `69d0d187960289ae05563fc614eb1b165e8398d1`:
+
+- Decisio CI: PASS — run `35653611378`;
+- Real model smoke: PASS — run `35653611388`.
+
+Latest completed directional scorer-matrix evidence remains the hosted-CPU Qwen3.5-0.8B run on `be12009660f7bd9c22cef3d7e7979a9cfe36371f`: all four methods scored 7/8; v2/v1 had 0/8 order changes, letters 1/8 and generated JSON 2/8. This is integration/directional evidence only.
+
+## Remaining blockers
 
 ### Scorer decision
 
-- Real Qwen 3.5 4B BF16/CUDA benchmark evidence is still required before Milestone 1 conclusions.
-- Comparative semantic v2 has not yet been shown to provide the required quality/robustness/performance trade-off against v1, direct answer-token scoring and generated structured output.
-- Representative performance methodology needs warm-up, repeated runs, CUDA synchronization and stronger systems metrics before latency is used as a stable promotion signal.
+- The frozen 64-case Qwen3.5-4B BF16/CUDA gate has not run on representative hardware.
+- No stable-default conclusion should be made until that evidence exists.
+- Broader paraphrase/wrapping, irrelevant-context, missing-evidence and candidate-count perturbations remain after the first scorer decision.
 
 ### Product capability
 
-- Shared-prefix/cache execution and multi-question reuse are not implemented; candidate batching still physically repeats shared prompt tokens across batch rows.
 - Answerability is not implemented.
-- Example behavior remains exploratory until promoted into frozen benchmark/regression evidence.
+- Shared-prefix/cache execution and multi-question reuse are not implemented.
+- Candidate batching still repeats shared prompt tokens across batch rows.
+- Stable high-level Python API is intentionally deferred until scorer semantics are decided.
 
-### Repository quality
+### Repository/integration
 
-The canonical hardening backlog is `docs/repository-quality.md`. Current P0 gaps include:
-
-- default `main` still presents inherited `repo-template-sw` product identity;
-- engineering-template specialization is incomplete;
-- dependency environment is not locked with `uv.lock`;
-- `LICENSE` is missing;
-- public request/result contracts still need edge-case hardening where they can affect benchmark correctness.
+- The stacked product/benchmark/docs/hardening branches still need convergence into the product branch and then deliberate promotion to `main`.
+- No repository-owned representative CUDA runner is currently available. Hosted CPU evidence cannot satisfy the 4B/CUDA claim.
 
 ## Next
 
-1. Harden representative benchmark timing according to RQ-01 before using CUDA latency as a scorer promotion gate.
-2. Run the frozen 64-example v2/v1/letters/generated gate on pinned Qwen3.5-4B BF16/CUDA and retain raw + JSON/Markdown reports.
-3. Decide from evidence whether comparative semantic log-odds remains the default scorer.
-4. Converge the product/scorer branches onto the default branch and complete the P0 repository-specialization work.
-5. Expand perturbations beyond candidate reversal: paraphrase/wrapping, irrelevant context, missing evidence and candidate-count scaling.
-6. Compare batched versus sequential execution for output equivalence, latency and peak memory on representative hardware.
-7. Implement answerability only after the scorer decision gate.
-8. Implement Qwen3.5-aware shared-prefix/cache reuse only with fresh-vs-shared equivalence evidence.
+1. Finish exact-head automated validation for the repository-specialization slice and converge the stacked support PRs.
+2. Run the frozen 64-case scorer gate on pinned Qwen3.5-4B BF16/CUDA when representative hardware is available.
+3. Decide from the precommitted gate whether comparative semantic v2 remains the default scorer.
+4. If v2 survives, stabilize the small public Python entry point; if it fails, analyze discordant rows before expanding the API.
+5. Continue broader perturbations, answerability and shared-prefix/cache work in that order.
