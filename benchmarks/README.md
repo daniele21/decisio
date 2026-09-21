@@ -29,13 +29,23 @@ Install the reference runtime:
 uv sync --extra qwen --extra dev
 ```
 
-Run the primary semantic scorer:
+Run the primary comparative semantic scorer:
 
 ```bash
 uv run decisio benchmark \
   --input benchmarks/fixtures/smoke.jsonl \
   --output .artifacts/semantic-smoke.jsonl \
   --scorer semantic \
+  --device cuda
+```
+
+Run the original independent semantic baseline:
+
+```bash
+uv run decisio benchmark \
+  --input benchmarks/fixtures/smoke.jsonl \
+  --output .artifacts/semantic-independent-smoke.jsonl \
+  --scorer semantic-independent \
   --device cuda
 ```
 
@@ -53,7 +63,7 @@ The default Qwen checkpoint is pinned in `src/decisio/backends/qwen.py`. Overrid
 
 ## Current benchmark boundary
 
-Milestone 0 uses **fresh inference** for every semantic candidate. Candidate batching, shared KV/state reuse and multi-question execution deliberately belong to a later milestone so optimized execution can be compared against a simple semantic reference path.
+The Qwen reference backend batches semantic candidate prompts in one forward and projects only requested readout vocabulary rows. This is a runtime optimization over the original sequential path. Shared-prefix/cache reuse and multi-question execution remain separate because they can affect model-state semantics and require equivalence evidence.
 
 
 ## Generated baseline
