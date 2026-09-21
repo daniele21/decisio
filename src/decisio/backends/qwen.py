@@ -83,6 +83,9 @@ class QwenTransformersBackend:
     @property
     def identity(self) -> dict[str, Any]:
         resolved_revision = getattr(self.model.config, "_commit_hash", None) or self.config.revision
+        cuda_device_name = (
+            self._torch.cuda.get_device_name() if self.device == "cuda" else None
+        )
         return {
             "backend": "transformers",
             "model": self.config.model,
@@ -93,9 +96,27 @@ class QwenTransformersBackend:
             "dtype": str(self.dtype).removeprefix("torch."),
             "transformers": self._transformers_version,
             "torch": self._torch.__version__,
+            "cuda_runtime": self._torch.version.cuda,
+            "cuda_device_name": cuda_device_name,
             "batched_candidate_scoring": True,
             "selected_vocab_projection": True,
         }
+
+    def synchronize(self) -> None:
+        """Synchronize accelerator work before or after wall-clock timing."""
+        if self.device == "cuda":
+            self._torch.cuda.synchronize()
+
+    def reset_peak_memory(self) -> None:
+        """Reset CUDA peak-memory accounting for one measured trial."""
+        if self.device == "cuda":
+            self._torch.cuda.reset_peak_memory_stats()
+
+    def peak_memory_bytes(self) -> int | None:
+        """Return CUDA peak allocated memory since the last reset."""
+        if self.device != "cuda":
+            return None
+        return int(self._torch.cuda.max_memory_allocated())
 
     def _project_selected(
         self,
