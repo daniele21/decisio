@@ -1,0 +1,22 @@
+{
+  "id": "support-routing-example",
+  "state": {
+    "ticket": "I was charged twice for the same annual subscription and need the duplicate payment refunded.",
+    "customer_tier": "business"
+  },
+  "question": "Which support queue should own this ticket?",
+  "candidates": [
+    {
+      "id": "billing",
+      "description": "Payments, invoices, refunds, duplicate charges, and subscription billing."
+    },
+    {
+      "id": "technical",
+      "description": "Product defects, API failures, outages, and software troubleshooting."
+    },
+    {
+      "id": "sales",
+      "description": "Pricing, plan selection, purchasing, and commercial discussions."
+    }
+  ]
+}

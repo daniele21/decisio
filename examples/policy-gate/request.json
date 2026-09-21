@@ -1,0 +1,23 @@
+{
+  "id": "policy-gate-example",
+  "state": {
+    "policy": "Customer personal data may be exported to an external analytics provider only when an active data-processing agreement covers that provider and the export purpose.",
+    "request": "Export customer email addresses to Acme Analytics for churn analysis.",
+    "evidence": {
+      "provider": "Acme Analytics",
+      "purpose": "churn analysis",
+      "active_dpa_for_provider": false
+    }
+  },
+  "question": "Given the policy and supplied evidence, what should the system do with this export request?",
+  "candidates": [
+    {
+      "id": "allow",
+      "description": "Allow the export because all stated policy requirements are satisfied."
+    },
+    {
+      "id": "deny",
+      "description": "Deny the export because at least one stated policy requirement is not satisfied."
+    }
+  ]
+}

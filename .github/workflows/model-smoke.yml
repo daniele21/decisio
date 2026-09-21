@@ -11,6 +11,7 @@ on:
       - "src/decisio/schema.py"
       - "src/decisio/scorers/semantic.py"
       - "benchmarks/fixtures/ci-smoke.json"
+      - "examples/snake/**"
 
 permissions:
   contents: read
@@ -73,5 +74,40 @@ jobs:
               "distribution": result["distribution"],
               "generated_tokens": result["generated_tokens"],
               "model": result["model"],
+          }, indent=2, sort_keys=True))
+          PY
+
+      - name: Run one real-model Snake decision
+        run: |
+          python -m examples.snake.play \
+            --model Qwen/Qwen3.5-0.8B \
+            --revision 2fc06364 \
+            --device cpu \
+            --dtype bfloat16 \
+            --seed 7 \
+            --max-steps 1 \
+            --trace /tmp/decisio-snake-smoke.jsonl
+
+      - name: Verify Snake decision loop
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          rows = Path("/tmp/decisio-snake-smoke.jsonl").read_text().splitlines()
+          assert len(rows) == 1, rows
+          record = json.loads(rows[0])
+          decision = record["decision"]
+          outcome = record["outcome"]
+
+          assert decision["generated_tokens"] == 0, record
+          assert decision["choice"] in {"up", "right", "down"}, record
+          assert abs(sum(decision["distribution"].values()) - 1.0) < 1e-6, record
+          assert outcome["alive"] is True, record
+
+          print(json.dumps({
+              "choice": decision["choice"],
+              "distribution": decision["distribution"],
+              "outcome": outcome,
           }, indent=2, sort_keys=True))
           PY

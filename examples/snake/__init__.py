@@ -1,0 +1,1 @@
+"""Snake closed-loop example."""

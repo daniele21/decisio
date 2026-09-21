@@ -148,8 +148,39 @@ uv run decisio benchmark \
 
 Milestone 0 intentionally uses fresh inference for every candidate. Shared KV/state execution is a later optimization and must be validated against this reference path.
 
+## Use cases and examples
+
+The repository includes executable scenarios under `examples/`:
+
+- **[Snake](examples/snake/)** — repeated closed-loop action selection from board state and candidate moves.
+- **[Support routing](examples/support-routing/)** — choose a runtime-defined support queue from ticket evidence.
+- **[Policy gate](examples/policy-gate/)** — bounded allow/deny interpretation over explicit policy and evidence.
+
+Snake is useful as a behavioral probe because every decision changes the next state:
+
+```bash
+uv run python -m examples.snake.play \
+  --model Qwen/Qwen3.5-0.8B \
+  --revision 2fc06364 \
+  --device cpu \
+  --dtype bfloat16 \
+  --max-steps 10 \
+  --render
+```
+
+Record the full episode for later analysis:
+
+```bash
+uv run python -m examples.snake.play \
+  --max-steps 50 \
+  --trace .artifacts/snake.jsonl
+```
+
+Each trace row stores the exact state, candidate set, decision distribution, model provenance and game outcome. Examples are exploratory scenarios, not benchmark claims.
 ## Documentation
 
+- [Examples and use cases](examples/README.md)
+- [Benchmark methodology](benchmarks/README.md)
 - [Product scope and durable objectives](docs/product.md)
 - [Architecture and scoring model](docs/architecture.md)
 - [Implementation roadmap](docs/roadmap.md)
@@ -157,4 +188,4 @@ Milestone 0 intentionally uses fresh inference for every candidate. Shared KV/st
 
 ## Status
 
-The repository is in **product/architecture definition**. No production inference implementation is integrated yet.
+Decisio is an **experimental working implementation**. Native semantic scoring, comparison baselines, CLI/benchmark tooling and a real Qwen3.5 integration smoke are implemented. Representative Qwen3.5-4B/CUDA evidence, answerability and shared-prefix execution are still pending.

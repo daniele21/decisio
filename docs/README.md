@@ -2,6 +2,8 @@
 
 Start here:
 
+- [Examples](../examples/README.md) — runnable use cases including Snake, support routing and policy gating.
+- [Benchmarks](../benchmarks/README.md) — reproducible scorer comparisons and perturbations.
 - [Product](product.md) — why Decisio exists, who it serves, non-goals and success criteria.
 - [Architecture](architecture.md) — semantic candidate scoring, answerability and runtime boundaries.
 - [Roadmap](roadmap.md) — evidence-driven implementation plan and feature order.
