@@ -1,0 +1,15 @@
+{
+  "id": "ci-real-model-smoke",
+  "state": "My card was charged twice for the same invoice.",
+  "question": "Which support queue should handle this request?",
+  "candidates": [
+    {
+      "id": "billing",
+      "description": "Payments, invoices, refunds, and duplicate charges"
+    },
+    {
+      "id": "technical",
+      "description": "Software bugs, outages, and application errors"
+    }
+  ]
+}
