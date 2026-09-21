@@ -22,6 +22,11 @@ jobs:
         run: uv lock --check
       - name: Install locked development environment
         run: uv sync --frozen --extra dev
+      - name: Validate specialized engineering contracts
+        run: |
+          uv run python template/scripts/verify_operations.py --root .
+          uv run python template/scripts/verify_e2e.py --root .
+          uv run python template/scripts/verify_product_development.py --root .
       - name: Lint
         run: uv run ruff check src tests examples
       - name: Test
