@@ -12,7 +12,7 @@ Validate the Milestone 0 scoring hypothesis on the pinned Qwen 3.5 4B reference 
 | Workstream | Current executable slice | State | Blocker |
 | --- | --- | --- | --- |
 | Product foundation | Scope, architecture, scorer hypothesis and roadmap | ACTIVE | pending merge |
-| Decision laboratory | Fresh semantic scorer + letter-token baseline + JSONL harness | ACTIVE | representative Qwen/CUDA evidence not run yet |
+| Decision laboratory | Semantic + letter-token + generated JSON baselines with JSONL harness | ACTIVE | representative Qwen/CUDA evidence not run yet |
 
 ## Integrated on the product branch
 
@@ -24,13 +24,13 @@ Validate the Milestone 0 scoring hypothesis on the pinned Qwen 3.5 4B reference 
 - CLI for single scoring and JSONL benchmarks;
 - auditable result records with scorer/model/prompt provenance;
 - smoke fixtures and deterministic unit tests;
-- project CI for lint/test/compile.
+- generated JSON comparison baseline with invalid-output accounting;\n- candidate-order reversal perturbation and input SHA-256 tracking;\n- project CI for lint/test/compile.
 
 ## Repository blockers
 
 - The repository still contains inherited `repo-template-sw` material that should be removed after the project-specific engineering baseline is specialized.
 - Real Qwen 3.5 4B BF16/CUDA benchmark evidence is still required before Milestone 1 conclusions.
-- Shared-prefix execution, answerability and generated-output comparison are intentionally not implemented yet.
+- Shared-prefix execution and answerability are intentionally not implemented yet; the generated-output baseline is available only for comparison.
 
 ## Next
 
