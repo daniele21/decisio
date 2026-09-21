@@ -63,7 +63,7 @@ jobs:
           result = json.loads(path.read_text())
 
           assert result["generated_tokens"] == 0, result
-          assert result["scorer"] == "semantic_binary_logodds_v1", result
+          assert result["scorer"] == "semantic_comparative_logodds_v2", result
           assert result["probability_status"] == "uncalibrated_conditional_scores", result
           assert result["choice"] in {"billing", "technical"}, result
           assert set(result["distribution"]) == {"billing", "technical"}, result
@@ -98,19 +98,27 @@ jobs:
 
           rows = Path("/tmp/decisio-snake-smoke.jsonl").read_text().splitlines()
           assert 1 <= len(rows) <= 5, rows
-          record = json.loads(rows[0])
-          decision = record["decision"]
-          outcome = record["outcome"]
+          for line in rows:
+              record = json.loads(line)
+              decision = record["decision"]
+              constraints = record["constraints"]
+              safe = set(constraints["safe_actions"])
 
-          assert decision["generated_tokens"] == 0, record
-          assert decision["choice"] in {"up", "right", "down"}, record
-          assert abs(sum(decision["distribution"].values()) - 1.0) < 1e-6, record
-          assert decision["generated_tokens"] == 0, record
+              assert decision["generated_tokens"] == 0, record
+              assert abs(sum(decision["distribution"].values()) - 1.0) < 1e-6, record
+              if safe:
+                  assert decision["choice"] in safe, record
+              if constraints["mode"] == "model":
+                  assert len(safe) >= 2, record
+                  assert decision["scorer"] == "semantic_comparative_logodds_v2", record
 
+          last = json.loads(rows[-1])
           print(json.dumps({
-              "choice": decision["choice"],
-              "distribution": decision["distribution"],
-              "outcome": outcome,
+              "steps": len(rows),
+              "last_choice": last["decision"]["choice"],
+              "last_distribution": last["decision"]["distribution"],
+              "last_constraints": last["constraints"],
+              "last_outcome": last["outcome"],
           }, indent=2, sort_keys=True))
           PY
 
