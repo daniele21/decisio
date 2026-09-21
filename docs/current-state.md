@@ -35,5 +35,5 @@ Validate the Milestone 0 scoring hypothesis on the pinned Qwen 3.5 4B reference 
 ## Next
 
 - Run the pinned reference model on the frozen smoke/initial evaluation set.
-- Add Milestone 1 perturbation fixtures and generated structured-output baseline.
+- Expand Milestone 1 perturbations beyond candidate reversal and run all three scorers on representative Qwen/CUDA.
 - Decide from evidence whether semantic binary log-odds remains the default scorer before implementing shared execution.

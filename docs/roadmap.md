@@ -40,6 +40,8 @@ Exit evidence:
 
 ## Milestone 1 — Decide whether semantic scoring wins
 
+**Harness status:** generated JSON baseline and candidate-order reversal are implemented; representative model evidence and broader perturbations are pending.
+
 Goal: validate the core differentiator before investing in infrastructure.
 
 Evaluation dimensions:

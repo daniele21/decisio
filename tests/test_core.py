@@ -129,3 +129,51 @@ def test_benchmark_writes_auditable_jsonl(tmp_path: Path):
     assert record["correct"] is True
     assert record["result"]["generated_tokens"] == 0
     assert record["result"]["model"]["model"] == "unit-test"
+
+
+class GenerationQueueBackend(QueueBackend):
+    def __init__(self, generated_text, generated_tokens):
+        super().__init__([])
+        self.generated_text = generated_text
+        self.generated_token_count = generated_tokens
+
+    def generate(self, input_ids, *, max_new_tokens):
+        assert input_ids
+        assert max_new_tokens > 0
+        return self.generated_text, self.generated_token_count
+
+
+def test_generated_json_baseline_counts_generated_tokens():
+    from decisio.baselines import GeneratedJsonScorer
+
+    backend = GenerationQueueBackend('{"choice":"billing"}', 6)
+    result = GeneratedJsonScorer(backend).score(request())
+    assert result.choice == "billing"
+    assert result.valid is True
+    assert result.generated_tokens == 6
+
+
+def test_generated_json_baseline_rejects_invalid_output():
+    from decisio.baselines import GeneratedJsonScorer
+
+    backend = GenerationQueueBackend("Billing because it is a payment issue.", 9)
+    result = GeneratedJsonScorer(backend).score(request())
+    assert result.choice is None
+    assert result.valid is False
+
+
+def test_benchmark_can_reverse_candidate_order(tmp_path: Path):
+    input_path = tmp_path / "input.jsonl"
+    output_path = tmp_path / "output.jsonl"
+    row = request().to_dict() | {"label": "billing"}
+    input_path.write_text(json.dumps(row) + "\n", encoding="utf-8")
+    # Reversed candidates are sales, technical, billing.
+    backend = QueueBackend([[0.0, 3.0], [2.0, 2.0], [5.0, 1.0]])
+    summary = run_benchmark(
+        input_path,
+        output_path,
+        SemanticBinaryScorer(backend),
+        reverse_candidates=True,
+    )
+    assert summary["perturbation"] == "reverse_candidates"
+    assert len(summary["input_sha256"]) == 64

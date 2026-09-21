@@ -54,3 +54,33 @@ The default Qwen checkpoint is pinned in `src/decisio/backends/qwen.py`. Overrid
 ## Current benchmark boundary
 
 Milestone 0 uses **fresh inference** for every semantic candidate. Candidate batching, shared KV/state reuse and multi-question execution deliberately belong to a later milestone so optimized execution can be compared against a simple semantic reference path.
+
+
+## Generated baseline
+
+The autoregressive comparator is intentionally outside the native zero-generation path:
+
+```bash
+uv run decisio benchmark \
+  --input benchmarks/fixtures/smoke.jsonl \
+  --output .artifacts/generated-smoke.jsonl \
+  --scorer generated \
+  --device cuda
+```
+
+It requests the smallest valid JSON object, records the raw model text, counts generated tokens, and treats malformed or out-of-set output as an invalid decision rather than repairing it.
+
+## Candidate-order perturbation
+
+Run any scorer against the same frozen input with reversed candidate order:
+
+```bash
+uv run decisio benchmark \
+  --input benchmarks/fixtures/smoke.jsonl \
+  --output .artifacts/semantic-reversed.jsonl \
+  --scorer semantic \
+  --reverse-candidates \
+  --device cuda
+```
+
+The benchmark summary includes the input SHA-256 and perturbation identity.

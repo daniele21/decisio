@@ -34,6 +34,10 @@ def _scorer(name: str, backend: Any):
         from .scorers import LetterTokenScorer
 
         return LetterTokenScorer(backend)
+    if name == "generated":
+        from .baselines import GeneratedJsonScorer
+
+        return GeneratedJsonScorer(backend)
     raise ValueError(f"unknown scorer {name!r}")
 
 
@@ -55,13 +59,16 @@ def build_parser() -> argparse.ArgumentParser:
 
     score = subparsers.add_parser("score", help="score one choice request from JSON")
     score.add_argument("--input", type=Path, required=True)
-    score.add_argument("--scorer", choices=["semantic", "letters"], default="semantic")
+    score.add_argument("--scorer", choices=["semantic", "letters", "generated"], default="semantic")
     _add_model_args(score)
 
     benchmark = subparsers.add_parser("benchmark", help="run a labeled JSONL benchmark")
     benchmark.add_argument("--input", type=Path, required=True)
     benchmark.add_argument("--output", type=Path, required=True)
-    benchmark.add_argument("--scorer", choices=["semantic", "letters"], default="semantic")
+    benchmark.add_argument(
+        "--scorer", choices=["semantic", "letters", "generated"], default="semantic"
+    )
+    benchmark.add_argument("--reverse-candidates", action="store_true")
     _add_model_args(benchmark)
     return parser
 
@@ -77,7 +84,12 @@ def main(argv: list[str] | None = None) -> int:
         print(json.dumps(result.to_dict(), ensure_ascii=False, indent=2, sort_keys=True))
         return 0
 
-    summary = run_benchmark(args.input, args.output, scorer)
+    summary = run_benchmark(
+        args.input,
+        args.output,
+        scorer,
+        reverse_candidates=args.reverse_candidates,
+    )
     print(json.dumps(summary, ensure_ascii=False, indent=2, sort_keys=True))
     return 0
 

@@ -93,6 +93,27 @@ class QwenTransformersBackend:
             "torch": self._torch.__version__,
         }
 
+    def generate(self, input_ids: tuple[int, ...], *, max_new_tokens: int) -> tuple[str, int]:
+        if not input_ids:
+            raise ValueError("input_ids must not be empty")
+        if max_new_tokens < 1:
+            raise ValueError("max_new_tokens must be positive")
+        torch = self._torch
+        ids = torch.tensor([input_ids], dtype=torch.long, device=self.device)
+        mask = torch.ones_like(ids)
+        eos = self.tokenizer.eos_token_id
+        with torch.inference_mode():
+            output = self.model.generate(
+                input_ids=ids,
+                attention_mask=mask,
+                max_new_tokens=max_new_tokens,
+                do_sample=False,
+                pad_token_id=eos,
+            )
+        new_ids = output[0, ids.shape[1] :]
+        text = self.tokenizer.decode(new_ids, skip_special_tokens=True)
+        return text, int(new_ids.numel())
+
     def next_token_logits(self, input_ids: tuple[int, ...], token_ids: list[int]) -> list[float]:
         if not input_ids:
             raise ValueError("input_ids must not be empty")
