@@ -147,6 +147,8 @@ def render_frame(record: dict[str, Any], output: Path) -> None:
     state = request["state"]
     decision = record["decision"]
     outcome = record["outcome"]
+    constraints = record.get("constraints", {})
+    latency = float(record.get("decision_latency_seconds", 0.0))
 
     draw.text((40, 28), "Decisio · Snake", font=title_font, fill="#f9fafb")
     draw.text(
@@ -180,12 +182,23 @@ def render_frame(record: dict[str, Any], output: Path) -> None:
         fill="#d1d5db",
     )
 
+    filtered = constraints.get("filtered_actions", {})
+    filtered_text = ", ".join(
+        f"{direction.upper()}:{reason}" for direction, reason in filtered.items()
+    ) or "none"
+    draw.text(
+        (panel_x, 252),
+        f"Filtered before model: {filtered_text}",
+        font=small_font,
+        fill="#f59e0b",
+    )
+
     _draw_probability_panel(
         draw,
         distribution=decision["distribution"],
         choice=decision["choice"],
         x0=panel_x,
-        y0=275,
+        y0=292,
         width=520,
         font=heading_font,
         small_font=small_font,
@@ -194,12 +207,18 @@ def render_frame(record: dict[str, Any], output: Path) -> None:
     status = "ALIVE" if outcome["alive"] else f"GAME OVER · {outcome['reason']}"
     status_fill = "#22c55e" if outcome["alive"] else "#ef4444"
     draw.text(
-        (panel_x, 610),
+        (panel_x, 595),
         f"Applied move: {decision['choice'].upper()}",
         font=heading_font,
         fill="#60a5fa",
     )
-    draw.text((panel_x, 654), status, font=body_font, fill=status_fill)
+    draw.text((panel_x, 635), status, font=body_font, fill=status_fill)
+    draw.text(
+        (panel_x, 666),
+        f"decision latency: {latency:.3f}s · mode={constraints.get('mode', 'model')}",
+        font=small_font,
+        fill="#9ca3af",
+    )
     draw.text(
         (40, 682),
         f"scorer={decision['scorer']} · generated_tokens={decision['generated_tokens']}",
