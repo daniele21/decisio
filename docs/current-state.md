@@ -38,7 +38,7 @@ Validate the scoring hypothesis and runtime shape on the pinned Qwen 3.5 4B refe
 - project CI for lint/test/compile;
 - real-model Qwen3.5-0.8B CPU integration smoke.
 
-## Exact-head automated evidence
+## Last validated implementation evidence
 
 Head `d966a5538e3fc8c55469bfd7624757bf66683e84`:
 
