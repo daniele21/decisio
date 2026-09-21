@@ -120,7 +120,7 @@ def _render_markdown(report: dict[str, Any]) -> str:
         "",
         "## Aggregate",
         "",
-        "| scorer | normal acc | reversed acc | order changes | invalid normal | median latency normal | generated tokens |",
+        (\n            "| scorer | normal acc | reversed acc | order changes | invalid normal | "\n            "median latency normal | generated tokens |"\n        ),
         "| --- | ---: | ---: | ---: | ---: | ---: | ---: |",
     ]
     for key in SCORER_KEYS:
@@ -149,7 +149,7 @@ def _render_markdown(report: dict[str, Any]) -> str:
             "",
             "## Paired correctness versus semantic v2",
             "",
-            "| baseline | perturbation | accuracy delta | v2-only correct | baseline-only correct | exact McNemar p |",
+            (\n                "| baseline | perturbation | accuracy delta | v2-only correct | "\n                "baseline-only correct | exact McNemar p |"\n            ),
             "| --- | --- | ---: | ---: | ---: | ---: |",
         ]
     )
@@ -176,7 +176,7 @@ def _render_markdown(report: dict[str, Any]) -> str:
             "",
             "## Interpretation boundary",
             "",
-            "This report is evidence, not an automatic product verdict. A stable-scorer decision requires the pinned Qwen3.5-4B BF16/CUDA run described by the scorer-gate methodology. Hosted CPU or smaller-model runs are integration/directional evidence only.",
+            (\n                "This report is evidence, not an automatic product verdict. A stable-scorer "\n                "decision requires the pinned Qwen3.5-4B BF16/CUDA run described by the scorer-gate "\n                "methodology. Hosted CPU or smaller-model runs are integration/directional evidence "\n                "only."\n            ),
             "",
         ]
     )
