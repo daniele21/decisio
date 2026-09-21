@@ -20,8 +20,9 @@ v1 is deliberately training-free. Do not introduce fine-tuning, adapters or lear
 ## Core technical invariants
 
 - Native Decisio scoring paths generate zero answer tokens.
-- The primary experimental scorer is semantic candidate binary log-odds, not A/B/C token scoring.
+- The primary experimental scorer is comparative semantic candidate log-odds; the original independent scorer remains a benchmark baseline.
 - Direct answer-token scoring is a baseline for comparison.
+- Deterministically invalid alternatives are filtered by the owning application/domain layer before model scoring; Decisio must not replace certain rules with probabilistic inference.
 - Answerability is separate from candidate preference.
 - Raw/normalized model scores are never described as calibrated probability of correctness unless a validated calibration artifact is active.
 - No silent input truncation.
