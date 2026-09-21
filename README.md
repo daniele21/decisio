@@ -1,83 +1,67 @@
 # Decisio
 
-**Turn open-weight LLMs into probabilistic decision engines — without generating text and without requiring fine-tuning.**
+**Use an open-weight LLM as a decision scorer instead of making it generate an answer.**
 
-Decisio is an inference layer for software that needs decisions rather than prose. It takes unstructured or structured state, a question, and runtime-defined candidates, then returns typed scores/distributions that software can use directly.
+Decisio takes application state, a question and runtime-defined candidates, then returns a typed relative decision distribution from model logits. The native scoring path generates **zero answer tokens** and requires **no fine-tuning**.
 
-The core project hypothesis is that a general-purpose causal LLM such as **Qwen 3.5 4B** can be used more effectively for bounded decisions by scoring candidates semantically from model logits instead of asking the model to generate JSON, prose, or arbitrary answer tokens.
+> **IMAGE PLACEHOLDER — Decisio vs generated decisions**  
+> Create a clean two-column diagram. Left: `prompt → autoregressive JSON → parse/repair → application`. Right: `state + question + candidates → logit scoring → typed decision`. Highlight “zero answer generation” and “runtime-defined candidates”. Do not include performance claims until representative benchmark evidence exists.
 
-## Why Decisio exists
+## Why
 
-Many production AI tasks are not generation problems:
+A lot of software does not need prose from an LLM. It needs a bounded decision:
 
-- route this request;
-- choose the best action;
-- decide whether evidence supports a condition;
-- classify an item into runtime-defined categories;
-- determine whether enough evidence exists to make a decision.
+- route a request;
+- choose an action;
+- classify into categories defined at runtime;
+- interpret evidence against a small set of alternatives;
+- eventually decide whether the supplied evidence is sufficient to answer.
 
-A chat-style LLM usually solves these by generating text that software immediately parses back into a decision. That adds autoregressive latency, output-format failure modes, and often exposes a generated "confidence" value that is not tied to the model's actual output distribution.
+The usual pattern asks a model to generate JSON and immediately parses that text back into a software decision.
 
-Decisio explores a different path:
+Decisio explores a different primitive:
 
 ```text
-state + question + candidates
-            |
-            v
-      shared model context
-            |
-      candidate scoring
-            |
-            v
- typed decision distribution
+state + question + valid candidates
+                │
+                ▼
+        semantic candidate scoring
+                │
+                ▼
+       typed relative distribution
 ```
 
-No answer sentence is generated.
+The product hypothesis is simple:
 
-## Product thesis
+> For bounded semantic decisions, use the LLM as a scorer before using it as a writer.
 
-> For bounded semantic decisions, an open-weight LLM should be used as a scorer before it is used as a writer.
+## Quickstart
 
-Decisio v1 is deliberately **training-free**. The project must first establish how far inference-time methods can go before adding fine-tuning, adapters, or decision-specific training.
+Decisio is currently an experimental Python package. Python 3.11+ is supported.
 
-The primary scoring hypothesis is **comparative semantic candidate scoring**. Callers first remove candidates that are deterministically invalid; Decisio then evaluates each remaining candidate against the complete alternative set, derives a score from Yes/No log-odds, and normalizes those scores into a conditional decision distribution. Candidate prompts are batched in the reference backend; shared-prefix reuse remains a later optimization.
+```bash
+uv sync --extra qwen --extra dev
+```
 
-The classic A/B/C answer-token method remains a benchmark baseline, not the core product identity.
+For a cheap **functional smoke** on CPU, use the smaller Qwen3.5-0.8B checkpoint:
 
-## What Decisio is
+```bash
+uv run decisio score \
+  --input examples/support-routing/request.json \
+  --scorer semantic \
+  --model Qwen/Qwen3.5-0.8B \
+  --revision 2fc06364 \
+  --device cpu \
+  --dtype bfloat16
+```
 
-- a local/open inference engine for runtime-defined semantic decisions;
-- a training-free decision layer over compatible causal LLMs;
-- a zero-generated-token execution path;
-- a typed API for boolean and choice decisions first;
-- a benchmarkable system with explicit probability semantics and provenance;
-- an engine designed to reuse shared state across candidates and questions.
+That command proves the real model/compiler/scorer path works. It is **not** representative quality or performance evidence.
 
-## What Decisio is not
+The reference target for product evidence is pinned **Qwen3.5-4B BF16 on CUDA**.
 
-- a Jev clone or reproduction of TypeSafe's proprietary architecture/training;
-- a chat or text-generation framework;
-- a generic LLM serving platform;
-- a workflow/policy engine;
-- a claim that raw softmax values are calibrated probabilities;
-- a fine-tuning framework in v1;
-- a safety-critical decision authority without workload-specific validation.
+## What comes back
 
-## Reference model
-
-The initial reference target is **Qwen 3.5 4B**. The architecture must not hard-code Decisio to one checkpoint: model/runtime adapters should allow additional compatible models once the reference path is proven.
-
-Initial runtime priority:
-
-1. PyTorch/CUDA reference implementation;
-2. MLX/Apple Silicon after scoring semantics are stable;
-3. quantized execution only after BF16 correctness/quality baselines exist.
-
-## Core output semantics
-
-A decision result should make the distinction between *relative model score* and *calibrated confidence* explicit.
-
-Example:
+A native result contains a selected candidate plus raw/normalized model scores and provenance:
 
 ```json
 {
@@ -87,99 +71,125 @@ Example:
     "technical": 0.07,
     "sales": 0.02
   },
-  "answerability": 0.84,
+  "scores": {
+    "billing": 4.2,
+    "technical": 1.6,
+    "sales": 0.3
+  },
   "probability_status": "uncalibrated_conditional_scores",
-  "scorer": "semantic_binary_logodds",
   "generated_tokens": 0
 }
 ```
 
-Calibration may be added later as an optional workload-specific layer. Decisio must never silently label uncalibrated scores as probability of correctness.
+The numbers above illustrate the **output shape**, not a benchmark result.
 
-## Success criteria for v1
+The distribution means “relative preference among the supplied candidates under this scorer.” It is **not** a calibrated probability that the answer is correct.
 
-Decisio v1 is successful if it provides reproducible evidence that the primary scorer:
+## How the current scorer works
 
-- produces useful bounded decisions without generating answer tokens;
-- is at least competitive with direct A/B/C logit scoring on decision quality;
-- materially reduces option-order / verbalizer sensitivity;
-- handles missing evidence better through explicit answerability;
-- is materially faster than equivalent autoregressive structured-output generation;
-- benefits measurably from shared-prefix execution when many decisions use the same state;
-- exposes enough provenance to reproduce every benchmark result.
+The primary experimental scorer evaluates every valid candidate against the complete alternative set:
 
-The project does **not** require beating Jev to succeed.
-
-## Milestone 0 laboratory
-
-The first executable slice is now implemented as a Python package with two zero-generation scorers:
-
-- `semantic` — the v2 comparative Yes/No log-odds scorer (default);
-- `semantic-independent` — the original v1 independent Yes/No scorer retained as a baseline;
-- `letters` — the direct A/B/C-style next-token baseline.
-
-Install the reference Qwen runtime:
-
-```bash
-uv sync --extra qwen --extra dev
+```text
+candidate score = logit(Yes) - logit(No)
 ```
 
-Score one request:
+The candidate scores are normalized across the supplied set.
 
-```bash
-uv run decisio score --input request.json --scorer semantic --device cuda
+Applications must remove choices that are already known to be invalid before calling Decisio:
+
+```text
+domain rules
+    ↓
+valid candidates
+    ↓
+Decisio
+    ↓
+semantic preference
 ```
 
-Run the smoke harness:
+A probabilistic model should not overrule facts such as a wall collision, an invalid state transition or an explicit authorization rule.
 
-```bash
-uv run decisio benchmark \
-  --input benchmarks/fixtures/smoke.jsonl \
-  --output .artifacts/semantic-smoke.jsonl \
-  --scorer semantic \
-  --device cuda
+## Current architecture
+
+```mermaid
+flowchart LR
+    A[Application state] --> B[Deterministic constraints]
+    B --> C[ChoiceRequest]
+    C --> D[Prompt compiler]
+    D --> E[Scorer]
+    E --> F[Qwen backend]
+    F --> G[Selected logits]
+    G --> H[DecisionResult]
 ```
 
-The Qwen reference backend now batches all semantic candidate prompts into one backend forward and projects only the requested readout vocabulary rows. It still repeats the shared prompt content inside that batch; true shared-prefix/cache reuse remains a later optimization and must be validated against this reference path.
+See [Architecture](docs/architecture.md) for the implemented owners and the separately labeled target architecture.
 
-## Use cases and examples
+## Evidence before API expansion
 
-The repository includes executable scenarios under `examples/`:
+Decisio currently compares four inference strategies on the same frozen workload:
 
-- **[Snake](examples/snake/)** — repeated closed-loop action selection from board state and candidate moves.
-- **[Support routing](examples/support-routing/)** — choose a runtime-defined support queue from ticket evidence.
-- **[Policy gate](examples/policy-gate/)** — bounded allow/deny interpretation over explicit policy and evidence.
+- **semantic v2** — comparative Yes/No log-odds;
+- **semantic v1** — candidate-independent Yes/No log-odds;
+- **letters** — direct A/B/C next-token scoring;
+- **generated JSON** — minimal autoregressive baseline.
 
-Snake is useful as a behavioral probe because every decision changes the next state:
+The scorer gate measures quality, candidate-order sensitivity, invalid output and systems performance. Representative performance runs use warm-up, repeated balanced trials, CUDA synchronization, throughput and peak-memory reporting.
 
-```bash
-uv run python -m examples.snake.play \
-  --model Qwen/Qwen3.5-0.8B \
-  --revision 2fc06364 \
-  --device cpu \
-  --dtype bfloat16 \
-  --max-steps 10 \
-  --render
-```
+See [Benchmark methodology](benchmarks/scorer-gate-v1.md).
 
-Record the full episode for later analysis:
+## Examples
 
-```bash
-uv run python -m examples.snake.play \
-  --max-steps 50 \
-  --trace .artifacts/snake.jsonl
-```
+- [Support routing](examples/support-routing/) — runtime-defined support queues.
+- [Policy gate](examples/policy-gate/) — bounded semantic interpretation without replacing deterministic policy.
+- [Snake](examples/snake/) — repeated action selection after deterministic unsafe moves are filtered.
 
-Each trace row stores the exact state, candidate set, decision distribution, model provenance and game outcome. Examples are exploratory scenarios, not benchmark claims.
-## Documentation
-
-- [Examples and use cases](examples/README.md)
-- [Benchmark methodology](benchmarks/README.md)
-- [Product scope and durable objectives](docs/product.md)
-- [Architecture and scoring model](docs/architecture.md)
-- [Implementation roadmap](docs/roadmap.md)
-- [Current state](docs/current-state.md)
+Examples are behavioral probes, not benchmark claims.
 
 ## Status
 
-Decisio is an **experimental working implementation**. Native semantic scoring, comparison baselines, CLI/benchmark tooling and a real Qwen3.5 integration smoke are implemented. Representative Qwen3.5-4B/CUDA evidence, answerability and shared-prefix execution are still pending.
+Decisio is **experimental**.
+
+Implemented now:
+
+- comparative semantic v2 and independent v1;
+- direct-letter and generated JSON baselines;
+- deterministic prompt/readout compilation;
+- Qwen3.5 Transformers backend;
+- candidate batching and selected-vocabulary projection;
+- CLI and frozen benchmark tooling;
+- auditable model/scorer/prompt provenance;
+- real-model CPU integration smoke.
+
+Still pending before the scoring approach is considered stable:
+
+- full Qwen3.5-4B BF16/CUDA scorer gate;
+- broader perturbation coverage;
+- answerability;
+- shared-prefix/cache reuse;
+- stable high-level Python API;
+- representative release/runtime evidence.
+
+## What Decisio is not
+
+Decisio is not:
+
+- a chat framework;
+- a generic LLM server;
+- a workflow or authorization engine;
+- a claim that raw model scores are calibrated confidence;
+- a fine-tuning framework in v1;
+- a safety-critical decision authority without workload-specific validation.
+
+## Documentation
+
+- [Product scope](docs/product.md)
+- [Architecture](docs/architecture.md)
+- [Current state](docs/current-state.md)
+- [Roadmap](docs/roadmap.md)
+- [Repository quality plan](docs/repository-quality.md)
+- [Benchmarks](benchmarks/README.md)
+- [Examples](examples/README.md)
+- [Contributing](CONTRIBUTING.md)
+- [Security](SECURITY.md)
+
+Licensed under [Apache-2.0](LICENSE).
