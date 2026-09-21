@@ -40,14 +40,7 @@ No answer sentence is generated.
 
 Decisio v1 is deliberately **training-free**. The project must first establish how far inference-time methods can go before adding fine-tuning, adapters, or decision-specific training.
 
-The primary scoring hypothesis is **semantic candidate scoring**:
-
-1. prefill shared state/question context;
-2. branch candidate suffixes in parallel;
-3. evaluate each candidate with a binary semantic judgment;
-4. derive a candidate score from the model's Yes/No log-odds;
-5. normalize candidate scores into a conditional decision distribution;
-6. assess answerability separately from candidate selection.
+The primary scoring hypothesis is **comparative semantic candidate scoring**. Callers first remove candidates that are deterministically invalid; Decisio then evaluates each remaining candidate against the complete alternative set, derives a score from Yes/No log-odds, and normalizes those scores into a conditional decision distribution. Candidate prompts are batched in the reference backend; shared-prefix reuse remains a later optimization.
 
 The classic A/B/C answer-token method remains a benchmark baseline, not the core product identity.
 
@@ -121,7 +114,8 @@ The project does **not** require beating Jev to succeed.
 
 The first executable slice is now implemented as a Python package with two zero-generation scorers:
 
-- `semantic` — the primary candidate-by-candidate Yes/No log-odds scorer;
+- `semantic` — the v2 comparative Yes/No log-odds scorer (default);
+- `semantic-independent` — the original v1 independent Yes/No scorer retained as a baseline;
 - `letters` — the direct A/B/C-style next-token baseline.
 
 Install the reference Qwen runtime:
@@ -146,7 +140,7 @@ uv run decisio benchmark \
   --device cuda
 ```
 
-Milestone 0 intentionally uses fresh inference for every candidate. Shared KV/state execution is a later optimization and must be validated against this reference path.
+The Qwen reference backend now batches all semantic candidate prompts into one backend forward and projects only the requested readout vocabulary rows. It still repeats the shared prompt content inside that batch; true shared-prefix/cache reuse remains a later optimization and must be validated against this reference path.
 
 ## Use cases and examples
 
