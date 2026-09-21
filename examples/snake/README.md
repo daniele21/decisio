@@ -100,3 +100,25 @@ The model is asked to prioritize:
 3. preserving future mobility and avoiding obvious traps.
 
 Candidate descriptions contain only the direction and movement delta. Decisio is not given a precomputed "safe" flag or distance-to-food score.
+
+
+## CI video artifact
+
+The real-model GitHub Actions smoke runs a short Snake rollout with the official Qwen3.5-0.8B checkpoint, renders the actual decision trace to MP4, and uploads both:
+
+- `decisio-snake.mp4` — board state plus chosen move and per-action Decisio distribution;
+- `decisio-snake-smoke.jsonl` — the exact machine-readable trace behind the video.
+
+The video is generated from the same states and model decisions used by the test; it is not a scripted animation.
+
+To render a recorded trace locally:
+
+```bash
+uv sync --extra video
+# ffmpeg must also be available on PATH
+
+uv run python -m examples.snake.video \
+  --trace .artifacts/snake-semantic.jsonl \
+  --output .artifacts/snake-semantic.mp4 \
+  --frames-dir .artifacts/snake-frames
+```

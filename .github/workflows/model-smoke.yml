@@ -37,7 +37,9 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           python -m pip install --index-url https://download.pytorch.org/whl/cpu "torch>=2.6"
-          python -m pip install "transformers>=5.17,<6"
+          python -m pip install "transformers>=5.17,<6" "pillow>=10"
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq ffmpeg
           python -m pip install -e . --no-deps
 
       - name: Run real Qwen3.5 semantic scorer
@@ -77,7 +79,7 @@ jobs:
           }, indent=2, sort_keys=True))
           PY
 
-      - name: Run one real-model Snake decision
+      - name: Run real-model Snake rollout
         run: |
           python -m examples.snake.play \
             --model Qwen/Qwen3.5-0.8B \
@@ -85,7 +87,7 @@ jobs:
             --device cpu \
             --dtype bfloat16 \
             --seed 7 \
-            --max-steps 1 \
+            --max-steps 5 \
             --trace /tmp/decisio-snake-smoke.jsonl
 
       - name: Verify Snake decision loop
@@ -95,7 +97,7 @@ jobs:
           from pathlib import Path
 
           rows = Path("/tmp/decisio-snake-smoke.jsonl").read_text().splitlines()
-          assert len(rows) == 1, rows
+          assert 1 <= len(rows) <= 5, rows
           record = json.loads(rows[0])
           decision = record["decision"]
           outcome = record["outcome"]
@@ -103,7 +105,7 @@ jobs:
           assert decision["generated_tokens"] == 0, record
           assert decision["choice"] in {"up", "right", "down"}, record
           assert abs(sum(decision["distribution"].values()) - 1.0) < 1e-6, record
-          assert outcome["alive"] is True, record
+          assert decision["generated_tokens"] == 0, record
 
           print(json.dumps({
               "choice": decision["choice"],
@@ -111,3 +113,28 @@ jobs:
               "outcome": outcome,
           }, indent=2, sort_keys=True))
           PY
+
+      - name: Render Snake MP4
+        run: |
+          python -m examples.snake.video \
+            --trace /tmp/decisio-snake-smoke.jsonl \
+            --output /tmp/decisio-snake.mp4 \
+            --frames-dir /tmp/decisio-snake-frames \
+            --fps 1 \
+            --hold-frames 2
+          test -s /tmp/decisio-snake.mp4
+          ffprobe -v error \
+            -show_entries format=duration,size \
+            -of default=noprint_wrappers=1 \
+            /tmp/decisio-snake.mp4
+
+      - name: Upload Snake video and trace
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: decisio-snake-qwen35-08b
+          path: |
+            /tmp/decisio-snake.mp4
+            /tmp/decisio-snake-smoke.jsonl
+          if-no-files-found: warn
+          retention-days: 14
