@@ -62,7 +62,9 @@ uv run decisio compare \
   --input .artifacts/scorer-gate-v1.jsonl \
   --output-dir .artifacts/scorer-gate-v1 \
   --device cuda \
-  --dtype bfloat16
+  --dtype bfloat16 \
+  --warmup-rounds 1 \
+  --performance-rounds 8
 ```
 
 Outputs include the eight raw JSONL result files plus `comparison.json` and
@@ -74,14 +76,25 @@ The report records:
 
 - overall and per-family accuracy;
 - invalid output count/rate;
-- median/mean/total wall-clock scorer latency;
+- single-pass per-example latency for diagnostics only;
+- repeated full-workload p50/p95 latency with balanced scorer position;
+- repeated decisions/second;
+- CUDA peak allocated memory where available;
 - generated-token count;
 - candidate-order choice-change rate;
 - order-induced correctness regressions/recoveries;
 - paired v2-only versus baseline-only correct rows;
 - exact two-sided McNemar/binomial p-value for paired correctness.
 
-Latency is an in-process comparison for this exact backend/run. It is not a general hardware claim.
+The representative performance phase runs after correctness collection. It performs one full-workload
+warm-up round followed by eight measured full-workload rounds. Scorer order rotates so every scorer
+occupies each execution position twice. CUDA work is synchronized around the timed region, and peak
+allocated CUDA memory is reset/read per trial. The report retains the execution order, runtime
+identity, p50/p95 total-workload latency, decisions/second and peak memory.
+
+Single-pass per-example timings are diagnostic only. Stable performance decisions use the repeated
+performance trials. All timing remains specific to the exact backend, hardware and runtime identity
+recorded by the report; it is not a general hardware claim.
 
 ## Representative execution contract
 
@@ -113,9 +126,10 @@ Comparative semantic v2 may become the Milestone-1 stable default only when all 
 3. **Order robustness:** v2 changes choice on at most 1 of 64 examples after reversal and is not
    more order-sensitive than the strongest baseline.
 4. **Native invariant:** v2 reports zero generated answer tokens on every row.
-5. **Generation trade-off:** total v2 scorer latency is lower than the generated JSON baseline on
-   the same run. If not, the zero-generation path is not promoted until the discrepancy is
-   understood.
+5. **Generation trade-off:** in the repeated performance phase, v2 has lower p50 and p95
+   full-workload latency than generated JSON on the same run. The measured round count must be
+   position-balanced across all four scorers. If not, the zero-generation path is not promoted
+   until the discrepancy is understood.
 
 Passing this gate promotes v2 only as Decisio's current default scorer. It does not establish broad
 task generalization, calibration, answerability quality, or representative deployment performance.
