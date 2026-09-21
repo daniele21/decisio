@@ -16,6 +16,18 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
+      - name: Generate dependency lock candidate
+        run: |
+          python -m pip install "uv==0.10.0"
+          uv lock
+          sha256sum uv.lock
+      - name: Upload dependency lock candidate
+        uses: actions/upload-artifact@v4
+        with:
+          name: decisio-uv-lock
+          path: uv.lock
+          if-no-files-found: error
+          retention-days: 1
       - name: Install core development dependencies
         run: python -m pip install -e ".[dev]"
       - name: Lint
