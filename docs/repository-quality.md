@@ -236,7 +236,7 @@ Every component named in the current diagram should map to a real source owner. 
 
 ### Current gaps
 
-The advanced branch still contains inherited template documents such as `STANDARD.md`, `USAGE.md`, `OPERATING-CONTRACT.md` and a template `CHANGELOG.md`, while project-specific engineering adoption is incomplete.
+The repository was bootstrapped from `repo-template-sw`. Root engineering ownership is now being specialized into `.engineering/`, `skills/`, `scripts/` and repository workflows; the embedded `template/` tree is baseline source material, not Decisio product documentation.
 
 The repository currently lacks:
 
@@ -254,8 +254,8 @@ This is more than cosmetic cleanup. It makes repository authority ambiguous and 
 
 The repository should be self-contained and product-specific:
 
-- specialize the engineering baseline instead of carrying the source template as product documentation;
-- remove template-only root documents that are not authoritative for Decisio;
+- keep the engineering baseline specialized in root-owned `.engineering/`, `skills/`, `scripts/` and workflows;
+- keep template source material out of the Decisio documentation/navigation surface;
 - add a dependency lock and deterministic setup path;
 - add license, contribution and security guidance;
 - document canonical validation commands;
@@ -268,7 +268,7 @@ The repository should be self-contained and product-specific:
 | --- | --- | --- |
 | RQ-01 | IMPLEMENTED, evidence pending | repeated balanced performance trials, CUDA synchronization, throughput and peak-memory reporting are implemented; representative 4B/CUDA run still required |
 | RQ-02 | PENDING | default branch still needs branch convergence/merge |
-| RQ-03 | IN PROGRESS | baseline, command and E2E contracts are specialized; inherited template-source residue and full repository-health adoption remain |
+| RQ-03 | IN PROGRESS | root baseline, commands, E2E, skills and verifier scripts are specialized; repository-health validation and root template-doc removal are being completed |
 | RQ-04 | IMPLEMENTED | committed `uv.lock`, frozen setup commands and CI lock verification |
 | RQ-05 | IMPLEMENTED | Apache-2.0 `LICENSE` added |
 | RQ-06 | IMPLEMENTED for current choice contract | strict strings/JSON state, finite result validation, duplicate-description rejection and deterministic ties |
