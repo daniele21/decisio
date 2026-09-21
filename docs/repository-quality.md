@@ -238,17 +238,14 @@ Every component named in the current diagram should map to a real source owner. 
 
 The repository was bootstrapped from `repo-template-sw`. Root engineering ownership is now being specialized into `.engineering/`, `skills/`, `scripts/` and repository workflows; the embedded `template/` tree is baseline source material, not Decisio product documentation.
 
-The repository currently lacks:
+The major trust/reproducibility surfaces now exist on the hardening branches: root engineering contracts, a committed dependency lock, license, contribution/security guidance and package validation.
 
-- `.engineering/baseline.json`;
-- `.engineering/commands.json`;
-- `.engineering/e2e.json`;
-- `LICENSE`;
-- `CONTRIBUTING.md`;
-- `SECURITY.md`;
-- `uv.lock`.
+The remaining repository-level gaps are narrower:
 
-This is more than cosmetic cleanup. It makes repository authority ambiguous and reduces reproducibility.
+- the stacked product/hardening branches are not yet converged onto the default branch;
+- the new root Repository health gate must remain green on exact HEAD;
+- the embedded `template/` tree is still present as baseline source material and should not appear as product documentation;
+- stable public API/release semantics remain intentionally blocked on the scorer decision.
 
 ### Required outcome
 
@@ -268,7 +265,7 @@ The repository should be self-contained and product-specific:
 | --- | --- | --- |
 | RQ-01 | IMPLEMENTED, evidence pending | repeated balanced performance trials, CUDA synchronization, throughput and peak-memory reporting are implemented; representative 4B/CUDA run still required |
 | RQ-02 | PENDING | default branch still needs branch convergence/merge |
-| RQ-03 | IN PROGRESS | root baseline, commands, E2E, skills and verifier scripts are specialized; repository-health validation and root template-doc removal are being completed |
+| RQ-03 | IMPLEMENTED, validation pending | root baseline, commands, E2E, skills, verifier scripts and health/preflight workflows are specialized; inherited template-only root docs are removed |
 | RQ-04 | IMPLEMENTED | committed `uv.lock`, frozen setup commands and CI lock verification |
 | RQ-05 | IMPLEMENTED | Apache-2.0 `LICENSE` added |
 | RQ-06 | IMPLEMENTED for current choice contract | strict strings/JSON state, finite result validation, duplicate-description rejection and deterministic ties |
@@ -279,7 +276,7 @@ The repository should be self-contained and product-specific:
 | RQ-11 | PARTIAL | malformed contracts, numerical edge cases and exact ties are covered; backend/tokenizer/context-limit negatives can expand later |
 | RQ-12 | PRESERVED | benchmark methodology keeps internal scorer evidence in Decisio and external endpoint evaluation in Performance Lab |
 | RQ-13 | PLACEHOLDERS ADDED | README and repository-quality docs specify the required future visuals; polished assets wait for stable semantics |
-| RQ-14 | PARTIAL | Decisio-specific version/changelog exist; release package workflow remains future work |
+| RQ-14 | PARTIAL | Decisio-specific version/changelog plus wheel build/install smoke are implemented; release promotion/versioning remains future work |
 
 ## Improvement backlog
 
