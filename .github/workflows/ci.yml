@@ -28,3 +28,11 @@ jobs:
         run: uv run pytest
       - name: Compile package
         run: uv run python -m compileall -q src tests examples
+      - name: Build package
+        run: uv build
+      - name: Smoke installed wheel
+        run: |
+          python -m venv /tmp/decisio-wheel-smoke
+          /tmp/decisio-wheel-smoke/bin/python -m pip install dist/*.whl
+          /tmp/decisio-wheel-smoke/bin/python -c "import decisio; print(decisio.__version__)"
+          /tmp/decisio-wheel-smoke/bin/decisio --help
