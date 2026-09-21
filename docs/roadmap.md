@@ -24,8 +24,9 @@ Features:
 - PyTorch/CUDA reference backend;
 - deterministic request/compiler representation;
 - direct A/B/C answer-token scorer baseline;
-- semantic candidate Yes/No log-odds scorer;
-- fresh execution only;
+- comparative semantic candidate Yes/No log-odds scorer;
+- original independent semantic scorer retained as a baseline;
+- batched candidate execution with selected-vocabulary projection;
 - JSONL benchmark input/output;
 - provenance: model revision, tokenizer, prompt/compiler hash, scorer version, precision, backend;
 - frozen smoke/evaluation fixtures;
@@ -40,7 +41,7 @@ Exit evidence:
 
 ## Milestone 1 — Decide whether semantic scoring wins
 
-**Harness status:** generated JSON baseline and candidate-order reversal are implemented; representative model evidence and broader perturbations are pending.
+**Harness status:** generated JSON baseline, candidate-order reversal, comparative semantic v2, original independent semantic v1, and batched candidate execution are implemented; representative model evidence and broader perturbations are pending.
 
 Goal: validate the core differentiator before investing in infrastructure.
 
@@ -59,7 +60,8 @@ Evaluation dimensions:
 Required experiment variants:
 
 - direct answer-token scoring;
-- candidate binary log-odds;
+- comparative candidate binary log-odds (v2);
+- independent candidate binary log-odds (v1 baseline);
 - candidate likelihood baseline if useful;
 - minimal generated structured answer.
 
@@ -91,7 +93,7 @@ Goal: obtain the systems benefit without changing semantics materially.
 
 Features:
 
-- candidate micro-batching;
+- candidate micro-batching (implemented early as the safe first optimization);
 - shared state/question prefill where supported;
 - cache branch/copy abstraction;
 - many questions over one state;
