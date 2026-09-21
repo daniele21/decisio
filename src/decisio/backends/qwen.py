@@ -107,17 +107,18 @@ class QwenTransformersBackend:
         unique_ids = sorted({token_id for row in token_ids_batch for token_id in row})
         unique_tensor = torch.tensor(unique_ids, dtype=torch.long, device=self.device)
 
-        weight = getattr(output_head, "weight", None)
-        if weight is not None:
-            selected_weight = weight.index_select(0, unique_tensor)
-            bias = getattr(output_head, "bias", None)
-            selected_bias = None if bias is None else bias.index_select(0, unique_tensor)
-            logits = torch.nn.functional.linear(hidden_states, selected_weight, selected_bias)
-        else:  # pragma: no cover - defensive compatibility fallback
-            logits = output_head(hidden_states).index_select(-1, unique_tensor)
+        with torch.inference_mode():
+            weight = getattr(output_head, "weight", None)
+            if weight is not None:
+                selected_weight = weight.index_select(0, unique_tensor)
+                bias = getattr(output_head, "bias", None)
+                selected_bias = None if bias is None else bias.index_select(0, unique_tensor)
+                logits = torch.nn.functional.linear(hidden_states, selected_weight, selected_bias)
+            else:  # pragma: no cover - defensive compatibility fallback
+                logits = output_head(hidden_states).index_select(-1, unique_tensor)
+            values = logits.float().cpu()
 
         offsets = {token_id: index for index, token_id in enumerate(unique_ids)}
-        values = logits.float().cpu()
         return [
             [float(values[row_index, offsets[token_id]]) for token_id in token_ids]
             for row_index, token_ids in enumerate(token_ids_batch)
