@@ -1,0 +1,35 @@
+{
+  "schema_version": 1,
+  "scenarios": [
+    {
+      "id": "readme",
+      "route": "docs",
+      "request": "Fix a typo in the README introduction and its link to an existing image. Prepare the change for the shared development branch.",
+      "evidence": "Only README.md changes. The referenced image exists. No command examples, product behavior, configuration, policy or source code changes. The repository has native documentation/link checks and expensive runtime suites."
+    },
+    {
+      "id": "local-bug",
+      "route": "bug",
+      "request": "Fix a timeout in the job completion path. Continue autonomously from the observed results.",
+      "evidence": "The completion test fails consistently after 35 seconds. Two production repairs, first an invalidation epoch and then a reconnect notification, have failed with the same signature. Logs prove the connection returns to CONNECTED. It is not known whether the owner persisted the terminal job result or whether the consumer observed it. A unit test passes only for the owner's immediate state change."
+    },
+    {
+      "id": "shared-contract",
+      "route": "contract",
+      "request": "Add a cancellation reason to the shared service/consumer protocol and integrate the complete result.",
+      "evidence": "The native selector reports STRONG: owner tests, consumer compatibility, serialization and a two-process complete journey. Local unit tests pass. The editing agent lacks the platform SDK, but repository-owned remote automation can build and run the affected journey. There is no current remote evidence for this candidate."
+    },
+    {
+      "id": "ui-integration",
+      "route": "ui",
+      "request": "Integrate a redesigned primary navigation journey into dev. The screenshot looks correct.",
+      "evidence": "UI/UX is a material part of the changed critical journey. Automated assertions and screenshot checkpoints pass on the exact candidate, but the video artifact is missing. Emulator automation supports video capture. A physical-device check is a declared residual release obligation."
+    },
+    {
+      "id": "resume",
+      "route": "resume",
+      "request": "Continue the active workstream and close the integration slice when its acceptance criteria are satisfied.",
+      "evidence": "The checkpoint cites head H1/base B1, two excluded hypotheses with test references and one next experiment. Current code is H2/base B2. After a content-preserving squash the candidate has the same source tree as H1, but the integration base differs. A successful run exists only for H1/B1. The workstream also contains the only record of a required physical-device release check."
+    }
+  ]
+}

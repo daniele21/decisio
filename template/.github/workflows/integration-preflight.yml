@@ -1,0 +1,28 @@
+name: Integration preflight
+
+on:
+  pull_request:
+    types: [ready_for_review, synchronize, reopened]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: integration-preflight-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  integration-preflight:
+    if: github.event_name == 'workflow_dispatch' || github.event.pull_request.draft == false
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      # Replace this with the repository-owned integration preflight command.
+      # It should select concrete risk gates, reuse equivalent evidence, and run
+      # affected E2E only when the coherent candidate requires it.
+      - name: Run integration preflight
+        run: <REPLACE_WITH_INTEGRATION_PREFLIGHT_COMMAND>

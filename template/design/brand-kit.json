@@ -1,0 +1,58 @@
+{
+  "schema_version": 1,
+  "contract_version": "0.5.0",
+  "product_name": "<REPLACE_WITH_PRODUCT_NAME>",
+  "assets": {
+    "logo_primary": "<REPLACE_WITH_PATH_OR_NA>",
+    "logo_compact": "<REPLACE_WITH_PATH_OR_NA>",
+    "logo_monochrome": "<REPLACE_WITH_PATH_OR_NA>",
+    "app_icon": "<REPLACE_WITH_PATH_OR_NA>",
+    "favicon": "<REPLACE_WITH_PATH_OR_NA>"
+  },
+  "themes": {
+    "light": true,
+    "dark": "<REPLACE_WITH_TRUE_FALSE_OR_NA>"
+  },
+  "tokens": {
+    "colors": {
+      "surface": "<REPLACE>",
+      "surface_elevated": "<REPLACE>",
+      "text_primary": "<REPLACE>",
+      "text_secondary": "<REPLACE>",
+      "primary": "<REPLACE>",
+      "success": "<REPLACE>",
+      "warning": "<REPLACE>",
+      "error": "<REPLACE>",
+      "border": "<REPLACE>",
+      "focus": "<REPLACE>"
+    },
+    "typography": "<REPLACE_WITH_CANONICAL_TYPOGRAPHY_SOURCE>",
+    "spacing": "<REPLACE_WITH_SPACING_SCALE>",
+    "radius": "<REPLACE_WITH_RADIUS_SYSTEM_OR_NA>",
+    "elevation": "<REPLACE_WITH_ELEVATION_SYSTEM_OR_NA>"
+  },
+  "style": {
+    "iconography": "<REPLACE_WITH_ICONOGRAPHY_PRINCIPLES>",
+    "motion": "<REPLACE_WITH_MOTION_CHARACTER_OR_NA>",
+    "imagery": "<REPLACE_WITH_IMAGERY_PRINCIPLES_OR_NA>",
+    "voice_microcopy": "<REPLACE_WITH_VOICE_AND_MICROCOPY_PRINCIPLES>"
+  },
+  "motion_tokens": {
+    "durations": {
+      "instant": "<REPLACE_WITH_VALUE_OR_NA>",
+      "fast": "<REPLACE_WITH_VALUE_OR_NA>",
+      "standard": "<REPLACE_WITH_VALUE_OR_NA>",
+      "large": "<REPLACE_WITH_VALUE_OR_NA>"
+    },
+    "easing": {
+      "enter": "<REPLACE_WITH_EASING_OR_NA>",
+      "exit": "<REPLACE_WITH_EASING_OR_NA>",
+      "move": "<REPLACE_WITH_EASING_OR_NA>"
+    },
+    "spring": {
+      "default": "<REPLACE_WITH_SPRING_OR_NA>",
+      "bounce": "<REPLACE_WITH_BOUNCE_POLICY_OR_NA>"
+    },
+    "reduced_motion_strategy": "<REPLACE_WITH_REDUCED_MOTION_STRATEGY_OR_NA>"
+  }
+}

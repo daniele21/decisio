@@ -1,0 +1,108 @@
+{
+  "schema_version": 1,
+  "contract_version": "0.5.0",
+  "applicable": true,
+  "design_source_of_truth": {
+    "type": "<REPLACE_WITH_figma_code-first_in-repo_or_other>",
+    "location": "<REPLACE_WITH_CANONICAL_LOCATION>"
+  },
+  "experience_context": {
+    "primary_users": ["<REPLACE_WITH_PRIMARY_USER_OR_ROLE>"],
+    "primary_jobs": ["<REPLACE_WITH_PRIMARY_USER_JOB_OR_DECISION>"],
+    "primary_surfaces": ["<REPLACE_WITH_PRIMARY_SURFACE_OR_WORKSPACE>"]
+  },
+  "decision_model": {
+    "user_outcome_first": true,
+    "task_model_before_layout": true,
+    "hierarchy_before_visual_polish": true,
+    "states_before_motion": true,
+    "motion_requires_purpose": true,
+    "evidence_before_completion": true
+  },
+  "principles": {
+    "user_task_model_over_internal_architecture": true,
+    "progressive_disclosure": true,
+    "sensible_defaults": true,
+    "clear_primary_action_hierarchy": true,
+    "platform_appropriate": true,
+    "bounded_information_density": true,
+    "actionable_error_recovery": true
+  },
+  "critical_states": [
+    "loading",
+    "empty",
+    "error",
+    "disabled"
+  ],
+  "accessibility": {
+    "target": "<REPLACE_WITH_WCAG_2_2_AA_OR_PLATFORM_EQUIVALENT>",
+    "keyboard_when_applicable": true,
+    "focus_visibility_order": true,
+    "assistive_semantics": true,
+    "text_scaling_when_applicable": true,
+    "no_color_only_critical_meaning": true,
+    "reduced_motion_when_applicable": true
+  },
+  "adaptive_layout": {
+    "applicable": true,
+    "supported_contexts": ["<REPLACE_WITH_BREAKPOINT_WINDOW_OR_DEVICE_CONTEXTS>"]
+  },
+  "design_system": {
+    "component_source": "<REPLACE_WITH_CANONICAL_COMPONENT_SOURCE>",
+    "brand_tokens": "design/brand-kit.json",
+    "reuse_existing_semantic_component_first": true
+  },
+  "motion": {
+    "purpose_required": true,
+    "supported_purposes": [
+      "feedback",
+      "continuity",
+      "spatial_relationship",
+      "state_transition",
+      "progress",
+      "attention",
+      "hierarchy",
+      "meaningful_completion"
+    ],
+    "frequent_interactions_are_restrained": true,
+    "gesture_motion_tracks_input": true,
+    "performance_over_decorative_complexity": true,
+    "reduced_motion": true
+  },
+  "graphics": {
+    "functional_before_decorative": true,
+    "ui_understandable_without_decorative_imagery": true,
+    "supported_roles": [
+      "explanation",
+      "orientation",
+      "onboarding",
+      "empty_state",
+      "status",
+      "meaningful_completion",
+      "data_visualization",
+      "brand"
+    ]
+  },
+  "critical_journeys": [
+    {
+      "id": "<REPLACE_WITH_JOURNEY_ID>",
+      "name": "<REPLACE_WITH_CRITICAL_USER_JOURNEY>",
+      "e2e": "<REPLACE_WITH_required_recommended_or_na>"
+    }
+  ],
+  "reference_views": [
+    "<REPLACE_WITH_PRIMARY_REFERENCE_VIEW>",
+    "<REPLACE_WITH_LOADING_EMPTY_ERROR_REFERENCE_OR_SOURCE>"
+  ],
+  "validation": {
+    "accessibility_automation": "<REPLACE_WITH_COMMAND_TOOL_OR_NA>",
+    "visual_regression": "<REPLACE_WITH_COMMAND_TOOL_OR_NA>",
+    "manual_accessibility": "<REPLACE_WITH_PROCESS_OR_NA>",
+    "usability_evidence": "<REPLACE_WITH_PROCESS_OR_NA>"
+  },
+  "evidence": {
+    "bounded_ci_retention": true,
+    "identity_with_source_build_environment": true,
+    "zero_residue_after_ui_e2e": true
+  }
+}

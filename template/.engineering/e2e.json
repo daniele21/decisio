@@ -1,0 +1,96 @@
+{
+  "schema_version": 1,
+  "contract_version": "0.2.1",
+  "applicability": {
+    "status": "recommended",
+    "reason": "<REPLACE_WITH_WHY_E2E_IS_REQUIRED_RECOMMENDED_OR_NA>"
+  },
+  "principles": {
+    "final_environment_should_confirm_not_discover": true,
+    "execution_capability_separate_from_environment_fidelity": true,
+    "lowest_sufficient_test_level": true,
+    "critical_journeys_only": true,
+    "built_artifact_when_material": true,
+    "residual_fidelity_gaps_explicit": true,
+    "ui_evidence_risk_based": true
+  },
+  "stage_policy": {
+    "integration": {
+      "automated_e2e_before_shared_integration": true,
+      "real_environment_blocking": false,
+      "real_environment_deferred_to_release": true,
+      "material_ui_journey_minimum_evidence_mode": "full_media",
+      "incidental_ui_may_use_assertions": true
+    },
+    "release": {
+      "full_validation_required": true,
+      "release_critical_e2e_required": true,
+      "required_real_environment_blocking": true
+    }
+  },
+  "ui_evidence": {
+    "modes": ["assertions", "screenshots", "full_media"],
+    "default_mode": "screenshots",
+    "assertions_allowed_when_ui_incidental": true,
+    "full_media_triggers": [
+      "material_ui_integration_outcome",
+      "motion_or_animation",
+      "timing_or_progression",
+      "navigation_or_transition_sequence",
+      "lifecycle_visibility",
+      "release_acceptance"
+    ]
+  },
+  "fidelity_order": [
+    "host_or_fake",
+    "simulated_or_emulated",
+    "representative_virtual",
+    "representative_physical",
+    "target_environment"
+  ],
+  "target_environments": [
+    {
+      "id": "<REPLACE_WITH_TARGET_ENVIRONMENT_ID>",
+      "platform": "<REPLACE_WITH_TARGET_PLATFORM>",
+      "description": "<REPLACE_WITH_TARGET_ENVIRONMENT_DESCRIPTION>",
+      "material_dimensions": [
+        "<REPLACE_WITH_MATERIAL_ENVIRONMENT_DIMENSION>"
+      ]
+    }
+  ],
+  "execution_environments": [
+    {
+      "id": "<REPLACE_WITH_E2E_EXECUTION_ENVIRONMENT_ID>",
+      "fidelity_class": "simulated_or_emulated",
+      "automation": "automated",
+      "platform": "<REPLACE_WITH_EXECUTION_PLATFORM>",
+      "artifact_surface": "<REPLACE_WITH_SOURCE_DEV_BUILT_PACKAGED_OR_DEPLOYED_SURFACE>",
+      "target_environment_refs": [
+        "<REPLACE_WITH_TARGET_ENVIRONMENT_ID>"
+      ],
+      "known_gaps": [
+        "<REPLACE_WITH_KNOWN_FIDELITY_GAP>"
+      ]
+    }
+  ],
+  "critical_journeys": [
+    {
+      "id": "<REPLACE_WITH_CRITICAL_JOURNEY_ID>",
+      "claim": "<REPLACE_WITH_COMPLETE_USER_OR_SYSTEM_OUTCOME>",
+      "ui_surface": true,
+      "minimum_ui_evidence_mode": "assertions",
+      "target_environment_refs": [
+        "<REPLACE_WITH_TARGET_ENVIRONMENT_ID>"
+      ],
+      "automated_environment_refs": [
+        "<REPLACE_WITH_E2E_EXECUTION_ENVIRONMENT_ID>"
+      ],
+      "minimum_automated_fidelity": "simulated_or_emulated",
+      "residual_gaps": [
+        "<REPLACE_WITH_RESIDUAL_REAL_ENVIRONMENT_GAP>"
+      ],
+      "real_environment_confirmation": "conditional",
+      "automation_gap_reason": null
+    }
+  ]
+}

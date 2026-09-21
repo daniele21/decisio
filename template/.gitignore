@@ -1,0 +1,39 @@
+# OS/editor
+.DS_Store
+.idea/
+.vscode/
+
+# Secrets/local configuration
+.env
+.env.*
+!.env.example
+
+# Logs/temp/cache
+*.log
+.cache/
+tmp/
+temp/
+
+# Common generated outputs
+build/
+dist/
+coverage/
+node_modules/
+.venv/
+__pycache__/
+*.pyc
+
+# Terraform/OpenTofu generated state and plans
+.terraform/
+*.tfstate
+*.tfstate.*
+*.tfplan
+crash.log
+crash.*.log
+# Keep .terraform.lock.hcl committed when providers are used.
+
+# Local evidence/artifacts
+artifacts/
+evidence/local/
+
+# Extend for the selected stack. Do not ignore durable source/fixtures blindly.
