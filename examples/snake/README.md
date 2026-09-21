@@ -23,7 +23,13 @@ board + snake body + food + current direction
                    repeat
 ```
 
-The immediate reverse direction is excluded because standard Snake does not allow a 180-degree reversal. Wall/body collisions remain possible candidates: avoiding them is part of the model's decision problem.
+Before Decisio is called, the game deterministically removes reverse moves and moves that would immediately hit a wall or body segment. Decisio chooses only among the remaining safe alternatives. If exactly one safe move remains, the controller takes it without running the model.
+
+## Why the controller filters first
+
+The prior smoke test exposed a useful failure: the 0.8B model kept choosing RIGHT even when RIGHT meant an immediate wall collision. That is not a judgment an LLM should own. Geometry is deterministic, so the game now filters impossible/deadly immediate actions before scoring.
+
+This is the intended Decisio integration pattern: **hard constraints define the valid action space; Decisio ranks the remaining semantic alternatives.**
 
 ## Why this is useful
 
@@ -74,8 +80,9 @@ uv run python examples/snake/play.py \
 Run the same deterministic episode with the same model and seed:
 
 ```bash
-uv run python examples/snake/play.py --seed 42 --scorer semantic --max-steps 50
-uv run python examples/snake/play.py --seed 42 --scorer letters  --max-steps 50
+uv run python -m examples.snake.play --seed 42 --scorer semantic --max-steps 50
+uv run python -m examples.snake.play --seed 42 --scorer semantic-independent --max-steps 50
+uv run python -m examples.snake.play --seed 42 --scorer letters --max-steps 50
 ```
 
 This is not yet a rigorous benchmark because both runs may diverge after the first differing action. A future Snake evaluation harness should compare fixed board states as well as full rollouts.
@@ -95,11 +102,10 @@ Each JSONL row stores the exact state, candidates, Decisio distribution, model p
 
 The model is asked to prioritize:
 
-1. avoiding immediate wall/body death;
-2. progress toward food;
-3. preserving future mobility and avoiding obvious traps.
+1. progress toward food;
+2. preserving future mobility and avoiding obvious traps.
 
-Candidate descriptions contain only the direction and movement delta. Decisio is not given a precomputed "safe" flag or distance-to-food score.
+Immediate wall/body validity is no longer delegated to the LLM. Candidate descriptions still contain only the direction and movement delta; the model is not given a handcrafted distance-to-food score.
 
 
 ## CI video artifact
