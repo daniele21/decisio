@@ -1,0 +1,48 @@
+{
+  "schema_version": 1,
+  "applicable": true,
+  "strategy_source": "docs/product.md",
+  "change_depths": [
+    "product_none",
+    "product_local",
+    "product_feature",
+    "product_strategic"
+  ],
+  "default_depth": "product_local",
+  "meaningful_product_change_depths": [
+    "product_feature",
+    "product_strategic"
+  ],
+  "risk_dimensions": [
+    "value",
+    "usability",
+    "feasibility",
+    "viability"
+  ],
+  "principles": {
+    "outcomes_before_output": true,
+    "evidence_before_commitment": true,
+    "proportional_product_reasoning": true,
+    "smallest_sufficient_solution_preferred": true,
+    "discovery_may_conclude_do_not_build": true,
+    "shipping_is_not_product_success": true
+  },
+  "success_layers": [
+    "acceptance",
+    "outcome",
+    "product_impact"
+  ],
+  "project_constraints": {
+    "training_free_v1": true,
+    "zero_generated_answer_tokens_native_path": true,
+    "reference_model": "Qwen/Qwen3.5-4B",
+    "primary_scorer_hypothesis": "semantic_binary_logodds",
+    "answerability_first_class": true,
+    "uncalibrated_scores_must_be_labeled": true
+  },
+  "evidence": {
+    "least_invasive_sufficient_evidence": true,
+    "privacy_preserving_by_default": true,
+    "material_assumptions_distinguished_from_facts": true
+  }
+}
