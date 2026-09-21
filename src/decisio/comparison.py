@@ -251,6 +251,7 @@ def _run_performance_trials(
         "examples_per_trial": len(requests),
         "warmup_rounds": warmup_rounds,
         "measured_rounds": measured_rounds,
+        "position_balanced": measured_rounds % len(SCORER_KEYS) == 0,
         "execution_order": execution_order,
         "backend_identity": identity if isinstance(identity, dict) else None,
         "scorers": summaries,
