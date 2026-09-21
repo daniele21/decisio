@@ -1,0 +1,148 @@
+{
+  "schema_version": 1,
+  "contract_version": "0.2.1",
+  "applicability": {
+    "status": "recommended",
+    "reason": "Real-model workflows cross schema/compiler/scorer/backend boundaries and representative CUDA evidence is required for performance claims."
+  },
+  "principles": {
+    "final_environment_should_confirm_not_discover": true,
+    "execution_capability_separate_from_environment_fidelity": true,
+    "lowest_sufficient_test_level": true,
+    "critical_journeys_only": true,
+    "built_artifact_when_material": false,
+    "residual_fidelity_gaps_explicit": true,
+    "ui_evidence_risk_based": true
+  },
+  "stage_policy": {
+    "integration": {
+      "automated_e2e_before_shared_integration": true,
+      "real_environment_blocking": false,
+      "real_environment_deferred_to_release": true,
+      "material_ui_journey_minimum_evidence_mode": "assertions",
+      "incidental_ui_may_use_assertions": true
+    },
+    "release": {
+      "full_validation_required": true,
+      "release_critical_e2e_required": true,
+      "required_real_environment_blocking": true
+    }
+  },
+  "ui_evidence": {
+    "modes": [
+      "assertions",
+      "screenshots",
+      "full_media"
+    ],
+    "default_mode": "assertions",
+    "assertions_allowed_when_ui_incidental": true,
+    "full_media_triggers": []
+  },
+  "fidelity_order": [
+    "host_or_fake",
+    "simulated_or_emulated",
+    "representative_virtual",
+    "representative_physical",
+    "target_environment"
+  ],
+  "target_environments": [
+    {
+      "id": "qwen35-4b-bf16-cuda",
+      "platform": "linux-cuda",
+      "description": "Pinned Qwen3.5-4B BF16 on representative CUDA hardware for scorer quality and systems evidence.",
+      "material_dimensions": [
+        "exact model revision",
+        "BF16 precision",
+        "CUDA runtime and GPU identity",
+        "latency and throughput",
+        "peak allocated GPU memory"
+      ]
+    }
+  ],
+  "execution_environments": [
+    {
+      "id": "github-hosted-cpu-qwen35-08b",
+      "fidelity_class": "host_or_fake",
+      "automation": "automated",
+      "platform": "github-hosted-linux-cpu",
+      "artifact_surface": "source",
+      "target_environment_refs": [
+        "qwen35-4b-bf16-cuda"
+      ],
+      "known_gaps": [
+        "smaller Qwen3.5-0.8B model",
+        "CPU rather than CUDA",
+        "fallback kernels and non-representative latency/memory"
+      ]
+    },
+    {
+      "id": "representative-cuda-run",
+      "fidelity_class": "representative_physical",
+      "automation": "real_environment",
+      "platform": "linux-cuda",
+      "artifact_surface": "source",
+      "target_environment_refs": [
+        "qwen35-4b-bf16-cuda"
+      ],
+      "known_gaps": [
+        "hardware-specific results do not generalize to all CUDA devices"
+      ]
+    }
+  ],
+  "critical_journeys": [
+    {
+      "id": "single-choice-real-model",
+      "claim": "A typed choice request compiles, scores with a real Qwen model and returns an auditable zero-generation decision.",
+      "ui_surface": false,
+      "minimum_ui_evidence_mode": "assertions",
+      "target_environment_refs": [
+        "qwen35-4b-bf16-cuda"
+      ],
+      "automated_environment_refs": [
+        "github-hosted-cpu-qwen35-08b"
+      ],
+      "minimum_automated_fidelity": "host_or_fake",
+      "residual_gaps": [
+        "representative model scale and CUDA runtime"
+      ],
+      "real_environment_confirmation": "conditional",
+      "automation_gap_reason": null
+    },
+    {
+      "id": "paired-scorer-gate",
+      "claim": "v2, v1, letters and generated baselines run against the same frozen workload with paired quality, robustness and systems evidence.",
+      "ui_surface": false,
+      "minimum_ui_evidence_mode": "assertions",
+      "target_environment_refs": [
+        "qwen35-4b-bf16-cuda"
+      ],
+      "automated_environment_refs": [
+        "github-hosted-cpu-qwen35-08b"
+      ],
+      "minimum_automated_fidelity": "host_or_fake",
+      "residual_gaps": [
+        "representative Qwen3.5-4B BF16/CUDA quality and performance"
+      ],
+      "real_environment_confirmation": "required",
+      "automation_gap_reason": "No repository-owned representative CUDA runner is currently available."
+    },
+    {
+      "id": "snake-control-loop",
+      "claim": "Deterministic constraints remove immediately unsafe moves before repeated real-model semantic action selection.",
+      "ui_surface": false,
+      "minimum_ui_evidence_mode": "assertions",
+      "target_environment_refs": [
+        "qwen35-4b-bf16-cuda"
+      ],
+      "automated_environment_refs": [
+        "github-hosted-cpu-qwen35-08b"
+      ],
+      "minimum_automated_fidelity": "host_or_fake",
+      "residual_gaps": [
+        "representative behavioral quality is not established by the smoke rollout"
+      ],
+      "real_environment_confirmation": "conditional",
+      "automation_gap_reason": null
+    }
+  ]
+}
