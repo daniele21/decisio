@@ -19,7 +19,7 @@ class QwenBackendConfig:
 
 
 class QwenTransformersBackend:
-    """Fresh single-sequence scorer; cache sharing belongs to a later runtime milestone."""
+    """Reference backend with selected-vocabulary projection and prompt batching."""
 
     def __init__(self, config: QwenBackendConfig | None = None):
         config = config or QwenBackendConfig()
@@ -57,6 +57,8 @@ class QwenTransformersBackend:
         model_type = getattr(self.model.config, "model_type", None)
         if model_type != "qwen3_5_text":
             raise ValueError(f"expected qwen3_5_text causal LM, got {model_type!r}")
+        if not hasattr(self.model, "model"):
+            raise ValueError("Qwen causal LM does not expose the expected text backbone")
 
     def _resolve_device(self, requested: str) -> str:
         if requested == "auto":
@@ -91,7 +93,90 @@ class QwenTransformersBackend:
             "dtype": str(self.dtype).removeprefix("torch."),
             "transformers": self._transformers_version,
             "torch": self._torch.__version__,
+            "batched_candidate_scoring": True,
+            "selected_vocab_projection": True,
         }
+
+    def _project_selected(
+        self,
+        hidden_states,
+        token_ids_batch: list[list[int]],
+    ) -> list[list[float]]:
+        torch = self._torch
+        output_head = self.model.get_output_embeddings()
+        unique_ids = sorted({token_id for row in token_ids_batch for token_id in row})
+        unique_tensor = torch.tensor(unique_ids, dtype=torch.long, device=self.device)
+
+        weight = getattr(output_head, "weight", None)
+        if weight is not None:
+            selected_weight = weight.index_select(0, unique_tensor)
+            bias = getattr(output_head, "bias", None)
+            selected_bias = None if bias is None else bias.index_select(0, unique_tensor)
+            logits = torch.nn.functional.linear(hidden_states, selected_weight, selected_bias)
+        else:  # pragma: no cover - defensive compatibility fallback
+            logits = output_head(hidden_states).index_select(-1, unique_tensor)
+
+        offsets = {token_id: index for index, token_id in enumerate(unique_ids)}
+        values = logits.float().cpu()
+        return [
+            [float(values[row_index, offsets[token_id]]) for token_id in token_ids]
+            for row_index, token_ids in enumerate(token_ids_batch)
+        ]
+
+    def batch_next_token_logits(
+        self,
+        input_ids_batch: list[tuple[int, ...]],
+        token_ids_batch: list[list[int]],
+    ) -> list[list[float]]:
+        if not input_ids_batch:
+            raise ValueError("input_ids_batch must not be empty")
+        if len(input_ids_batch) != len(token_ids_batch):
+            raise ValueError("input and token-id batch sizes must match")
+        if any(not input_ids for input_ids in input_ids_batch):
+            raise ValueError("input sequences must not be empty")
+        if any(not token_ids for token_ids in token_ids_batch):
+            raise ValueError("token-id rows must not be empty")
+
+        torch = self._torch
+        lengths = [len(input_ids) for input_ids in input_ids_batch]
+        max_length = max(lengths)
+        pad_token_id = self.tokenizer.pad_token_id
+        if pad_token_id is None:
+            pad_token_id = self.tokenizer.eos_token_id
+        if pad_token_id is None:
+            raise ValueError("tokenizer must expose pad_token_id or eos_token_id")
+
+        ids = torch.full(
+            (len(input_ids_batch), max_length),
+            fill_value=pad_token_id,
+            dtype=torch.long,
+            device=self.device,
+        )
+        mask = torch.zeros_like(ids)
+        for row_index, input_ids in enumerate(input_ids_batch):
+            length = len(input_ids)
+            ids[row_index, :length] = torch.tensor(
+                input_ids,
+                dtype=torch.long,
+                device=self.device,
+            )
+            mask[row_index, :length] = 1
+
+        with torch.inference_mode():
+            outputs = self.model.model(
+                input_ids=ids,
+                attention_mask=mask,
+                use_cache=False,
+            )
+            hidden = outputs.last_hidden_state
+            row_indices = torch.arange(len(lengths), device=self.device)
+            last_indices = torch.tensor(lengths, dtype=torch.long, device=self.device) - 1
+            final_hidden = hidden[row_indices, last_indices]
+
+        return self._project_selected(final_hidden, token_ids_batch)
+
+    def next_token_logits(self, input_ids: tuple[int, ...], token_ids: list[int]) -> list[float]:
+        return self.batch_next_token_logits([input_ids], [token_ids])[0]
 
     def generate(self, input_ids: tuple[int, ...], *, max_new_tokens: int) -> tuple[str, int]:
         if not input_ids:
@@ -113,22 +198,3 @@ class QwenTransformersBackend:
         new_ids = output[0, ids.shape[1] :]
         text = self.tokenizer.decode(new_ids, skip_special_tokens=True)
         return text, int(new_ids.numel())
-
-    def next_token_logits(self, input_ids: tuple[int, ...], token_ids: list[int]) -> list[float]:
-        if not input_ids:
-            raise ValueError("input_ids must not be empty")
-        if not token_ids:
-            raise ValueError("token_ids must not be empty")
-        torch = self._torch
-        ids = torch.tensor([input_ids], dtype=torch.long, device=self.device)
-        mask = torch.ones_like(ids)
-        with torch.inference_mode():
-            output = self.model(
-                input_ids=ids,
-                attention_mask=mask,
-                use_cache=False,
-                logits_to_keep=1,
-            )
-            final = output.logits[0, -1]
-            selected = final[torch.tensor(token_ids, dtype=torch.long, device=self.device)]
-        return selected.float().cpu().tolist()

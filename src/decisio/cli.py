@@ -1,4 +1,4 @@
-"""Command-line entry point for the Milestone 0 decision laboratory."""
+"""Command-line entry point for the Decisio decision laboratory."""
 
 from __future__ import annotations
 
@@ -30,6 +30,10 @@ def _scorer(name: str, backend: Any):
         from .scorers import SemanticBinaryScorer
 
         return SemanticBinaryScorer(backend)
+    if name == "semantic-independent":
+        from .scorers import IndependentSemanticScorer
+
+        return IndependentSemanticScorer(backend)
     if name == "letters":
         from .scorers import LetterTokenScorer
 
@@ -56,18 +60,17 @@ def _add_model_args(parser: argparse.ArgumentParser) -> None:
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="decisio")
     subparsers = parser.add_subparsers(dest="command", required=True)
+    scorer_choices = ["semantic", "semantic-independent", "letters", "generated"]
 
     score = subparsers.add_parser("score", help="score one choice request from JSON")
     score.add_argument("--input", type=Path, required=True)
-    score.add_argument("--scorer", choices=["semantic", "letters", "generated"], default="semantic")
+    score.add_argument("--scorer", choices=scorer_choices, default="semantic")
     _add_model_args(score)
 
     benchmark = subparsers.add_parser("benchmark", help="run a labeled JSONL benchmark")
     benchmark.add_argument("--input", type=Path, required=True)
     benchmark.add_argument("--output", type=Path, required=True)
-    benchmark.add_argument(
-        "--scorer", choices=["semantic", "letters", "generated"], default="semantic"
-    )
+    benchmark.add_argument("--scorer", choices=scorer_choices, default="semantic")
     benchmark.add_argument("--reverse-candidates", action="store_true")
     _add_model_args(benchmark)
     return parser

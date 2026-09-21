@@ -7,10 +7,18 @@ from pathlib import Path
 import pytest
 
 from decisio.benchmark import run_benchmark
-from decisio.compiler import compile_letter_choice, compile_semantic_candidate
+from decisio.compiler import (
+    compile_independent_semantic_candidate,
+    compile_letter_choice,
+    compile_semantic_candidate,
+)
 from decisio.math import binary_log_odds, softmax
 from decisio.schema import Candidate, ChoiceRequest
-from decisio.scorers import LetterTokenScorer, SemanticBinaryScorer
+from decisio.scorers import (
+    IndependentSemanticScorer,
+    LetterTokenScorer,
+    SemanticBinaryScorer,
+)
 
 
 class FakeTokenizer:
@@ -39,6 +47,7 @@ class QueueBackend:
         self.tokenizer = FakeTokenizer()
         self.responses = list(responses)
         self.calls = []
+        self.batch_calls = []
 
     @property
     def identity(self):
@@ -49,6 +58,15 @@ class QueueBackend:
         response = self.responses.pop(0)
         assert len(response) == len(token_ids)
         return response
+
+    def batch_next_token_logits(self, input_ids_batch, token_ids_batch):
+        self.batch_calls.append((input_ids_batch, token_ids_batch))
+        responses = self.responses[: len(input_ids_batch)]
+        del self.responses[: len(input_ids_batch)]
+        assert len(responses) == len(input_ids_batch)
+        for response, token_ids in zip(responses, token_ids_batch, strict=True):
+            assert len(response) == len(token_ids)
+        return responses
 
 
 def request():
@@ -71,12 +89,39 @@ def test_softmax_and_log_odds():
     assert values[2] > values[1] > values[0]
 
 
-def test_semantic_compiler_keeps_candidate_ids_out_of_prompt():
+def test_comparative_semantic_compiler_contains_all_alternatives():
     item = request()
     compiled = compile_semantic_candidate(FakeTokenizer(), item, item.candidates[0])
     assert "Payments and invoices" in compiled.prompt
+    assert "Software bugs" in compiled.prompt
+    assert "Purchasing discussions" in compiled.prompt
     assert "billing" not in compiled.prompt
+    assert "best answer among the supplied alternatives" in compiled.prompt
     assert compiled.readout == {"yes": 10, "no": 11}
+
+
+def test_comparative_prompt_is_invariant_to_candidate_presentation_order():
+    item = request()
+    candidate = item.candidates[0]
+    reversed_request = ChoiceRequest(
+        id=item.id,
+        state=item.state,
+        question=item.question,
+        candidates=tuple(reversed(item.candidates)),
+    )
+    left = compile_semantic_candidate(FakeTokenizer(), item, candidate)
+    right = compile_semantic_candidate(FakeTokenizer(), reversed_request, candidate)
+    assert left.prompt == right.prompt
+    assert left.sha256 == right.sha256
+
+
+def test_independent_compiler_remains_available_as_v1_baseline():
+    item = request()
+    compiled = compile_independent_semantic_candidate(
+        FakeTokenizer(), item, item.candidates[0]
+    )
+    assert "ALTERNATIVES" not in compiled.prompt
+    assert "Does this candidate correctly answer" in compiled.prompt
 
 
 def test_letter_compiler_maps_ids_to_distinct_tokens():
@@ -84,7 +129,7 @@ def test_letter_compiler_maps_ids_to_distinct_tokens():
     assert compiled.readout == {"billing": 100, "technical": 101, "sales": 102}
 
 
-def test_semantic_scorer_uses_yes_no_log_odds():
+def test_semantic_scorer_batches_candidate_prompts():
     backend = QueueBackend(
         [
             [5.0, 1.0],  # billing +4
@@ -95,10 +140,20 @@ def test_semantic_scorer_uses_yes_no_log_odds():
     result = SemanticBinaryScorer(backend).score(request())
     assert result.choice == "billing"
     assert result.scores == {"billing": 4.0, "technical": 0.0, "sales": -3.0}
+    assert result.scorer == "semantic_comparative_logodds_v2"
     assert result.generated_tokens == 0
     assert result.probability_status == "uncalibrated_conditional_scores"
     assert math.isclose(sum(result.distribution.values()), 1.0)
-    assert len(backend.calls) == 3
+    assert len(backend.batch_calls) == 1
+    assert backend.calls == []
+
+
+def test_independent_scorer_keeps_v1_semantics_but_uses_batch_runtime():
+    backend = QueueBackend([[5.0, 1.0], [2.0, 2.0], [0.0, 3.0]])
+    result = IndependentSemanticScorer(backend).score(request())
+    assert result.scorer == "semantic_binary_logodds_v1"
+    assert result.choice == "billing"
+    assert len(backend.batch_calls) == 1
 
 
 def test_letter_scorer_is_a_single_forward_baseline():

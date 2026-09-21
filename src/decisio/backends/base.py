@@ -16,3 +16,11 @@ class LogitBackend(Protocol):
     def next_token_logits(self, input_ids: tuple[int, ...], token_ids: list[int]) -> list[float]:
         """Return next-token logits for exactly the requested vocabulary token ids."""
         ...
+
+    def batch_next_token_logits(
+        self,
+        input_ids_batch: list[tuple[int, ...]],
+        token_ids_batch: list[list[int]],
+    ) -> list[list[float]]:
+        """Score multiple prompts in one backend batch."""
+        ...

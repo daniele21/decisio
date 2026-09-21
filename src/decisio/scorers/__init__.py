@@ -1,4 +1,4 @@
 from .letters import LetterTokenScorer
-from .semantic import SemanticBinaryScorer
+from .semantic import IndependentSemanticScorer, SemanticBinaryScorer
 
-__all__ = ["LetterTokenScorer", "SemanticBinaryScorer"]
+__all__ = ["IndependentSemanticScorer", "LetterTokenScorer", "SemanticBinaryScorer"]

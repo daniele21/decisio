@@ -45,9 +45,44 @@ class SnakeGame:
         return self.snake[0]
 
     def candidate_directions(self) -> tuple[str, ...]:
-        """Return standard Snake actions, excluding an immediate 180-degree reversal."""
+        """Return legal turn actions, excluding an immediate 180-degree reversal."""
         reverse = OPPOSITE[self.direction]
         return tuple(direction for direction in DIRECTIONS if direction != reverse)
+
+    def immediate_failure_reason(self, direction: str) -> str | None:
+        """Return a deterministic immediate-failure reason without mutating the game."""
+        if direction not in DIRECTIONS:
+            raise ValueError(f"unknown direction {direction!r}")
+        if direction == OPPOSITE[self.direction]:
+            return "reverse_direction"
+
+        dx, dy = DIRECTIONS[direction]
+        hx, hy = self.head
+        new_head = (hx + dx, hy + dy)
+        x, y = new_head
+        if not (0 <= x < self.width and 0 <= y < self.height):
+            return "wall_collision"
+
+        ate_food = self.food is not None and new_head == self.food
+        occupied = set(self.snake if ate_food else self.snake[:-1])
+        if new_head in occupied:
+            return "body_collision"
+        return None
+
+    def safe_directions(self) -> tuple[str, ...]:
+        """Return actions that cannot cause an immediate deterministic death."""
+        return tuple(
+            direction
+            for direction in self.candidate_directions()
+            if self.immediate_failure_reason(direction) is None
+        )
+
+    def action_constraints(self) -> dict[str, str | None]:
+        """Expose why each direction is accepted or rejected before model scoring."""
+        return {
+            direction: self.immediate_failure_reason(direction)
+            for direction in DIRECTIONS
+        }
 
     def _spawn_food(self) -> tuple[int, int] | None:
         free = [
