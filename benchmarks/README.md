@@ -40,7 +40,7 @@ python benchmarks/build_scorer_gate_fixture.py \
 Run the complete paired matrix with one backend instance:
 
 ```bash
-uv sync --extra qwen --extra dev
+uv sync --frozen --extra qwen --extra dev
 
 uv run decisio compare \
   --input .artifacts/scorer-gate-v1.jsonl \
@@ -64,7 +64,7 @@ precommitted margins in the methodology. Smaller-model or hosted-CPU results are
 Install the reference runtime:
 
 ```bash
-uv sync --extra qwen --extra dev
+uv sync --frozen --extra qwen --extra dev
 ```
 
 Run the primary comparative semantic scorer:
