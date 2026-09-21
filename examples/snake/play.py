@@ -19,7 +19,6 @@ from decisio.backends.qwen import (
 )
 from decisio.schema import Candidate, ChoiceRequest
 from decisio.scorers import LetterTokenScorer, SemanticBinaryScorer
-
 from examples.snake.game import DIRECTIONS, SnakeGame
 
 QUESTION = (
@@ -70,7 +69,9 @@ def append_trace(path: Path, record: dict[str, Any]) -> None:
 
 
 def build_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(description="Run a headless Snake episode controlled by Decisio")
+    parser = argparse.ArgumentParser(
+        description="Run a headless Snake episode controlled by Decisio"
+    )
     parser.add_argument("--model", default=DEFAULT_MODEL)
     parser.add_argument("--revision", default=DEFAULT_REVISION)
     parser.add_argument("--device", choices=["auto", "cuda", "cpu"], default="auto")
