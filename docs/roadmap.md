@@ -13,6 +13,8 @@ Implementation order must optimize for learning. Performance engineering that do
 
 ## Milestone 0 — Reproducible decision laboratory
 
+**Implementation status:** core code complete on the product branch; representative Qwen/CUDA evidence pending.
+
 Goal: establish a trustworthy baseline before building a service.
 
 Features:

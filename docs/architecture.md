@@ -1,6 +1,6 @@
 # Architecture
 
-Status: proposed  
+Status: active  
 Owner: repository
 
 ## System intent
@@ -216,3 +216,10 @@ These should be answered by evidence rather than preference:
 - whether hidden-state scoring can improve over logit verbalizers without training;
 - how much post-hoc calibration helps without task-specific training;
 - when an optional trained adapter becomes justified.
+
+
+## Current implementation boundary
+
+Milestone 0 implements the simple fresh reference path only: each semantic candidate is compiled and evaluated independently, while the letter-token baseline uses one forward pass for the complete option set.
+
+The Qwen adapter uses Transformers' text-only causal-LM mapping for the pinned `Qwen/Qwen3.5-4B` checkpoint and requests only the final-position logits. Cache sharing, candidate micro-batching and multi-question reuse remain deliberately outside this reference path until semantic behavior is measured.

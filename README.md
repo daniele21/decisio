@@ -117,6 +117,37 @@ Decisio v1 is successful if it provides reproducible evidence that the primary s
 
 The project does **not** require beating Jev to succeed.
 
+## Milestone 0 laboratory
+
+The first executable slice is now implemented as a Python package with two zero-generation scorers:
+
+- `semantic` — the primary candidate-by-candidate Yes/No log-odds scorer;
+- `letters` — the direct A/B/C-style next-token baseline.
+
+Install the reference Qwen runtime:
+
+```bash
+uv sync --extra qwen --extra dev
+```
+
+Score one request:
+
+```bash
+uv run decisio score --input request.json --scorer semantic --device cuda
+```
+
+Run the smoke harness:
+
+```bash
+uv run decisio benchmark \
+  --input benchmarks/fixtures/smoke.jsonl \
+  --output .artifacts/semantic-smoke.jsonl \
+  --scorer semantic \
+  --device cuda
+```
+
+Milestone 0 intentionally uses fresh inference for every candidate. Shared KV/state execution is a later optimization and must be validated against this reference path.
+
 ## Documentation
 
 - [Product scope and durable objectives](docs/product.md)

@@ -1,0 +1,40 @@
+[build-system]
+requires = ["hatchling>=1.27"]
+build-backend = "hatchling.build"
+
+[project]
+name = "decisio"
+version = "0.1.0a0"
+description = "Training-free, zero-generation decision scoring for open causal LLMs"
+readme = "README.md"
+requires-python = ">=3.11"
+license = {text = "Apache-2.0"}
+authors = [{name = "Decisio contributors"}]
+dependencies = []
+
+[project.optional-dependencies]
+qwen = [
+  "torch>=2.6",
+  "transformers>=5.17,<6",
+]
+dev = [
+  "pytest>=8.3",
+  "ruff>=0.12",
+]
+
+[project.scripts]
+decisio = "decisio.cli:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/decisio"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"
+
+[tool.ruff]
+target-version = "py311"
+line-length = 100
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "SIM"]

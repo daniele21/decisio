@@ -5,19 +5,35 @@ Owner: repository
 
 ## Current milestone
 
-Define and validate the Decisio product thesis before implementing the inference runtime.
+Validate the Milestone 0 scoring hypothesis on the pinned Qwen 3.5 4B reference model.
 
 ## Active workstreams
 
 | Workstream | Current executable slice | State | Blocker |
 | --- | --- | --- | --- |
-| Product foundation | Scope, architecture, scorer hypothesis and roadmap | ACTIVE | none |
+| Product foundation | Scope, architecture, scorer hypothesis and roadmap | ACTIVE | pending merge |
+| Decision laboratory | Fresh semantic scorer + letter-token baseline + JSONL harness | ACTIVE | representative Qwen/CUDA evidence not run yet |
+
+## Integrated on the product branch
+
+- dependency-free decision schema and deterministic compiler;
+- semantic candidate scorer using Yes/No log-odds;
+- A/B/C direct-logit baseline;
+- tokenizer verification for one-token readout slots;
+- Qwen 3.5 4B Transformers backend pinned to an exact model revision;
+- CLI for single scoring and JSONL benchmarks;
+- auditable result records with scorer/model/prompt provenance;
+- smoke fixtures and deterministic unit tests;
+- project CI for lint/test/compile.
 
 ## Repository blockers
 
-- The repository still contains source material inherited from `repo-template-sw`; project specialization/cleanup is not complete.
-- No Decisio inference implementation or benchmark baseline is integrated yet.
+- The repository still contains inherited `repo-template-sw` material that should be removed after the project-specific engineering baseline is specialized.
+- Real Qwen 3.5 4B BF16/CUDA benchmark evidence is still required before Milestone 1 conclusions.
+- Shared-prefix execution, answerability and generated-output comparison are intentionally not implemented yet.
 
 ## Next
 
-- Implement Milestone 0 from `docs/roadmap.md`: a reproducible Qwen 3.5 4B decision laboratory comparing direct answer-token scoring with semantic candidate log-odds.
+- Run the pinned reference model on the frozen smoke/initial evaluation set.
+- Add Milestone 1 perturbation fixtures and generated structured-output baseline.
+- Decide from evidence whether semantic binary log-odds remains the default scorer before implementing shared execution.
