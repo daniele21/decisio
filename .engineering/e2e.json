@@ -19,7 +19,7 @@
       "automated_e2e_before_shared_integration": true,
       "real_environment_blocking": false,
       "real_environment_deferred_to_release": true,
-      "material_ui_journey_minimum_evidence_mode": "assertions",
+      "material_ui_journey_minimum_evidence_mode": "full_media",
       "incidental_ui_may_use_assertions": true
     },
     "release": {
@@ -36,7 +36,14 @@
     ],
     "default_mode": "assertions",
     "assertions_allowed_when_ui_incidental": true,
-    "full_media_triggers": []
+    "full_media_triggers": [
+      "material_ui_integration_outcome",
+      "motion_or_animation",
+      "timing_or_progression",
+      "navigation_or_transition_sequence",
+      "lifecycle_visibility",
+      "release_acceptance"
+    ]
   },
   "fidelity_order": [
     "host_or_fake",
