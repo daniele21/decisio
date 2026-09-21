@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from decisio.backends.base import LogitBackend
 from decisio.compiler import compile_letter_choice
-from decisio.math import softmax
+from decisio.math import softmax, stable_argmax
 from decisio.schema import ChoiceRequest, DecisionResult
 
 
@@ -27,7 +27,7 @@ class LetterTokenScorer:
             candidate.id: probability
             for candidate, probability in zip(request.candidates, probabilities, strict=True)
         }
-        choice = max(distribution, key=distribution.__getitem__)
+        choice = stable_argmax(distribution)
         return DecisionResult(
             choice=choice,
             distribution=distribution,
