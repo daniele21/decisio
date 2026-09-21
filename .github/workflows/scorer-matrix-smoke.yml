@@ -1,0 +1,95 @@
+name: Scorer matrix smoke
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - ".github/workflows/scorer-matrix-smoke.yml"
+      - "pyproject.toml"
+      - "src/decisio/backends/qwen.py"
+      - "src/decisio/baselines/generation.py"
+      - "src/decisio/benchmark.py"
+      - "src/decisio/cli.py"
+      - "src/decisio/comparison.py"
+      - "src/decisio/compiler.py"
+      - "src/decisio/scorers/**"
+      - "benchmarks/build_scorer_gate_fixture.py"
+      - "benchmarks/scorer-gate-v1.md"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: scorer-matrix-smoke-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  qwen-cpu-directional:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      HF_HUB_DISABLE_TELEMETRY: "1"
+      TOKENIZERS_PARALLELISM: "false"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install CPU inference runtime
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install --index-url https://download.pytorch.org/whl/cpu "torch>=2.6"
+          python -m pip install "transformers>=5.17,<6"
+          python -m pip install -e . --no-deps
+
+      - name: Materialize frozen CI scorer workload
+        run: |
+          python benchmarks/build_scorer_gate_fixture.py \
+            --ci \
+            --output /tmp/scorer-gate-ci.jsonl
+
+      - name: Run v2-v1-letters-generated matrix
+        run: |
+          decisio compare \
+            --input /tmp/scorer-gate-ci.jsonl \
+            --output-dir /tmp/scorer-gate \
+            --model Qwen/Qwen3.5-0.8B \
+            --revision 2fc06364 \
+            --device cpu \
+            --dtype bfloat16
+
+      - name: Verify directional evidence contract
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          report = json.loads(Path("/tmp/scorer-gate/comparison.json").read_text())
+          assert report["examples"] == 8, report
+          assert report["input_sha256"] == "360a972d7732cc0039113f4a41fbb3d51630439e4084631dbf4d1b60c63c1d17"
+          assert set(report["scorers"]) == {
+              "semantic",
+              "semantic-independent",
+              "letters",
+              "generated",
+          }
+          for scorer in ("semantic", "semantic-independent", "letters"):
+              assert report["scorers"][scorer]["normal"]["generated_tokens"] == 0
+              assert report["scorers"][scorer]["reverse_candidates"]["generated_tokens"] == 0
+          assert report["scorers"]["semantic"]["order_sensitivity"]["choice_changes"] == 0
+          assert report["scorers"]["generated"]["normal"]["generated_tokens"] > 0
+
+          print(Path("/tmp/scorer-gate/comparison.md").read_text())
+          PY
+
+      - name: Upload scorer matrix evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: decisio-scorer-matrix-qwen35-08b
+          path: |
+            /tmp/scorer-gate-ci.jsonl
+            /tmp/scorer-gate/
+          if-no-files-found: warn
+          retention-days: 14
