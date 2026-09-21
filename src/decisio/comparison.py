@@ -184,9 +184,9 @@ def _render_markdown(report: dict[str, Any]) -> str:
             "",
             (
                 "This report is evidence, not an automatic product verdict. A stable-scorer "
-                "decision requires the pinned Qwen3.5-4B BF16/CUDA run described by the scorer-gate "
-                "methodology. Hosted CPU or smaller-model runs are integration/directional evidence "
-                "only."
+                "decision requires the pinned Qwen3.5-4B BF16/CUDA run described by the "
+                "scorer-gate methodology. Hosted CPU or smaller-model runs are "
+                "integration/directional evidence only."
             ),
             "",
         ]
