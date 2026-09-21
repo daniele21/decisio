@@ -18,7 +18,9 @@ Validate the Milestone 0 scoring hypothesis on the pinned Qwen 3.5 4B reference 
 ## Integrated on the product branch
 
 - dependency-free decision schema and deterministic compiler;
-- semantic candidate scorer using Yes/No log-odds;
+- comparative semantic v2 scorer using Yes/No log-odds across the complete alternative set;
+- original candidate-independent semantic v1 scorer retained as a baseline;
+- one-batch candidate execution and selected-vocabulary projection in the Qwen backend;
 - A/B/C direct-logit baseline;
 - tokenizer verification for one-token readout slots;
 - Qwen 3.5 4B Transformers backend pinned to an exact model revision;
@@ -34,12 +36,13 @@ Validate the Milestone 0 scoring hypothesis on the pinned Qwen 3.5 4B reference 
 
 - The repository still contains inherited `repo-template-sw` material that should be removed after the project-specific engineering baseline is specialized.
 - Real Qwen 3.5 4B BF16/CUDA benchmark evidence is still required before Milestone 1 conclusions.
-- Shared-prefix execution and answerability are intentionally not implemented yet; the generated-output baseline is available only for comparison.
+- Shared-prefix/cache execution and answerability are intentionally not implemented yet; candidate batching is implemented, but shared prompt tokens are still physically repeated across batch rows.
 - Example behavior remains exploratory until promoted into frozen benchmark/regression evidence.
 
 ## Next
 
 - Run the pinned reference model on the frozen smoke/initial evaluation set.
 - Expand Milestone 1 perturbations beyond candidate reversal and run all three scorers on representative Qwen/CUDA.
+- Validate the new constraint-first Snake controller and comparative scorer against the prior failure trace.
 - Use Snake traces to identify repeated failure patterns worth promoting into fixed regression fixtures.
 - Decide from evidence whether semantic binary log-odds remains the default scorer before implementing shared execution.
