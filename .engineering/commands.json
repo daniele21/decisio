@@ -39,7 +39,7 @@
       "run": "uv build"
     },
     "stop": {
-      "status": "optional",
+      "status": "n/a",
       "run": "n/a"
     },
     "clean": {
@@ -237,10 +237,10 @@
     "release_artifacts_immutable": true
   },
   "build_delta": {
-    "required": false,
+    "required": true,
     "compare_to": "previous-successful-comparable-build",
     "output": "BUILD_CHANGELOG.md",
-    "bundle_with_artifact": false,
+    "bundle_with_artifact": true,
     "dimensions": [
       "source",
       "dependencies",
