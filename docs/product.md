@@ -21,7 +21,7 @@ The primary consumer is software, not a conversational end user.
 
 Decisio owns the following job:
 
-> Given state/evidence, a semantic question and a bounded set of runtime-defined alternatives, return a typed decision signal that software can consume directly without autoregressive answer generation.
+> Given state/evidence, a semantic question and a bounded set of valid runtime-defined alternatives, return a typed decision signal that software can consume directly without autoregressive answer generation.
 
 The initial problem surface includes:
 
@@ -46,15 +46,15 @@ For decision-shaped workloads, Decisio aims to provide:
 
 A normal causal LLM already contains enough semantic information in its logits/hidden state to support useful bounded decisions without generating text.
 
-Decisio's primary hypothesis is that **candidate-level binary semantic scoring** is a better general decision primitive than arbitrary answer-token scoring.
+Decisio's primary hypothesis is that **comparative candidate-level binary semantic scoring** is a better general decision primitive than arbitrary answer-token scoring or candidate-independent binary scoring.
 
 For candidate `c_i`:
 
 ```text
-state + question + candidate_i
-              |
-              v
-         YES / NO logits
+state + question + all alternatives + candidate_i
+                         |
+                         v
+                    YES / NO logits
               |
               v
 score_i = logit(YES) - logit(NO)
@@ -70,7 +70,7 @@ Decisio is not differentiated merely by "reading logits"; that already exists in
 
 Its intended differentiation is the combination of:
 
-1. **semantic candidate scoring rather than letter-token scoring as the primary path;**
+1. **comparative semantic candidate scoring rather than letter-token or candidate-independent scoring as the primary path;**
 2. **answerability as a first-class, separate decision dimension;**
 3. **shared-prefix and parallel-candidate execution;**
 4. **strict probability-status semantics;**
@@ -107,6 +107,7 @@ Decisio deliberately does not own:
 
 - **Decisions, not strings.** If the valid output space is bounded, do not generate prose to recover it.
 - **Training-free before trained.** Establish the inference-time ceiling before adding learned components.
+- **Constrain before score.** Deterministic validity/safety/business constraints stay with the owning domain and remove impossible candidates before probabilistic scoring.
 - **Semantic options over arbitrary verbalizers.** Candidate meaning should drive the score, not which letter represents it.
 - **Answerability is separate from preference.** "Which option?" and "Can this be answered?" are different questions.
 - **Scores are not confidence until calibrated.** API naming and metadata must preserve that distinction.
