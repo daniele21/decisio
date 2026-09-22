@@ -40,10 +40,7 @@
     "answerability_first_class": true,
     "uncalibrated_scores_must_be_labeled": true,
     "deterministic_constraints_before_scoring": true,
-    "reference_runtime": "llama.cpp",
-    "reference_model_artifact_format": "GGUF",
-    "reference_quantization": "Q4_K_M",
-    "reference_gate_device": "CPU",
+    "reference_runtime": "llama.cpp + GGUF Q4_K_M; CPU reference gate",
     "calibration_bound_to_exact_runtime_identity": true
   },
   "evidence": {
