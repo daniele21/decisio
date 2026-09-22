@@ -74,14 +74,12 @@ uncalibrated unless a calibration artifact matches that identity.
 
 Decisio is not differentiated merely by "reading logits"; that already exists in open projects.
 
-Its intended differentiation is the combination of:
+Its intended differentiation combines:
 
-1. **comparative semantic candidate scoring rather than letter-token or candidate-independent scoring as the primary path;**
-2. **answerability as a first-class, separate decision dimension;**
-3. **shared-prefix and parallel-candidate execution;**
-4. **strict probability-status semantics;**
-5. **side-by-side reproducible evaluation of inference strategies;**
-6. **training-free first, with training added only if evidence shows a meaningful ceiling.**
+1. **comparative semantic candidate scoring** rather than arbitrary answer tokens;
+2. **separate answerability and honest probability status**;
+3. **shared/parallel execution with reproducible strategy evidence**;
+4. **training-free first**, adding training only if evidence shows a meaningful ceiling.
 
 ## Core outcomes
 
