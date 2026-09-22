@@ -18,7 +18,7 @@ The initial project thesis is:
 
 v1 is training-free. Do not add fine-tuning, adapters or learned heads without benchmark evidence and an explicit product-scope change.
 
-The v1 reference path is Qwen 3.5 4B Q4_K_M GGUF through llama.cpp; representative evidence pins the exact artifact and runtime identity.
+v1 reference: Qwen 3.5 4B Q4_K_M GGUF via llama.cpp; evidence pins exact artifact/runtime identity.
 
 ## Core technical invariants
 
