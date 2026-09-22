@@ -75,6 +75,7 @@ jobs:
           assert identity["quantization"] == "Q4_K_M", identity
           assert identity["selected_vocab_projection"] is False, identity
           assert identity["shared_context_state"] is True, identity
+          assert identity["shared_prefix_primitive"] == "multi_sequence_batch_membership", identity
           PY
       - name: Compare shared-prefix path with fresh reference
         run: |
@@ -98,10 +99,12 @@ jobs:
               )
           )
           try:
+              backend.reset_runtime_metrics()
               shared = SemanticBinaryScorer(backend).score(request)
+              shared_metrics = backend.runtime_metrics()
               backend.reset_runtime_metrics()
               fresh = SemanticBinaryScorer(backend.fresh_view()).score(request)
-              shared_metrics = backend.runtime_metrics()
+              fresh_metrics = backend.runtime_metrics()
 
               score_delta = max(
                   abs(shared.scores[key] - fresh.scores[key])
@@ -125,7 +128,8 @@ jobs:
                   "max_abs_score_delta": score_delta,
                   "max_abs_binary_probability_delta": binary_delta,
                   "max_abs_distribution_delta": distribution_delta,
-                  "fresh_runtime_metrics": shared_metrics,
+                  "shared_runtime_metrics": shared_metrics,
+                  "fresh_runtime_metrics": fresh_metrics,
               }
               Path("/tmp/decisio-shared-fresh-equivalence.json").write_text(
                   json.dumps(evidence, indent=2, sort_keys=True) + "\n"
@@ -135,6 +139,16 @@ jobs:
               assert score_delta <= 1e-3, evidence
               assert binary_delta <= 1e-4, evidence
               assert distribution_delta <= 1e-4, evidence
+              assert shared_metrics["reused_prefix_tokens"] > 0, evidence
+              assert (
+                  shared_metrics["physically_evaluated_tokens"]
+                  < shared_metrics["logical_input_tokens"]
+              ), evidence
+              assert fresh_metrics["reused_prefix_tokens"] == 0, evidence
+              assert (
+                  fresh_metrics["physically_evaluated_tokens"]
+                  == fresh_metrics["logical_input_tokens"]
+              ), evidence
           finally:
               backend.close()
           PY

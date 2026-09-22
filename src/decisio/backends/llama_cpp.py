@@ -256,30 +256,40 @@ class _NativeLlamaCppRuntime:
         self,
         tokens: Sequence[int],
         *,
-        seq_id: int,
+        seq_ids: Sequence[int],
         n_past: int,
     ) -> None:
+        if not seq_ids:
+            raise ValueError("seq_ids must not be empty")
+        if len(seq_ids) > self.n_seq_max:
+            raise ValueError("seq_ids exceed the configured sequence capacity")
+        if len(set(seq_ids)) != len(seq_ids):
+            raise ValueError("seq_ids must be unique")
+        if any(seq_id < 0 or seq_id >= self.n_seq_max for seq_id in seq_ids):
+            raise ValueError("seq_ids contain an id outside the configured sequence capacity")
+
         batch = self._batch.batch
         batch.n_tokens = len(tokens)
         for index, token in enumerate(tokens):
             batch.token[index] = int(token)
             batch.pos[index] = n_past + index
-            batch.seq_id[index][0] = seq_id
-            batch.n_seq_id[index] = 1
+            batch.n_seq_id[index] = len(seq_ids)
+            for seq_index, seq_id in enumerate(seq_ids):
+                batch.seq_id[index][seq_index] = seq_id
             batch.logits[index] = False
         batch.logits[len(tokens) - 1] = True
 
-    def _decode_sequence(
+    def _decode_tokens(
         self,
         tokens: Sequence[int],
         *,
-        seq_id: int,
+        seq_ids: Sequence[int],
         n_past: int,
     ) -> None:
         offset = 0
         while offset < len(tokens):
             chunk = tokens[offset : offset + self.n_batch]
-            self._set_batch(chunk, seq_id=seq_id, n_past=n_past + offset)
+            self._set_batch(chunk, seq_ids=seq_ids, n_past=n_past + offset)
             self._score_ctx.decode(self._batch)
             offset += len(chunk)
 
@@ -313,7 +323,7 @@ class _NativeLlamaCppRuntime:
         self._require_open()
         self._validate(input_ids, token_ids)
         self._clear_scoring_state()
-        self._decode_sequence(input_ids, seq_id=0, n_past=0)
+        self._decode_tokens(input_ids, seq_ids=(0,), n_past=0)
         self._metrics["logical_input_tokens"] += len(input_ids)
         self._metrics["physically_evaluated_tokens"] += len(input_ids)
         self._metrics["fresh_calls"] += 1
@@ -352,7 +362,14 @@ class _NativeLlamaCppRuntime:
 
         self._clear_scoring_state()
         prefix = input_ids_batch[0][:prefix_len]
-        self._decode_sequence(prefix, seq_id=0, n_past=0)
+        sequence_ids = tuple(range(len(input_ids_batch)))
+
+        # Match llama.cpp's multiple-choice path: every common-prefix token belongs
+        # to every candidate sequence while it is decoded. This makes llama.cpp
+        # construct the full model state for each branch, including hybrid
+        # recurrent state, instead of relying on KV-only sequence copying.
+        self._decode_tokens(prefix, seq_ids=sequence_ids, n_past=0)
+
         union = sorted({token for row in token_ids_batch for token in row})
         prefix_lookup = {}
         if any(len(row) == prefix_len for row in input_ids_batch):
@@ -360,16 +377,17 @@ class _NativeLlamaCppRuntime:
                 zip(union, self._selected_logits(union), strict=True)
             )
 
-        for seq_id in range(1, len(input_ids_batch)):
-            self._score_ctx.kv_cache_seq_cp(0, seq_id, 0, prefix_len)
-
         result: list[list[float]] = []
         for seq_id, (input_ids, token_ids) in enumerate(
             zip(input_ids_batch, token_ids_batch, strict=True)
         ):
             suffix = input_ids[prefix_len:]
             if suffix:
-                self._decode_sequence(suffix, seq_id=seq_id, n_past=prefix_len)
+                self._decode_tokens(
+                    suffix,
+                    seq_ids=(seq_id,),
+                    n_past=prefix_len,
+                )
                 result.append(self._selected_logits(token_ids))
             else:
                 result.append([float(prefix_lookup[token_id]) for token_id in token_ids])
@@ -479,7 +497,7 @@ RuntimeFactory = Callable[[LlamaCppBackendConfig], _Runtime]
 class FreshLlamaCppBackendView:
     """Diagnostic view that disables shared-prefix scoring without reloading the model."""
 
-    def __init__(self, backend: "LlamaCppBackend"):
+    def __init__(self, backend: LlamaCppBackend):
         self._backend = backend
         self.tokenizer = backend.tokenizer
 
@@ -554,6 +572,7 @@ class LlamaCppBackend:
             "memory_metric": "process_max_rss",
             "zero_generation_native_scoring": True,
             "shared_context_state": True,
+            "shared_prefix_primitive": "multi_sequence_batch_membership",
             "selected_vocab_projection": False,
             "logit_readout": "full_final_position_vocab_then_select",
         }

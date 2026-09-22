@@ -5,7 +5,11 @@ from pathlib import Path
 
 import pytest
 
-from decisio.backends.llama_cpp import LlamaCppBackend, LlamaCppBackendConfig
+from decisio.backends.llama_cpp import (
+    LlamaCppBackend,
+    LlamaCppBackendConfig,
+    _NativeLlamaCppRuntime,
+)
 
 
 class FakeRuntime:
@@ -117,6 +121,7 @@ def test_identity_is_path_free_and_hashes_artifact(tmp_path: Path):
     assert str(tmp_path) not in str(identity)
     assert identity["selected_vocab_projection"] is False
     assert identity["shared_context_state"] is True
+    assert identity["shared_prefix_primitive"] == "multi_sequence_batch_membership"
 
 
 def test_tokenizer_uses_runtime_chat_template_and_no_implicit_bos(tmp_path: Path):
@@ -170,3 +175,34 @@ def test_close_is_idempotent_and_invalidates_runtime(tmp_path: Path):
     assert runtime.closed is True
     with pytest.raises(RuntimeError, match="closed"):
         backend.next_token_logits((1,), [2])
+
+
+class _FakeBatchData:
+    def __init__(self, *, n_tokens: int, n_seq_max: int):
+        self.n_tokens = 0
+        self.token = [0] * n_tokens
+        self.pos = [0] * n_tokens
+        self.seq_id = [[0] * n_seq_max for _ in range(n_tokens)]
+        self.n_seq_id = [0] * n_tokens
+        self.logits = [False] * n_tokens
+
+
+class _FakeBatchOwner:
+    def __init__(self, *, n_tokens: int, n_seq_max: int):
+        self.batch = _FakeBatchData(n_tokens=n_tokens, n_seq_max=n_seq_max)
+
+
+def test_native_batch_attaches_common_prefix_to_all_candidate_sequences():
+    runtime = object.__new__(_NativeLlamaCppRuntime)
+    runtime.n_seq_max = 4
+    runtime._batch = _FakeBatchOwner(n_tokens=8, n_seq_max=4)
+
+    runtime._set_batch((11, 12, 13), seq_ids=(0, 1, 2), n_past=7)
+
+    batch = runtime._batch.batch
+    assert batch.n_tokens == 3
+    assert batch.token[:3] == [11, 12, 13]
+    assert batch.pos[:3] == [7, 8, 9]
+    assert batch.n_seq_id[:3] == [3, 3, 3]
+    assert [row[:3] for row in batch.seq_id[:3]] == [[0, 1, 2]] * 3
+    assert batch.logits[:3] == [False, False, True]
