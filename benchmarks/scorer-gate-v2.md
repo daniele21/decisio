@@ -1,4 +1,4 @@
-# Scorer gate v2 — Qwen3.5-4B Q4_K_M + llama.cpp
+# Scorer gate v2 — Qwen3.5-2B Q4_K_M + llama.cpp
 
 Status: FROZEN before representative result  
 Frozen: 2026-09-22  
@@ -15,11 +15,11 @@ This gate is a product decision experiment, not a claim of broad model quality.
 
 The representative v2 run is pinned to:
 
-- source: `lmstudio-community/Qwen3.5-4B-GGUF`;
-- source revision: `e52a809eba94f740f51bdd80a73f189d06ac9347`;
-- file: `Qwen3.5-4B-Q4_K_M.gguf`;
-- file size: `2707513696` bytes;
-- file SHA-256: `25082a7dd3776cc3c741c6347d3bd04523f05796607b3fbc32fa3a25dfa1418c`;
+- source: `unsloth/Qwen3.5-2B-GGUF`;
+- source revision: `1c466474d208da1a7c4b8cb87ebcdac78f160e34`;
+- file: `Qwen3.5-2B-Q4_K_M.gguf`;
+- file size: `1280835840` bytes;
+- file SHA-256: `aaf42c8b7c3cab2bf3d69c355048d4a0ee9973d48f16c731c0520ee914699223`;
 - runtime/binding: `llama-cpp-python==0.3.35` CPU wheel;
 - device: CPU;
 - `n_ctx=8192`, `n_batch=512`, `n_ubatch=512`;
@@ -31,6 +31,11 @@ The representative v2 run is pinned to:
 
 The workflow downloads from the exact source revision and independently verifies the file SHA before
 loading it.
+
+**Reference-artifact amendment — 2026-09-22, before any 2B scorer matrix executed.** The canonical
+CPU evidence artifact changed from Qwen3.5-4B Q4_K_M to Qwen3.5-2B Q4_K_M to make the local-first
+reference path materially easier to run. The frozen workload, scorer semantics, numerical tolerances
+and promotion criteria are unchanged. Earlier 4B runtime experiments remain diagnostic history.
 
 This identity is the reproducible reference artifact only. Decisio remains model-file driven: users
 may choose another compatible quantized Qwen GGUF. Such a choice creates a different evidence and
@@ -100,7 +105,7 @@ A long same-state/different-question fixture must prove:
 - cache entries/bytes remain within the frozen bounds;
 - explicit clear returns entries and bytes to zero.
 
-Latency and speedup are recorded. No blocking 4B cache-speed threshold is introduced in v2 before
+Latency and speedup are recorded. No blocking cache-speed threshold is introduced in v2 before
 the first representative result.
 
 ## Precommitted scorer criteria

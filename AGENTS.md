@@ -18,7 +18,7 @@ The initial project thesis is:
 
 v1 is training-free. Do not add fine-tuning, adapters or learned heads without benchmark evidence and an explicit product-scope change.
 
-v1 reference: Qwen 3.5 4B Q4_K_M GGUF via llama.cpp; evidence pins exact artifact/runtime identity.
+v1 reference: Qwen 3.5 2B Q4_K_M GGUF via llama.cpp; evidence pins exact artifact/runtime identity.
 
 ## Core technical invariants
 
@@ -32,7 +32,7 @@ v1 reference: Qwen 3.5 4B Q4_K_M GGUF via llama.cpp; evidence pins exact artifac
 - Candidate IDs are independent of presentation order.
 - Shared/cache-optimized execution must be compared against a fresh reference path.
 - Benchmark claims carry exact model revision, scorer/compiler identity, precision/backend and timing scope.
-- Qwen 3.5 4B is the initial reference model, not a hard-coded product boundary.
+- Qwen 3.5 2B is the initial reference model, not a hard-coded product boundary.
 - GGUF + llama.cpp is canonical for v1; Q4_K_M is not claimed equivalent to BF16.
 - Evidence precedes additional runtimes, quantizations and UI work.
 
@@ -44,7 +44,7 @@ Do not add HTTP, MLX, additional runtime backends/quantizations, UI or broad mod
 
 The first executable question is:
 
-> On the same frozen workload and pinned Qwen 3.5 4B Q4_K_M GGUF + llama.cpp runtime, does semantic candidate log-odds provide a useful quality/robustness trade-off against direct answer-token scoring and generated structured output?
+> On the same frozen workload and pinned Qwen 3.5 2B Q4_K_M GGUF + llama.cpp runtime, does semantic candidate log-odds provide a useful quality/robustness trade-off against direct answer-token scoring and generated structured output?
 
 ## Validation priorities
 

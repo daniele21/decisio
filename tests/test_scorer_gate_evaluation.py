@@ -73,11 +73,11 @@ def _report() -> dict:
                 "backend": "llama-cpp-python",
                 "runtime": "llama.cpp",
                 "binding_version": "0.3.35",
-                "artifact_filename": "Qwen3.5-4B-Q4_K_M.gguf",
+                "artifact_filename": "Qwen3.5-2B-Q4_K_M.gguf",
                 "artifact_sha256": (
-                    "25082a7dd3776cc3c741c6347d3bd04523f05796607b3fbc32fa3a25dfa1418c"
+                    "aaf42c8b7c3cab2bf3d69c355048d4a0ee9973d48f16c731c0520ee914699223"
                 ),
-                "artifact_size_bytes": 2707513696,
+                "artifact_size_bytes": 1280835840,
                 "quantization": "Q4_K_M",
                 "device": "cpu",
                 "n_ctx": 8192,

@@ -66,9 +66,10 @@ A separate answerability judgment estimates whether the state contains enough in
 
 ## Reference runtime
 
-v1 uses Qwen 3.5 4B Q4_K_M GGUF via llama.cpp on CPU. Promotion evidence pins the exact
-artifact/runtime/host/scorer identity; BF16/Transformers is not equivalent. Scores remain
-uncalibrated unless a calibration artifact matches that identity.
+v1 uses Qwen 3.5 2B Q4_K_M GGUF via llama.cpp on CPU. Promotion evidence pins the exact
+artifact/runtime/host/scorer identity; BF16/Transformers is not equivalent. The 2B reference keeps
+the local CPU path practical; it is not a claim that 2B is universally better than larger compatible
+GGUFs. Scores remain uncalibrated unless a calibration artifact matches that identity.
 
 ## Meaningful differentiation
 
@@ -107,7 +108,7 @@ Decisio deliberately does not own:
 - **Scores are not confidence until calibrated.** API naming and metadata must preserve that distinction.
 - **Share expensive context.** Long state should be processed once wherever model/runtime semantics safely allow it.
 - **Benchmark the failure modes.** Accuracy alone is insufficient; permutation robustness, missing evidence, calibration, latency and memory matter.
-- **Reference implementation before abstraction explosion.** Prove Qwen 3.5 4B Q4_K_M on llama.cpp before generalizing to other runtimes or quantizations.
+- **Reference implementation before abstraction explosion.** Prove Qwen 3.5 2B Q4_K_M on llama.cpp before generalizing to other runtimes or quantizations.
 
 ## Product quality attributes
 

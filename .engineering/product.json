@@ -35,7 +35,7 @@
   "project_constraints": {
     "training_free_v1": true,
     "zero_generated_answer_tokens_native_path": true,
-    "reference_model": "Qwen/Qwen3.5-4B",
+    "reference_model": "Qwen/Qwen3.5-2B",
     "primary_scorer_hypothesis": "semantic_comparative_logodds",
     "answerability_first_class": true,
     "uncalibrated_scores_must_be_labeled": true,
