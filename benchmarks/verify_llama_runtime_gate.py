@@ -71,6 +71,8 @@ def evaluate(args: argparse.Namespace) -> dict[str, Any]:
         max_binary_delta = 0.0
         max_distribution_delta = 0.0
         changed_choices: list[str] = []
+        shared_fast_path_rows = 0
+        safe_fallback_rows = 0
 
         for row in load_jsonl(args.fixture):
             request = ChoiceRequest.from_dict(row)
@@ -81,6 +83,11 @@ def evaluate(args: argparse.Namespace) -> dict[str, Any]:
             backend.reset_runtime_metrics()
             fresh = fresh_scorer.score(request)
             fresh_metrics = backend.runtime_metrics()
+
+            if int(shared_metrics["shared_prefix_calls"]) > 0:
+                shared_fast_path_rows += 1
+            elif int(shared_metrics["fresh_calls"]) > 0:
+                safe_fallback_rows += 1
 
             delta = _deltas(shared, fresh)
             example_id = request.id or "unknown"
@@ -113,6 +120,8 @@ def evaluate(args: argparse.Namespace) -> dict[str, Any]:
             "shared_physically_evaluated_tokens": shared_physical,
             "fresh_physically_evaluated_tokens": fresh_physical,
             "physical_token_reduction": fresh_physical - shared_physical,
+            "shared_fast_path_rows": shared_fast_path_rows,
+            "safe_fallback_rows": safe_fallback_rows,
             "rows": rows,
         }
         fixture_evidence["passed"] = bool(
@@ -120,7 +129,8 @@ def evaluate(args: argparse.Namespace) -> dict[str, Any]:
             and max_score_delta <= SCORE_TOLERANCE
             and max_binary_delta <= BINARY_TOLERANCE
             and max_distribution_delta <= DISTRIBUTION_TOLERANCE
-            and shared_physical < fresh_physical
+            and shared_physical <= fresh_physical
+            and shared_fast_path_rows + safe_fallback_rows == len(rows)
         )
 
         backend.clear_repeated_state_cache()

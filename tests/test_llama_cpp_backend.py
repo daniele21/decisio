@@ -209,13 +209,22 @@ def test_close_is_idempotent_and_invalidates_runtime(tmp_path: Path):
         backend.next_token_logits((1,), [2])
 
 
-def test_shared_prefix_plan_keeps_short_proven_path_without_repeated_cache():
+def test_shared_prefix_plan_falls_back_when_prefix_has_no_native_batch_boundary():
     assert _shared_prefix_plan(
         common_prefix_len=152,
         reusable_prefix_len=93,
         max_input_len=188,
         n_batch=512,
-    ) == (152, None)
+    ) == (0, None)
+
+
+def test_shared_prefix_plan_accepts_exact_native_batch_boundary():
+    assert _shared_prefix_plan(
+        common_prefix_len=512,
+        reusable_prefix_len=None,
+        max_input_len=540,
+        n_batch=512,
+    ) == (512, None)
 
 
 def test_shared_prefix_plan_aligns_long_reusable_state_to_native_batch_boundary():

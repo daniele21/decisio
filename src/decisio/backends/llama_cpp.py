@@ -142,13 +142,14 @@ def _shared_prefix_plan(
     max_input_len: int,
     n_batch: int,
 ) -> tuple[int, int | None]:
-    if common_prefix_len < 1:
+    del max_input_len
+    if common_prefix_len < n_batch:
+        # Fresh evaluation decodes a short prompt in one native batch, so there is
+        # no interior checkpoint boundary whose state is guaranteed equivalent.
         return 0, None
-    if max_input_len <= n_batch:
-        # The pinned short-prompt path is already fresh-equivalent. Do not create
-        # an inter-request checkpoint inside its single native decode batch.
-        return common_prefix_len, None
 
+    # Only checkpoint after complete native decode chunks. The fresh path reaches
+    # these same boundaries, which keeps hybrid/recurrent model state batch-safe.
     aligned_common = (common_prefix_len // n_batch) * n_batch
     if aligned_common < 1:
         return 0, None
@@ -200,6 +201,7 @@ class _NativeLlamaCppRuntime:
             "reused_prefix_tokens": 0,
             "fresh_calls": 0,
             "shared_prefix_calls": 0,
+            "shared_prefix_fallbacks": 0,
             "prefix_state_snapshot_bytes": 0,
             "prefix_state_restore_bytes": 0,
             "prefix_state_restores": 0,
@@ -499,6 +501,7 @@ class _NativeLlamaCppRuntime:
         if len(input_ids_batch) != len(token_ids_batch):
             raise ValueError("input and token-id batch sizes must match")
         if len(input_ids_batch) > self.n_seq_max:
+            self._metrics["shared_prefix_fallbacks"] += 1
             return [
                 self.next_token_logits(input_ids, token_ids)
                 for input_ids, token_ids in zip(
@@ -518,6 +521,7 @@ class _NativeLlamaCppRuntime:
             n_batch=self.n_batch,
         )
         if prefix_len < 1:
+            self._metrics["shared_prefix_fallbacks"] += 1
             return [
                 self.next_token_logits(input_ids, token_ids)
                 for input_ids, token_ids in zip(

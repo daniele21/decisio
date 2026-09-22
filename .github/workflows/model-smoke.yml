@@ -143,12 +143,14 @@ jobs:
               assert score_delta <= 1e-3, evidence
               assert binary_delta <= 1e-4, evidence
               assert distribution_delta <= 1e-4, evidence
-              assert shared_metrics["reused_prefix_tokens"] > 0, evidence
-              assert shared_metrics["prefix_state_snapshot_bytes"] > 0, evidence
-              assert shared_metrics["prefix_state_restores"] > 0, evidence
+              assert shared_metrics["shared_prefix_calls"] == 0, evidence
+              assert shared_metrics["shared_prefix_fallbacks"] >= 1, evidence
+              assert shared_metrics["reused_prefix_tokens"] == 0, evidence
+              assert shared_metrics["prefix_state_snapshot_bytes"] == 0, evidence
+              assert shared_metrics["prefix_state_restores"] == 0, evidence
               assert (
                   shared_metrics["physically_evaluated_tokens"]
-                  < shared_metrics["logical_input_tokens"]
+                  == shared_metrics["logical_input_tokens"]
               ), evidence
               assert fresh_metrics["reused_prefix_tokens"] == 0, evidence
               assert (

@@ -74,7 +74,18 @@ For semantic v2 on every frozen case:
 - max absolute score delta <= `1e-3`;
 - max binary conditional probability delta <= `1e-4`;
 - max cross-candidate distribution delta <= `1e-4`;
-- aggregate physical input tokens on the shared path must be lower than fresh.
+- candidate-prefix reuse may checkpoint only at a boundary also reached by fresh native batching;
+- when the common prefix is shorter than that safe boundary, execution must fall back to fresh;
+- aggregate physical input tokens on the optimized path must never exceed fresh.
+
+The frozen 64-case fixture is therefore a correctness oracle, not a requirement to force reuse on
+short prompts. Physical-token reduction remains blocking on the dedicated long-state fixture below.
+
+**Runtime-gate amendment — 2026-09-22, before the scorer matrix executed.** The first 4B runtime
+oracle showed that snapshotting an arbitrary common prefix inside a single native decode batch can
+preserve argmax while materially changing logits. The runtime contract was narrowed to native-batch
+boundaries plus conservative fresh fallback. Numerical tolerances and every scorer-promotion
+criterion below remain unchanged.
 
 ### Repeated-state cache
 
