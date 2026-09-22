@@ -31,6 +31,8 @@ The representative v2 run is pinned to:
 
 The workflow downloads from the exact source revision and independently verifies the file SHA before
 loading it.
+The revision pin is intentional: do not substitute `main` or a newer revision merely because the
+filename matches; artifact bytes and SHA are part of the evidence identity.
 
 **Reference-artifact amendment — 2026-09-22, before any 2B scorer matrix executed.** The canonical
 CPU evidence artifact changed from Qwen3.5-4B Q4_K_M to Qwen3.5-2B Q4_K_M to make the local-first
