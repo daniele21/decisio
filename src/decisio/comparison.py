@@ -245,6 +245,7 @@ def _run_performance_trials(
 
     backend = _backend(scorers[PRIMARY_SCORER_KEY])
     identity = getattr(backend, "identity", None)
+    memory_metric = identity.get("memory_metric") if isinstance(identity, dict) else None
     return {
         "enabled": True,
         "timing_scope": "full normal-order workload, in-process wall clock",
@@ -254,6 +255,7 @@ def _run_performance_trials(
         "position_balanced": measured_rounds % len(SCORER_KEYS) == 0,
         "execution_order": execution_order,
         "backend_identity": identity if isinstance(identity, dict) else None,
+        "memory_metric": memory_metric,
         "scorers": summaries,
     }
 
@@ -307,7 +309,10 @@ def _render_markdown(report: dict[str, Any]) -> str:
                     f"{performance['measured_rounds']}; scope: {performance['timing_scope']}."
                 ),
                 "",
-                "| scorer | total p50 | total p95 | decisions/s p50 | peak memory |",
+                (
+                    "| scorer | total p50 | total p95 | decisions/s p50 | peak memory"
+                    f" ({performance.get('memory_metric') or 'backend metric'}) |"
+                ),
                 "| --- | ---: | ---: | ---: | ---: |",
             ]
         )
@@ -375,8 +380,8 @@ def _render_markdown(report: dict[str, Any]) -> str:
             "",
             (
                 "This report is evidence, not an automatic product verdict. A stable-scorer "
-                "decision requires the pinned Qwen3.5-4B BF16/CUDA run described by the "
-                "scorer-gate methodology. Hosted CPU or smaller-model runs are "
+                "decision requires the pinned Qwen3.5-4B BF16 CPU run described by the "
+                "scorer-gate methodology. Smaller-model or non-frozen-contract runs are "
                 "integration/directional evidence only."
             ),
             "",
