@@ -33,7 +33,7 @@ Reference target: Qwen3.5-4B Q4_K_M GGUF on CPU. Freeze the exact GGUF SHA-256 a
 - no claim that Q4_K_M is equivalent to BF16;
 - no calibrated-probability claim without a matching calibration artifact;
 - no Metal/CUDA performance gate; representative scorer evidence remains CPU-only;
-- no shared-prefix optimization before fresh llama.cpp scoring is correctness-stable.
+- no shared fast path is trusted without fresh-path equivalence evidence; fresh evaluation remains the correctness oracle.
 
 ## Risks and assumptions
 
@@ -59,7 +59,10 @@ Reference target: Qwen3.5-4B Q4_K_M GGUF on CPU. Freeze the exact GGUF SHA-256 a
 - semantic results keep candidate-local YES/NO `binary_conditional_probability` separate from cross-candidate `distribution`; both remain uncalibrated unless a matching calibration artifact is active;
 - evidence records GGUF SHA, quantization, llama.cpp/binding build, model metadata, CPU/threads and material context/batch settings;
 - performance claims stay bound to the recorded host/runtime;
-- future shared-prefix execution must be compared against the fresh reference path.
+- shared execution reuses full model context state, not a KV-only assumption: Qwen3.5 hybrid recurrent state is part of the cache contract;
+- shared execution falls back to fresh evaluation when an exact safe reuse boundary cannot be proven;
+- reusable state is bounded and explicitly resettable; no unbounded cache growth;
+- every shared-path choice and score delta is compared against fresh evaluation before promotion.
 
 ## Execution DAG
 
@@ -68,10 +71,10 @@ Reference target: Qwen3.5-4B Q4_K_M GGUF on CPU. Freeze the exact GGUF SHA-256 a
 | W0 | DONE | Stop treating Transformers/BF16 as promotion authority; reshape product truth. | product/architecture/roadmap/current-state/gate status | — |
 | W1 | READY | Prove all four scorer paths on exact Q4_K_M through in-process llama.cpp. | llama.cpp spike + focused backend tests + 8-case smoke | W0 |
 | W2 | BLOCKED | Stable `LlamaCppBackend` + local-GGUF CLI; remove Transformers from reference path. | `src/decisio/backends/**`, CLI, packaging, tests | W1 |
-| W3 | BLOCKED | Freeze scorer-gate v2 runtime/artifact contract before representative results. | benchmark contract/evaluator/workflow metadata | W1, W2 |
-| W4 | BLOCKED | Full 64-case CPU evidence and semantic-v2 decision. | remote workflow/artifacts/current-state | W3 |
-| W5 | BLOCKED | Stabilize public local runtime only if scorer survives. | public API/README/usage | W4 PASS |
-| W6 | BLOCKED | Shared state/question reuse with fresh-path equivalence. | runtime optimization + equivalence benchmark | W4 |
+| W3 | BLOCKED | Shared context-state fast path: candidate branching + repeated-state cache, proven equivalent to fresh. | llama.cpp runtime, cache lifecycle, equivalence/perf tests | W2 |
+| W4 | BLOCKED | Freeze scorer-gate v2 runtime/artifact contract with shared execution as the production path. | benchmark contract/evaluator/workflow metadata | W3 |
+| W5 | BLOCKED | Full 64-case CPU evidence and semantic-v2 decision plus repeated-state speed evidence. | remote workflow/artifacts/current-state | W4 |
+| W6 | BLOCKED | Stabilize public local runtime only if scorer and fast path survive. | public API/README/usage | W5 PASS |
 
 ## W1 compatibility spike
 
@@ -116,7 +119,36 @@ decisio compare \
   --performance-rounds 4
 ```
 
-## W3/W4 scorer gate
+## W3 shared context-state reuse
+
+This is a v1 requirement, not a post-gate optimization.
+
+Two reuse levels are required:
+
+1. **candidate branching:** evaluate the exact common token prefix of semantic candidate prompts once,
+   then branch model state for each candidate suffix;
+2. **repeated-state reuse:** retain a bounded reusable state prefix across calls so many questions over
+   the same long state do not re-prefill that state from scratch.
+
+For Qwen3.5, the cache contract is **model context state**, not merely KV tensors. llama.cpp sequence
+state/memory must preserve the hybrid attention + recurrent state required for exact continuation.
+
+Acceptance:
+
+- shared path and fresh path produce the same choice on the equivalence fixture;
+- score and `binary_conditional_probability` deltas stay within a predeclared tolerance;
+- changed rows/argmaxes are reported, never hidden;
+- unsupported/unsafe prefix reuse falls back to fresh evaluation;
+- cache entries are bounded and can be cleared deterministically;
+- instrumentation reports logical input tokens, physically evaluated tokens, prefix reuse/hit rate
+  and wall-clock latency;
+- a long-state/many-question fixture demonstrates measurable physical-token and latency reduction.
+
+The scorer already prefers the optional backend capability
+`shared_prefix_batch_next_token_logits(...)` when present; the llama.cpp backend owns its safe
+implementation.
+
+## W4/W5 scorer gate
 
 Keep the frozen 64-case workload unless W1 finds a genuine fixture defect. Before the representative run, freeze:
 
@@ -126,7 +158,10 @@ Keep the frozen 64-case workload unless W1 finds a genuine fixture defect. Befor
 - semantic-v2, semantic-v1, letters and generated JSON;
 - normal and reversed candidate order;
 - one warm-up plus four position-balanced measured rounds;
-- quality, family, order-robustness, zero-generation and generation-latency criteria.
+- semantic scorer measurements use the production shared-context path after equivalence passes;
+- a fresh semantic reference run remains available for changed-row diagnostics;
+- quality, family, order-robustness, zero-generation and generation-latency criteria;
+- repeated-state evidence records physical-token reduction, cache hit/reuse rate and latency speedup.
 
 Existing promotion thresholds remain the starting contract. Any change requires pre-result justification and explicit gate versioning. Peak RSS is diagnostic only.
 
