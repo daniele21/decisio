@@ -34,6 +34,7 @@ class FakeRuntime:
         self.shared_calls = []
         self.generated = []
         self.metrics_reset = 0
+        self.cache_clears = 0
 
     def encode(self, text, *, add_special_tokens):
         return ([1] if add_special_tokens else []) + [ord(char) % 200 for char in text]
@@ -46,8 +47,16 @@ class FakeRuntime:
         self.logit_calls.append((input_ids, token_ids))
         return [float(token_id) / 10.0 for token_id in token_ids]
 
-    def shared_prefix_batch_next_token_logits(self, input_ids_batch, token_ids_batch):
-        self.shared_calls.append((input_ids_batch, token_ids_batch))
+    def shared_prefix_batch_next_token_logits(
+        self,
+        input_ids_batch,
+        token_ids_batch,
+        *,
+        reusable_prefix_len=None,
+    ):
+        self.shared_calls.append(
+            (input_ids_batch, token_ids_batch, reusable_prefix_len)
+        )
         return [
             [float(token_id) / 10.0 for token_id in token_ids]
             for token_ids in token_ids_batch
@@ -69,6 +78,9 @@ class FakeRuntime:
 
     def reset_runtime_metrics(self):
         self.metrics_reset += 1
+
+    def clear_repeated_state_cache(self):
+        self.cache_clears += 1
 
     def close(self):
         self.closed = True
@@ -93,6 +105,14 @@ def build_backend(tmp_path: Path):
         _runtime_factory=factory,
     )
     return backend, runtimes[0]
+
+
+def test_cache_bounds_must_not_be_negative(tmp_path: Path):
+    path = model_file(tmp_path)
+    with pytest.raises(ValueError, match="repeated_state_cache_max_entries"):
+        LlamaCppBackendConfig(model=path, repeated_state_cache_max_entries=-1)
+    with pytest.raises(ValueError, match="repeated_state_cache_max_bytes"):
+        LlamaCppBackendConfig(model=path, repeated_state_cache_max_bytes=-1)
 
 
 def test_backend_requires_local_gguf(tmp_path: Path):
@@ -125,6 +145,9 @@ def test_identity_is_path_free_and_hashes_artifact(tmp_path: Path):
         identity["shared_prefix_primitive"]
         == "single_sequence_state_snapshot_restore"
     )
+    assert identity["repeated_state_cache"] == "exact_compiler_token_prefix_lru"
+    assert identity["repeated_state_cache_max_entries"] == 2
+    assert identity["repeated_state_cache_max_bytes"] == 256 * 1024 * 1024
 
 
 def test_tokenizer_uses_runtime_chat_template_and_no_implicit_bos(tmp_path: Path):
@@ -162,9 +185,14 @@ def test_backend_delegates_fresh_shared_and_generation(tmp_path: Path):
     rows = backend.shared_prefix_batch_next_token_logits(
         [(1, 2, 3), (1, 2, 4)],
         [[10, 11], [10, 11]],
+        reusable_prefix_len=2,
     )
     assert rows == [[1.0, 1.1], [1.0, 1.1]]
-    assert len(runtime.shared_calls) == 1
+    assert runtime.shared_calls == [
+        ([(1, 2, 3), (1, 2, 4)], [[10, 11], [10, 11]], 2)
+    ]
+    backend.clear_repeated_state_cache()
+    assert runtime.cache_clears == 1
     assert backend.generate((1, 2), max_new_tokens=8) == ('{"choice":"a"}', 5)
     assert backend.runtime_metrics()["reuse_ratio"] == 0.4
     backend.reset_runtime_metrics()
