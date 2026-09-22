@@ -137,6 +137,226 @@ GGUF/llama.cpp does not prevent calibration. A later calibration layer can be fi
 scores, but the calibration artifact must match the exact model artifact, quantization,
 scorer/compiler and runtime identity.
 
+## From logits to calibrated probabilities
+
+Decisio deliberately separates **model preference** from **probability of correctness**. The path is:
+
+```text
+Qwen GGUF
+   │
+   ▼
+llama.cpp next-token logits
+   │
+   ▼
+Decisio candidate scores
+   │
+   ▼
+softmax across supplied candidates
+   │
+   ▼
+uncalibrated conditional distribution
+   │
+   ▼
+optional calibration artifact fitted on labeled validation data
+   │
+   ▼
+calibrated probabilities
+```
+
+> **IMAGE PLACEHOLDER — From logits to calibrated probabilities**  
+> Draw a clean left-to-right pipeline with these blocks:
+> `Qwen GGUF → llama.cpp → next-token logits → Decisio score → conditional distribution →
+> calibration layer → calibrated probability`.
+> Use a neutral background and one green accent for the calibration layer.
+> Under `conditional distribution`, add the note:
+> “relative preference among supplied candidates — not probability of correctness”.
+> Under the final block, add:
+> “validated on held-out labeled data”.
+> Keep the diagram technical and minimal; do not imply that calibration is already implemented.
+
+### 1. llama.cpp gives Decisio logits
+
+For semantic scoring, Decisio asks the model to judge one candidate against the complete candidate
+set and reads the next-token logits for the configured binary verbalizers:
+
+```text
+YES logit = 8.2
+NO  logit = 6.7
+
+candidate score = 8.2 - 6.7 = 1.5
+```
+
+No answer token needs to be generated on the native scoring path.
+
+The same operation is repeated for the other valid candidates. Suppose the resulting scores are:
+
+```text
+billing   = 2.4
+technical = 1.1
+sales     = -0.2
+```
+
+### 2. Softmax turns scores into a relative distribution
+
+Decisio can normalize those scores across the supplied candidate set:
+
+```text
+softmax(scores)
+
+billing   = 0.73
+technical = 0.20
+sales     = 0.07
+```
+
+This is useful, but its interpretation is deliberately narrow:
+
+> Given this scorer, model artifact, prompt/compiler and candidate set, `billing` receives 73% of
+> the relative score mass.
+
+It does **not** yet mean:
+
+> `billing` has a 73% probability of being correct.
+
+That is why the result is labeled:
+
+```json
+{
+  "probability_status": "uncalibrated_conditional_scores"
+}
+```
+
+> **IMAGE PLACEHOLDER — Relative distribution vs calibrated probability**  
+> Create a two-panel graphic using the same example.
+> Left panel: `Uncalibrated conditional distribution`, with bars
+> `billing 0.73`, `technical 0.20`, `sales 0.07`.
+> Caption: “relative preference among these candidates”.
+> Right panel: `Calibrated probability`, with illustrative bars such as
+> `billing 0.61`, `technical 0.25`, `sales 0.14`.
+> Caption: “estimated correctness probability after held-out calibration”.
+> Between the panels write:
+> “Calibration changes the statistical interpretation, not just the displayed number.”
+> Mark the calibrated values as illustrative, not benchmark results.
+
+### 3. Calibration learns the mapping from scores to observed correctness
+
+Calibration is a separate post-hoc step. It needs a **labeled validation set that was not used to
+fit or select the calibration parameters**.
+
+For each validation example:
+
+```text
+known correct answer
+        │
+        ├──────────────┐
+        ▼              │
+run Decisio            │
+        │              │
+        ▼              │
+predicted scores       │
+and distribution       │
+        │              │
+        └──── compare ─┘
+               │
+               ▼
+predicted confidence vs observed correctness
+```
+
+For example, if predictions around `0.80` are correct only about 65% of the time, the system is
+over-confident in that region.
+
+A calibration method can then learn a correction. One simple candidate is **temperature scaling**:
+
+```text
+calibrated_distribution = softmax(scores / T)
+```
+
+where `T` is fitted on held-out labeled examples rather than chosen by hand. Other calibration
+methods may be evaluated later if they provide better evidence.
+
+Calibration quality should be measured with appropriate held-out metrics such as NLL, Brier score,
+reliability/calibration error and task-appropriate accuracy/coverage diagnostics. Calibration must
+not be declared successful merely because probabilities look smoother.
+
+> **IMAGE PLACEHOLDER — Calibration fitting workflow**  
+> Draw a top-to-bottom workflow:
+> `Labeled validation set → run Decisio → collect scores + correctness →
+> compare predicted confidence with observed accuracy → fit calibration method →
+> validate on held-out data → save calibration artifact`.
+> Beside the saved artifact show a fingerprint card containing:
+> `GGUF SHA-256`, `quantization`, `scorer`, `compiler/prompt`,
+> `llama.cpp build`, `calibration method`, `calibration dataset identity`.
+> Add a warning badge:
+> “Do not reuse across a different artifact identity without validation.”
+
+### 4. Calibration belongs to the exact decision engine identity
+
+Calibration is not a generic property of “Qwen3.5-4B”. A Q4_K_M artifact and a Q8 artifact can
+produce slightly different logits, margins and decision boundaries.
+
+A future Decisio calibration artifact therefore needs to identify at least:
+
+```text
+GGUF SHA-256
+quantization
+scorer identity
+compiler / prompt identity
+readout verbalizers
+llama.cpp runtime / build identity
+calibration method
+calibration dataset identity
+```
+
+Changing the GGUF or quantization does not prevent Decisio from running. It means the old calibration
+must not automatically be treated as valid.
+
+This is the intended model:
+
+```text
+                    Decisio scorer semantics
+                              │
+                ┌─────────────┼─────────────┐
+                ▼             ▼             ▼
+             Q4_K_M         Q6_K          Q8_0
+                │             │             │
+          own evidence   own evidence   own evidence
+                │             │             │
+      optional matching calibration artifacts
+```
+
+Q4_K_M is the first reference configuration so the project has one reproducible baseline. Users
+remain free to choose another compatible quantized Qwen GGUF and measure the trade-off on their own
+workload.
+
+### 5. Calibrated output stays explicit
+
+The current API exposes uncalibrated conditional scores. A future calibrated result should keep both
+layers visible rather than overwrite one with the other:
+
+```json
+{
+  "choice": "billing",
+  "distribution": {
+    "billing": 0.73,
+    "technical": 0.20,
+    "sales": 0.07
+  },
+  "calibrated_probability": {
+    "billing": 0.61,
+    "technical": 0.25,
+    "sales": 0.14
+  },
+  "probability_status": "temperature_scaled",
+  "calibration_id": "qwen35-4b-q4km-semantic-v2-..."
+}
+```
+
+This JSON is an **illustration of the intended future calibrated contract**, not implemented API or
+benchmark evidence.
+
+Calibration also does not solve every uncertainty problem. In particular, “which candidate is
+preferred?” and “is there enough evidence to answer?” remain separate questions; Decisio plans to
+treat answerability as its own signal rather than hide it inside candidate confidence.
+
 ## How the scorer works
 
 The primary experimental scorer evaluates every valid candidate against the complete alternative set:
