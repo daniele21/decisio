@@ -84,6 +84,24 @@ class SharedPrefixQueueBackend(QueueBackend):
         return responses
 
 
+class ReusablePrefixQueueBackend(SharedPrefixQueueBackend):
+    supports_reusable_prefix_hint = True
+
+    def shared_prefix_batch_next_token_logits(
+        self,
+        input_ids_batch,
+        token_ids_batch,
+        *,
+        reusable_prefix_len=None,
+    ):
+        self.shared_prefix_calls.append(
+            (input_ids_batch, token_ids_batch, reusable_prefix_len)
+        )
+        responses = self.responses[: len(input_ids_batch)]
+        del self.responses[: len(input_ids_batch)]
+        return responses
+
+
 def request():
     return ChoiceRequest(
         id="example",
@@ -113,6 +131,25 @@ def test_comparative_semantic_compiler_contains_all_alternatives():
     assert "billing" not in compiled.prompt
     assert "best answer among the supplied alternatives" in compiled.prompt
     assert compiled.readout == {"yes": 10, "no": 11}
+    assert compiled.reusable_prefix_len is not None
+    assert 0 < compiled.reusable_prefix_len < len(compiled.input_ids)
+
+
+def test_reusable_state_prefix_is_stable_across_questions():
+    item = request()
+    other = ChoiceRequest(
+        id="other",
+        state=item.state,
+        question="Which specialist should receive this?",
+        candidates=item.candidates,
+    )
+    left = compile_semantic_candidate(FakeTokenizer(), item, item.candidates[0])
+    right = compile_semantic_candidate(FakeTokenizer(), other, other.candidates[0])
+    assert left.reusable_prefix_len is not None
+    assert right.reusable_prefix_len is not None
+    left_prefix = left.input_ids[: left.reusable_prefix_len]
+    right_prefix = right.input_ids[: right.reusable_prefix_len]
+    assert left_prefix == right_prefix
 
 
 def test_comparative_prompt_is_invariant_to_candidate_presentation_order():
@@ -182,6 +219,17 @@ def test_semantic_scorer_prefers_shared_prefix_backend_capability():
     assert len(backend.shared_prefix_calls) == 1
     assert backend.batch_calls == []
     assert backend.calls == []
+
+
+def test_semantic_scorer_passes_reusable_prefix_hint_when_supported():
+    backend = ReusablePrefixQueueBackend(
+        [[5.0, 1.0], [2.0, 2.0], [0.0, 3.0]]
+    )
+    SemanticBinaryScorer(backend).score(request())
+    assert len(backend.shared_prefix_calls) == 1
+    _, _, reusable_prefix_len = backend.shared_prefix_calls[0]
+    assert reusable_prefix_len is not None
+    assert reusable_prefix_len > 0
 
 
 def test_independent_scorer_keeps_v1_semantics_but_uses_batch_runtime():
