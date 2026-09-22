@@ -10,6 +10,7 @@ on:
       - "uv.lock"
       - "src/decisio/**"
       - "benchmarks/build_scorer_gate_fixture.py"
+      - "benchmarks/evaluate_scorer_gate.py"
       - "benchmarks/scorer-gate-v1.md"
 
 permissions:
@@ -163,6 +164,13 @@ jobs:
               assert report["scorers"][scorer]["reverse_candidates"]["generated_tokens"] == 0
           assert report["scorers"]["generated"]["normal"]["generated_tokens"] > 0
           PY
+
+      - name: Apply precommitted scorer promotion gate
+        run: |
+          python benchmarks/evaluate_scorer_gate.py \
+            --comparison /tmp/scorer-gate/results/comparison.json \
+            --output-dir /tmp/scorer-gate/results \
+            --require-pass
 
       - name: Upload scorer-gate evidence
         if: always()
