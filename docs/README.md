@@ -2,19 +2,20 @@
 
 Start here:
 
-- [Examples](../examples/README.md) — runnable use cases including Snake, support routing and policy gating.
-- [Benchmarks](../benchmarks/README.md) — reproducible scorer comparisons and perturbations.
 - [Product](product.md) — why Decisio exists, who it serves, non-goals and success criteria.
-- [Architecture](architecture.md) — semantic candidate scoring, answerability and runtime boundaries.
-- [Roadmap](roadmap.md) — evidence-driven implementation plan and feature order.
-- [Current state](current-state.md) — what is integrated and what should happen next.
+- [Architecture](architecture.md) — semantic candidate scoring, runtime boundaries and current system shape.
+- [Current state](current-state.md) — what is integrated, blocked and next.
+- [Roadmap](roadmap.md) — evidence-driven implementation order.
+- [Repository quality](repository-quality.md) — usability, reproducibility, documentation and hardening plan.
+- [Benchmarks](../benchmarks/README.md) — frozen scorer comparisons, perturbations and evidence rules.
+- [Examples](../examples/README.md) — runnable Snake, support-routing and policy-gate scenarios.
 - [ADR 0001](adr/0001-training-free-semantic-scoring.md) — why v1 is training-free and semantic-scoring-first.
 - [ADR 0002](adr/0002-constrain-before-score.md) — why deterministic constraints precede semantic scoring and why v2 is comparative.
 
 ## Documentation rule
 
-Keep product truth separate from benchmark evidence.
+Keep product truth, current implementation and benchmark evidence distinct.
 
-The product documents define what Decisio is trying to become. Benchmark artifacts determine whether individual hypotheses are actually true.
+Product documents define the intended outcome and boundaries. `docs/current-state.md` records what is true now. Benchmark artifacts determine whether hypotheses are supported by evidence. If evidence contradicts an architectural hypothesis, update the architecture and roadmap rather than preserving the original idea for consistency.
 
-When evidence contradicts an architectural hypothesis, update the architecture/roadmap rather than preserving the original idea for consistency.
+Prefer one canonical explanation, executable examples and diagrams over repeated prose.

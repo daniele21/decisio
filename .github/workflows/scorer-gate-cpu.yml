@@ -1,0 +1,182 @@
+name: CPU scorer gate
+
+on:
+  workflow_dispatch:
+  pull_request:
+    types: [ready_for_review, synchronize, reopened]
+    paths:
+      - ".github/workflows/scorer-gate-cpu.yml"
+      - "pyproject.toml"
+      - "uv.lock"
+      - "src/decisio/**"
+      - "benchmarks/build_scorer_gate_fixture.py"
+      - "benchmarks/evaluate_scorer_gate.py"
+      - "benchmarks/scorer-gate-v1.md"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: cpu-scorer-gate-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  qwen35-4b-bf16-cpu:
+    if: github.event_name == 'workflow_dispatch' || (github.event.pull_request.draft == false && github.base_ref == 'main')
+    runs-on: ubuntu-latest
+    timeout-minutes: 360
+    env:
+      HF_HUB_DISABLE_TELEMETRY: "1"
+      TOKENIZERS_PARALLELISM: "false"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install pinned CPU inference runtime
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install --index-url https://download.pytorch.org/whl/cpu "torch==2.14.0"
+          python -m pip install "transformers==5.17.0"
+          python -m pip install -e . --no-deps
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq time
+
+      - name: Pin CPU thread count to the runner allocation
+        run: |
+          THREADS="$(nproc)"
+          echo "OMP_NUM_THREADS=$THREADS" >> "$GITHUB_ENV"
+          echo "MKL_NUM_THREADS=$THREADS" >> "$GITHUB_ENV"
+          echo "DECISIO_CPU_THREADS=$THREADS" >> "$GITHUB_ENV"
+
+      - name: Materialize frozen 64-case workload
+        run: |
+          mkdir -p /tmp/scorer-gate
+          python benchmarks/build_scorer_gate_fixture.py \
+            --output /tmp/scorer-gate/scorer-gate-v1.jsonl
+
+      - name: Capture CPU host identity
+        run: |
+          python - <<'PY'
+          import json
+          import os
+          import platform
+          from pathlib import Path
+
+          import torch
+
+          cpu_model = None
+          cpuinfo = Path("/proc/cpuinfo")
+          if cpuinfo.is_file():
+              for line in cpuinfo.read_text(encoding="utf-8", errors="replace").splitlines():
+                  if line.lower().startswith("model name"):
+                      cpu_model = line.split(":", 1)[1].strip()
+                      break
+
+          mem_total_kib = None
+          meminfo = Path("/proc/meminfo")
+          if meminfo.is_file():
+              for line in meminfo.read_text(encoding="utf-8", errors="replace").splitlines():
+                  if line.startswith("MemTotal:"):
+                      mem_total_kib = int(line.split()[1])
+                      break
+
+          payload = {
+              "platform": platform.platform(),
+              "machine": platform.machine(),
+              "processor": platform.processor(),
+              "cpu_model": cpu_model,
+              "logical_cpu_count": os.cpu_count(),
+              "thread_count": int(os.environ["DECISIO_CPU_THREADS"]),
+              "mem_total_bytes": None if mem_total_kib is None else mem_total_kib * 1024,
+              "python": platform.python_version(),
+              "torch": torch.__version__,
+              "torch_num_threads": torch.get_num_threads(),
+              "torch_num_interop_threads": torch.get_num_interop_threads(),
+          }
+          Path("/tmp/scorer-gate/host.json").write_text(
+              json.dumps(payload, indent=2, sort_keys=True) + "\n",
+              encoding="utf-8",
+          )
+          PY
+
+      - name: Run full v2-v1-letters-generated CPU gate
+        run: |
+          /usr/bin/time -v -o /tmp/scorer-gate/process-time.txt \
+            decisio compare \
+              --input /tmp/scorer-gate/scorer-gate-v1.jsonl \
+              --output-dir /tmp/scorer-gate/results \
+              --model Qwen/Qwen3.5-4B \
+              --revision 1eef1f4e0bc57dec8f814d1e4c714c8e0065d261 \
+              --device cpu \
+              --dtype bfloat16 \
+              --warmup-rounds 1 \
+              --performance-rounds 4
+
+      - name: Retain run-level peak RSS
+        if: always()
+        run: |
+          python - <<'PY'
+          import json
+          import re
+          from pathlib import Path
+
+          host_path = Path("/tmp/scorer-gate/host.json")
+          timing_path = Path("/tmp/scorer-gate/process-time.txt")
+          if not host_path.is_file() or not timing_path.is_file():
+              raise SystemExit(0)
+
+          host = json.loads(host_path.read_text(encoding="utf-8"))
+          match = re.search(
+              r"Maximum resident set size \(kbytes\):\s*(\d+)",
+              timing_path.read_text(encoding="utf-8", errors="replace"),
+          )
+          host["run_peak_rss_bytes"] = None if match is None else int(match.group(1)) * 1024
+          host_path.write_text(
+              json.dumps(host, indent=2, sort_keys=True) + "\n",
+              encoding="utf-8",
+          )
+          PY
+
+      - name: Verify scorer-gate evidence contract
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          report = json.loads(
+              Path("/tmp/scorer-gate/results/comparison.json").read_text(encoding="utf-8")
+          )
+          expected_sha = "087ee8bbec3393609689046ea9c5d8219d0f39562e322180ca8f1e08eb368d3a"
+          assert report["examples"] == 64, report["examples"]
+          assert report["input_sha256"] == expected_sha, report["input_sha256"]
+          assert report["performance"]["enabled"] is True
+          assert report["performance"]["warmup_rounds"] == 1
+          assert report["performance"]["measured_rounds"] == 4
+          assert report["performance"]["position_balanced"] is True
+          assert report["performance"]["backend_identity"]["device"] == "cpu"
+          assert report["performance"]["backend_identity"]["dtype"] == "bfloat16"
+          assert report["performance"]["memory_metric"] == "process_max_rss"
+
+          for scorer in ("semantic", "semantic-independent", "letters"):
+              assert report["scorers"][scorer]["normal"]["generated_tokens"] == 0
+              assert report["scorers"][scorer]["reverse_candidates"]["generated_tokens"] == 0
+          assert report["scorers"]["generated"]["normal"]["generated_tokens"] > 0
+          PY
+
+      - name: Apply precommitted scorer promotion gate
+        run: |
+          python benchmarks/evaluate_scorer_gate.py \
+            --comparison /tmp/scorer-gate/results/comparison.json \
+            --output-dir /tmp/scorer-gate/results \
+            --require-pass
+
+      - name: Upload scorer-gate evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: decisio-scorer-gate-qwen35-4b-bf16-cpu
+          path: /tmp/scorer-gate/
+          if-no-files-found: error
+          retention-days: 30

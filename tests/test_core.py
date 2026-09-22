@@ -163,6 +163,19 @@ def test_letter_scorer_is_a_single_forward_baseline():
     assert len(backend.calls) == 1
 
 
+
+
+def test_semantic_scorer_breaks_exact_ties_by_candidate_id():
+    backend = QueueBackend([[1.0, 1.0], [1.0, 1.0], [1.0, 1.0]])
+    result = SemanticBinaryScorer(backend).score(request())
+    assert result.choice == "billing"
+
+
+def test_letter_scorer_breaks_exact_ties_by_candidate_id():
+    backend = QueueBackend([[1.0, 1.0, 1.0]])
+    result = LetterTokenScorer(backend).score(request())
+    assert result.choice == "billing"
+
 def test_request_rejects_duplicate_candidate_ids():
     with pytest.raises(ValueError, match="unique"):
         ChoiceRequest(

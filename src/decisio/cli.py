@@ -8,6 +8,7 @@ from pathlib import Path
 from typing import Any
 
 from .benchmark import run_benchmark
+from .comparison import SCORER_KEYS, run_comparison
 from .schema import ChoiceRequest
 
 
@@ -60,7 +61,7 @@ def _add_model_args(parser: argparse.ArgumentParser) -> None:
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="decisio")
     subparsers = parser.add_subparsers(dest="command", required=True)
-    scorer_choices = ["semantic", "semantic-independent", "letters", "generated"]
+    scorer_choices = list(SCORER_KEYS)
 
     score = subparsers.add_parser("score", help="score one choice request from JSON")
     score.add_argument("--input", type=Path, required=True)
@@ -73,27 +74,72 @@ def build_parser() -> argparse.ArgumentParser:
     benchmark.add_argument("--scorer", choices=scorer_choices, default="semantic")
     benchmark.add_argument("--reverse-candidates", action="store_true")
     _add_model_args(benchmark)
+
+    compare = subparsers.add_parser(
+        "compare",
+        help="run the paired v2/v1/letters/generated scorer matrix",
+    )
+    compare.add_argument("--input", type=Path, required=True)
+    compare.add_argument("--output-dir", type=Path, required=True)
+    compare.add_argument(
+        "--warmup-rounds",
+        type=int,
+        default=0,
+        help="full-workload warm-up rounds before repeated performance measurement",
+    )
+    compare.add_argument(
+        "--performance-rounds",
+        type=int,
+        default=0,
+        help="repeated full-workload performance rounds; zero disables performance trials",
+    )
+    _add_model_args(compare)
     return parser
 
 
 def main(argv: list[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
     backend = _backend(args)
-    scorer = _scorer(args.scorer, backend)
 
     if args.command == "score":
+        scorer = _scorer(args.scorer, backend)
         data = json.loads(args.input.read_text(encoding="utf-8"))
         result = scorer.score(ChoiceRequest.from_dict(data))
         print(json.dumps(result.to_dict(), ensure_ascii=False, indent=2, sort_keys=True))
         return 0
 
-    summary = run_benchmark(
+    if args.command == "benchmark":
+        scorer = _scorer(args.scorer, backend)
+        summary = run_benchmark(
+            args.input,
+            args.output,
+            scorer,
+            reverse_candidates=args.reverse_candidates,
+        )
+        print(json.dumps(summary, ensure_ascii=False, indent=2, sort_keys=True))
+        return 0
+
+    scorers = {name: _scorer(name, backend) for name in SCORER_KEYS}
+    report = run_comparison(
         args.input,
-        args.output,
-        scorer,
-        reverse_candidates=args.reverse_candidates,
+        args.output_dir,
+        scorers,
+        warmup_rounds=args.warmup_rounds,
+        performance_rounds=args.performance_rounds,
     )
-    print(json.dumps(summary, ensure_ascii=False, indent=2, sort_keys=True))
+    print(
+        json.dumps(
+            {
+                "input_sha256": report["input_sha256"],
+                "examples": report["examples"],
+                "report_json": str(args.output_dir / "comparison.json"),
+                "report_markdown": str(args.output_dir / "comparison.md"),
+            },
+            ensure_ascii=False,
+            indent=2,
+            sort_keys=True,
+        )
+    )
     return 0
 
 

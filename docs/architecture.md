@@ -33,7 +33,37 @@ Examples include geometry, schema validity, hard policy requirements, resource b
 
 This boundary avoids spending model compute on impossible options and prevents a probabilistic scorer from overruling facts such as "this move hits a wall."
 
-## Reference decision flow
+## Current implementation architecture
+
+```mermaid
+flowchart LR
+    A[Application state] --> B[Deterministic constraints]
+    B --> C[ChoiceRequest]
+    C --> D[Prompt compiler]
+    D --> E[Semantic or letter scorer]
+    E --> F[Qwen Transformers backend]
+    F --> G[Selected next-token logits]
+    G --> H[Log-odds / softmax]
+    H --> I[DecisionResult]
+```
+
+Current code owners:
+
+| Concern | Current owner |
+| --- | --- |
+| Request/result contracts | `src/decisio/schema.py` |
+| Prompt compilation | `src/decisio/compiler.py` |
+| Semantic and letter scoring | `src/decisio/scorers/` |
+| Qwen loading, batching and selected-vocabulary projection | `src/decisio/backends/qwen.py` |
+| Benchmark execution | `src/decisio/benchmark.py` |
+| Paired scorer comparison | `src/decisio/comparison.py` |
+| CLI | `src/decisio/cli.py` |
+
+Answerability, shared-prefix reuse and a stable high-level Python engine are **not implemented yet**.
+
+## Target decision flow (planned)
+
+The target shape below is conditional on benchmark evidence and includes planned answerability/shared execution.
 
 ```text
 Request
@@ -91,9 +121,9 @@ P_i = softmax(score_1 ... score_n)
 
 This distribution is conditional on the supplied candidates and **must not be described as calibrated probability of correctness** unless a validated calibration layer is explicitly active.
 
-## Answerability
+## Answerability (planned)
 
-Answerability is modeled separately:
+Answerability is intended to be modeled separately:
 
 ```text
 Does the supplied evidence contain enough information to answer this question?
@@ -127,7 +157,7 @@ Ask the same reference model to generate the smallest valid structured answer. T
 
 Baselines are evaluation paths first; Decisio's public runtime should default to the primary semantic scorer rather than expose every experimental method as permanent API surface.
 
-## Shared execution
+## Shared execution (planned)
 
 The target optimization is hierarchical reuse:
 
@@ -142,7 +172,9 @@ Implementation should initially prefer the simplest cache boundary proven correc
 
 Correctness comes before maximum cache reuse: shared execution must be continuously compared against fresh execution, because low-level cache/batching differences can move borderline logits.
 
-## Core components
+## Target component map
+
+The following owners are planned, not current public API commitments.
 
 | Concern | Proposed owner | Responsibility |
 | --- | --- | --- |
@@ -156,7 +188,7 @@ Correctness comes before maximum cache reuse: shared execution must be continuou
 | Evaluation | `benchmarks/` | frozen data, runners, metrics, reports |
 | Calibration | `src/decisio/calibration.py` | later optional post-hoc calibration |
 
-Names are proposed, not yet implemented.
+Names are proposed. Implemented owners are listed in **Current implementation architecture** above.
 
 ## Public decision primitives
 

@@ -27,7 +27,7 @@ The returned distribution is an **uncalibrated conditional model score**, not a 
 For real Qwen inference:
 
 ```bash
-uv sync --extra qwen --extra dev
+uv sync --frozen --extra qwen --extra dev
 ```
 
 The reference model is Qwen3.5-4B. For a cheaper functional smoke, the same backend can be pointed at the official Qwen3.5-0.8B checkpoint, as used by the GitHub Actions real-model smoke.

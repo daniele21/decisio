@@ -1,0 +1,42 @@
+name: Repository health
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  engineering-baseline:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Verify repository structure
+        run: python3 scripts/verify_repository.py
+      - name: Verify project operating contract
+        run: python3 scripts/verify_operations.py
+      - name: Verify validation cadence
+        run: python3 scripts/verify_validation_cadence.py
+      - name: Verify E2E environment contract
+        run: python3 scripts/verify_e2e.py
+      - name: Verify integration/release environment policy
+        run: python3 scripts/verify_stage_environment_policy.py
+      - name: Verify infrastructure as code contract
+        run: python3 scripts/verify_infrastructure.py
+      - name: Verify product development contract
+        run: python3 scripts/verify_product_development.py
+      - name: Verify product experience contract
+        run: python3 scripts/verify_product_experience.py
+      - name: Verify documentation lifecycle and budgets
+        run: python3 scripts/verify_docs.py
+      - name: Verify agent context budget
+        run: python3 scripts/verify_agent_context.py
+
+  # Keep this workflow cheap and deterministic. Do not add application full suites,
+  # broad emulator matrices or E2E here. Route expensive candidate validation through
+  # integration-preflight.yml, gated to ready/non-draft integration candidates.
