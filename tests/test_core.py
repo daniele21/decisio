@@ -69,6 +69,21 @@ class QueueBackend:
         return responses
 
 
+class SharedPrefixQueueBackend(QueueBackend):
+    def __init__(self, responses):
+        super().__init__(responses)
+        self.shared_prefix_calls = []
+
+    def shared_prefix_batch_next_token_logits(self, input_ids_batch, token_ids_batch):
+        self.shared_prefix_calls.append((input_ids_batch, token_ids_batch))
+        responses = self.responses[: len(input_ids_batch)]
+        del self.responses[: len(input_ids_batch)]
+        assert len(responses) == len(input_ids_batch)
+        for response, token_ids in zip(responses, token_ids_batch, strict=True):
+            assert len(response) == len(token_ids)
+        return responses
+
+
 def request():
     return ChoiceRequest(
         id="example",
@@ -155,6 +170,17 @@ def test_semantic_scorer_batches_candidate_prompts():
     )
     assert math.isclose(sum(result.distribution.values()), 1.0)
     assert len(backend.batch_calls) == 1
+    assert backend.calls == []
+
+
+def test_semantic_scorer_prefers_shared_prefix_backend_capability():
+    backend = SharedPrefixQueueBackend(
+        [[5.0, 1.0], [2.0, 2.0], [0.0, 3.0]]
+    )
+    result = SemanticBinaryScorer(backend).score(request())
+    assert result.choice == "billing"
+    assert len(backend.shared_prefix_calls) == 1
+    assert backend.batch_calls == []
     assert backend.calls == []
 
 
