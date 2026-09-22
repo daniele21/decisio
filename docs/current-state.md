@@ -14,7 +14,7 @@ Active plan: [llama.cpp reference runtime migration](workstreams/llama-cpp-refer
 | Workstream | Current executable slice | State | Blocker |
 | --- | --- | --- | --- |
 | llama.cpp reference runtime | W1/W2 backend + local-GGUF CLI implemented | ACTIVE | real Qwen3.5 GGUF smoke/evidence pending |
-| Shared context-state fast path | candidate branching implemented with llama.cpp sequence memory | ACTIVE | real-model fresh equivalence + repeated-state cache pending |
+| Shared context-state fast path | single-sequence branching fresh-equivalent; bounded repeated-state cache implemented | ACTIVE | repeated-state real-model evidence pending |
 | Scorer decision | Preserve frozen 64-case workload and promotion semantics | BLOCKED | shared llama.cpp path + gate-v2 identity |
 | Product foundation | Consolidated candidate in PR #1 | ACTIVE | runtime migration and representative evidence |
 | Repository quality | Baseline/health/package gates | ACTIVE | final exact-head integration |
@@ -36,8 +36,9 @@ The existing PyTorch/Transformers backend remains migration-source code; it no l
 - zero generated answer tokens on native paths;
 - in-process `LlamaCppBackend` for local GGUF on CPU with exact artifact SHA/provenance;
 - GGUF chat-template/tokenizer readout, native logits and generated JSON through one loaded model;
-- semantic candidate-prefix branching through a second multi-sequence llama.cpp context sharing the same model weights;
-- logical/physical token and prefix-reuse metrics;
+- semantic candidate branching via full single-sequence llama.cpp state snapshot/restore;
+- compiler-marked exact state-prefix reuse with a byte/entry-bounded LRU cache;
+- logical/physical token, snapshot/restore and cache hit/reuse metrics;
 - current Qwen3.5 Transformers backend retained only as migration-source code;
 - frozen 64-case workload, normal/reversed comparison and paired correctness evidence;
 - deterministic gate evaluator with quality, family, order, zero-generation and latency criteria;
@@ -53,7 +54,9 @@ Support PRs #2–#4 were converged into PR #1 with exact-head integration eviden
 
 PR #1 is deliberately **draft** again.
 
-Qwen3.5-4B BF16/Transformers CPU run `35680562215` is non-authoritative for scorer promotion after this decision. It may remain historical/directional evidence. The 0.8B hosted-CPU evidence is also directional only.
+Qwen3.5-4B BF16/Transformers CPU run `35680562215` is non-authoritative for scorer promotion after this decision. It may remain historical/directional evidence.
+
+Run `35717350247` on pinned Qwen3.5-0.8B Q4_K_M proved the single-sequence state primitive exactly fresh-equivalent on the smoke fixture: score, binary-probability and distribution deltas were all `0.0`; physical input fell from 376 to 224 tokens (40.4% reuse). The captured sequence state was 22,072,908 bytes. This is mechanism evidence, not the representative 4B scorer decision.
 
 ## Blockers
 
@@ -65,9 +68,9 @@ Qwen3.5-4B BF16/Transformers CPU run `35680562215` is non-authoritative for scor
 
 ### W3 — complete shared context-state reuse
 
-- exact-head 0.8B smoke now compares candidate branching against fresh choice/score/probability output with precommitted numerical tolerances;
-- add a bounded repeated-state cache for many questions over one long state;
-- retain logical vs physically evaluated token/reuse instrumentation.
+- candidate branching now passes the pinned 0.8B fresh oracle with the precommitted tolerances;
+- prove the bounded exact-state-prefix cache on repeated questions over one long state;
+- retain explicit cache reset, byte bounds and logical-vs-physical token evidence.
 
 ### W4/W5 — scorer decision
 
@@ -84,7 +87,7 @@ the scorer and shared runtime path survive the new evidence gates.
 
 1. Execute W1 from the active workstream.
 2. Implement W2 if the in-process bridge is sufficient; otherwise use the smallest direct libllama bridge.
-3. Implement W3 shared context-state reuse and prove fresh equivalence plus repeated-state speedup.
+3. Complete W3 by proving the bounded repeated-state cache against fresh evaluation and recording speed evidence.
 4. Freeze gate-v2 artifact/runtime/fast-path identity before representative results.
 5. Run the full CPU gate and repeated-state benchmark, then decide semantic v2.
 6. Only then return PR #1 to ready and run exact-head integration preflight.
