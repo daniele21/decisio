@@ -45,19 +45,19 @@ uv sync --frozen --extra qwen --extra dev
 uv run decisio compare \
   --input .artifacts/scorer-gate-v1.jsonl \
   --output-dir .artifacts/scorer-gate-v1 \
-  --device cuda \
+  --device cpu \
   --dtype bfloat16 \
   --warmup-rounds 1 \
   --performance-rounds 8
 ```
 
 The output directory contains raw JSONL evidence for v2, v1, letters and generated JSON in original
-and reversed candidate order, plus `comparison.json` and `comparison.md`. Representative runs
-also include repeated, CUDA-synchronized full-workload timing with balanced scorer order, throughput
-and peak-memory evidence. Omit the performance flags for cheap functional smoke runs.
+and reversed candidate order, plus `comparison.json` and `comparison.md`. Scorer-gate runs
+also include repeated CPU full-workload timing with balanced scorer order, throughput and process
+peak-RSS evidence. Omit the performance flags for cheap functional smoke runs.
 
-The stable-scorer decision requires the pinned Qwen3.5-4B BF16/CUDA execution contract and the
-precommitted margins in the methodology. Smaller-model or hosted-CPU results are directional only.
+The stable-scorer decision requires the pinned Qwen3.5-4B BF16 CPU execution contract and the
+precommitted margins in the methodology. Smaller-model or reduced-workload results are directional only.
 
 ## Run one scorer
 
@@ -74,7 +74,7 @@ uv run decisio benchmark \
   --input benchmarks/fixtures/smoke.jsonl \
   --output .artifacts/semantic-smoke.jsonl \
   --scorer semantic \
-  --device cuda
+  --device cpu
 ```
 
 Run the original independent semantic baseline:
@@ -84,7 +84,7 @@ uv run decisio benchmark \
   --input benchmarks/fixtures/smoke.jsonl \
   --output .artifacts/semantic-independent-smoke.jsonl \
   --scorer semantic-independent \
-  --device cuda
+  --device cpu
 ```
 
 Run the direct answer-token baseline:
@@ -94,7 +94,7 @@ uv run decisio benchmark \
   --input benchmarks/fixtures/smoke.jsonl \
   --output .artifacts/letters-smoke.jsonl \
   --scorer letters \
-  --device cuda
+  --device cpu
 ```
 
 The default Qwen checkpoint is pinned in `src/decisio/backends/qwen.py`. Override `--model` or
@@ -109,7 +109,7 @@ uv run decisio benchmark \
   --input benchmarks/fixtures/smoke.jsonl \
   --output .artifacts/generated-smoke.jsonl \
   --scorer generated \
-  --device cuda
+  --device cpu
 ```
 
 It requests the smallest valid JSON object, records the raw model text, counts generated tokens, and
@@ -125,7 +125,7 @@ uv run decisio benchmark \
   --output .artifacts/semantic-reversed.jsonl \
   --scorer semantic \
   --reverse-candidates \
-  --device cuda
+  --device cpu
 ```
 
 The benchmark summary includes input SHA-256, perturbation identity, invalid-rate and per-family
