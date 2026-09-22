@@ -8,8 +8,8 @@ import pytest
 from decisio.backends.llama_cpp import (
     LlamaCppBackend,
     LlamaCppBackendConfig,
-    _NativeLlamaCppRuntime,
     _build_shared_batch_rows,
+    _NativeLlamaCppRuntime,
 )
 
 

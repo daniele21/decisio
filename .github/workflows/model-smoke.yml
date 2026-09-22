@@ -77,6 +77,82 @@ jobs:
           assert identity["shared_context_state"] is True, identity
           assert identity["shared_prefix_primitive"] == "flat_multi_sequence_batch", identity
           PY
+      - name: Diagnose single-sequence prefix split against fresh
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          from decisio.backends.llama_cpp import (
+              LlamaCppBackend,
+              LlamaCppBackendConfig,
+              _longest_common_prefix,
+          )
+          from decisio.compiler import compile_semantic_candidate
+          from decisio.schema import ChoiceRequest
+
+          request = ChoiceRequest.from_dict(
+              json.loads(Path("benchmarks/fixtures/ci-smoke.json").read_text())
+          )
+          backend = LlamaCppBackend(
+              LlamaCppBackendConfig(
+                  model=Path("/tmp/Qwen3.5-0.8B-Q4_K_M.gguf"),
+                  n_ctx=4096,
+                  n_threads=2,
+                  n_threads_batch=2,
+              )
+          )
+          try:
+              compiled = [
+                  compile_semantic_candidate(backend.tokenizer, request, candidate)
+                  for candidate in request.candidates
+              ]
+              prefix_len = _longest_common_prefix(
+                  [item.input_ids for item in compiled]
+              )
+              runtime = backend._runtime_or_raise()
+              rows = []
+              for item in compiled:
+                  token_ids = [item.readout["yes"], item.readout["no"]]
+                  fresh = runtime.next_token_logits(item.input_ids, token_ids)
+                  runtime._clear_scoring_state()
+                  runtime._decode_tokens(
+                      item.input_ids[:prefix_len],
+                      seq_ids=(0,),
+                      n_past=0,
+                  )
+                  runtime._decode_tokens(
+                      item.input_ids[prefix_len:],
+                      seq_ids=(0,),
+                      n_past=prefix_len,
+                  )
+                  split = runtime._selected_logits(token_ids)
+                  rows.append(
+                      {
+                          "max_abs_logit_delta": max(
+                              abs(left - right)
+                              for left, right in zip(fresh, split, strict=True)
+                          ),
+                          "fresh_logits": fresh,
+                          "split_logits": split,
+                      }
+                  )
+
+              evidence = {
+                  "prefix_len": prefix_len,
+                  "candidates": rows,
+                  "max_abs_logit_delta": max(
+                      row["max_abs_logit_delta"] for row in rows
+                  ),
+              }
+              Path("/tmp/decisio-split-fresh-diagnostic.json").write_text(
+                  json.dumps(evidence, indent=2, sort_keys=True) + "\n"
+              )
+              print(json.dumps(evidence, sort_keys=True))
+          finally:
+              backend.close()
+          PY
+
       - name: Compare shared-prefix path with fresh reference
         run: |
           python - <<'PY'
@@ -203,5 +279,6 @@ jobs:
             /tmp/decisio-snake-smoke.jsonl
             /tmp/decisio-real-model-smoke.json
             /tmp/decisio-shared-fresh-equivalence.json
+            /tmp/decisio-split-fresh-diagnostic.json
           if-no-files-found: warn
           retention-days: 14

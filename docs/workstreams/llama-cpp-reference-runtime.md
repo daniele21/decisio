@@ -164,12 +164,17 @@ than being reconstructed by Decisio. No KV-only sequence copying is used.
 
 Run `35715986281` proved that merely attaching the prefix to all sequences while decoding suffixes
 in separate calls still reproduced the old numerical mismatch, despite 40.4% physical-token reuse.
-The flat-batch form is therefore the next discriminating experiment; the predeclared fresh-equivalence
-tolerances remain unchanged.
+Run `35716601748` then reproduced the exact same mismatch with the upstream-shaped flat batch:
+score delta `0.1005306244`, binary-probability delta `0.0170685730`, and final-distribution delta
+`0.0001724743`. The predeclared fresh-equivalence tolerances remain unchanged.
 
-The remaining W3 work is real-model fresh-equivalence evidence for this flat multi-sequence
-primitive plus a bounded checkpoint/cache boundary for reusing an unchanged long state across later
-questions.
+The next discriminating check compares a single candidate decoded fresh in one batch against the
+same single sequence split at the common-prefix boundary, with no reuse at all. This isolates
+batch-boundary numerics from multi-sequence state sharing before adopting llama.cpp sequence
+snapshot/restore as the candidate primitive.
+
+The remaining W3 work is exact fresh-equivalence evidence for a safe prefix-reuse primitive plus a
+bounded checkpoint/cache boundary for reusing an unchanged long state across later questions.
 
 ## W4/W5 scorer gate
 
