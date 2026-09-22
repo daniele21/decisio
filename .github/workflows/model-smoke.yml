@@ -76,83 +76,10 @@ jobs:
           assert identity["selected_vocab_projection"] is False, identity
           assert identity["shared_context_state"] is True, identity
           assert identity["shared_prefix_primitive"] == "single_sequence_state_snapshot_restore", identity
+          assert identity["repeated_state_cache"] == "exact_compiler_token_prefix_lru", identity
+          assert identity["repeated_state_cache_max_entries"] == 2, identity
+          assert identity["repeated_state_cache_max_bytes"] == 256 * 1024 * 1024, identity
           PY
-      - name: Diagnose single-sequence prefix split against fresh
-        run: |
-          python - <<'PY'
-          import json
-          from pathlib import Path
-
-          from decisio.backends.llama_cpp import (
-              LlamaCppBackend,
-              LlamaCppBackendConfig,
-              _longest_common_prefix,
-          )
-          from decisio.compiler import compile_semantic_candidate
-          from decisio.schema import ChoiceRequest
-
-          request = ChoiceRequest.from_dict(
-              json.loads(Path("benchmarks/fixtures/ci-smoke.json").read_text())
-          )
-          backend = LlamaCppBackend(
-              LlamaCppBackendConfig(
-                  model=Path("/tmp/Qwen3.5-0.8B-Q4_K_M.gguf"),
-                  n_ctx=4096,
-                  n_threads=2,
-                  n_threads_batch=2,
-              )
-          )
-          try:
-              compiled = [
-                  compile_semantic_candidate(backend.tokenizer, request, candidate)
-                  for candidate in request.candidates
-              ]
-              prefix_len = _longest_common_prefix(
-                  [item.input_ids for item in compiled]
-              )
-              runtime = backend._runtime_or_raise()
-              rows = []
-              for item in compiled:
-                  token_ids = [item.readout["yes"], item.readout["no"]]
-                  fresh = runtime.next_token_logits(item.input_ids, token_ids)
-                  runtime._clear_scoring_state()
-                  runtime._decode_tokens(
-                      item.input_ids[:prefix_len],
-                      seq_id=0,
-                      n_past=0,
-                  )
-                  runtime._decode_tokens(
-                      item.input_ids[prefix_len:],
-                      seq_id=0,
-                      n_past=prefix_len,
-                  )
-                  split = runtime._selected_logits(token_ids)
-                  rows.append(
-                      {
-                          "max_abs_logit_delta": max(
-                              abs(left - right)
-                              for left, right in zip(fresh, split, strict=True)
-                          ),
-                          "fresh_logits": fresh,
-                          "split_logits": split,
-                      }
-                  )
-
-              evidence = {
-                  "prefix_len": prefix_len,
-                  "candidates": rows,
-                  "max_abs_logit_delta": max(
-                      row["max_abs_logit_delta"] for row in rows
-                  ),
-              }
-              Path("/tmp/decisio-split-fresh-diagnostic.json").write_text(
-                  json.dumps(evidence, indent=2, sort_keys=True) + "\n"
-              )
-              print(json.dumps(evidence, sort_keys=True))
-          finally:
-              backend.close()
-          PY
-
       - name: Compare shared-prefix path with fresh reference
         run: |
           python - <<'PY'
@@ -210,6 +137,7 @@ jobs:
               Path("/tmp/decisio-shared-fresh-equivalence.json").write_text(
                   json.dumps(evidence, indent=2, sort_keys=True) + "\n"
               )
+              print(json.dumps(evidence, sort_keys=True))
 
               assert evidence["same_choice"], evidence
               assert score_delta <= 1e-3, evidence
@@ -227,6 +155,126 @@ jobs:
                   fresh_metrics["physically_evaluated_tokens"]
                   == fresh_metrics["logical_input_tokens"]
               ), evidence
+          finally:
+              backend.close()
+          PY
+
+      - name: Prove bounded repeated-state cache against fresh
+        run: |
+          python - <<'PY'
+          import json
+          import time
+          from pathlib import Path
+
+          from decisio.backends.llama_cpp import LlamaCppBackend, LlamaCppBackendConfig
+          from decisio.schema import Candidate, ChoiceRequest
+          from decisio.scorers import SemanticBinaryScorer
+
+          candidates = (
+              Candidate("billing", "Payments and invoices"),
+              Candidate("technical", "Software bugs and device issues"),
+          )
+          state = {
+              "document": (
+                  "duplicate payment evidence account ledger merchant reference "
+                  * 160
+              )
+          }
+          first_request = ChoiceRequest(
+              id="cache-prime",
+              state=state,
+              question="Which queue should receive a duplicate card charge?",
+              candidates=candidates,
+          )
+          second_request = ChoiceRequest(
+              id="cache-hit",
+              state=state,
+              question="Which queue should receive a disputed payment?",
+              candidates=candidates,
+          )
+          backend = LlamaCppBackend(
+              LlamaCppBackendConfig(
+                  model=Path("/tmp/Qwen3.5-0.8B-Q4_K_M.gguf"),
+                  n_ctx=4096,
+                  n_threads=2,
+                  n_threads_batch=2,
+              )
+          )
+          try:
+              scorer = SemanticBinaryScorer(backend)
+              backend.reset_runtime_metrics()
+              scorer.score(first_request)
+              first_metrics = backend.runtime_metrics()
+
+              backend.reset_runtime_metrics()
+              shared_started = time.perf_counter()
+              shared = scorer.score(second_request)
+              shared_seconds = time.perf_counter() - shared_started
+              shared_metrics = backend.runtime_metrics()
+
+              backend.reset_runtime_metrics()
+              fresh_started = time.perf_counter()
+              fresh = SemanticBinaryScorer(backend.fresh_view()).score(second_request)
+              fresh_seconds = time.perf_counter() - fresh_started
+              fresh_metrics = backend.runtime_metrics()
+
+              score_delta = max(
+                  abs(shared.scores[key] - fresh.scores[key])
+                  for key in shared.scores
+              )
+              binary_delta = max(
+                  abs(
+                      shared.binary_conditional_probability[key]
+                      - fresh.binary_conditional_probability[key]
+                  )
+                  for key in shared.binary_conditional_probability
+              )
+              distribution_delta = max(
+                  abs(shared.distribution[key] - fresh.distribution[key])
+                  for key in shared.distribution
+              )
+              backend.clear_repeated_state_cache()
+              cleared_metrics = backend.runtime_metrics()
+
+              evidence = {
+                  "same_choice": shared.choice == fresh.choice,
+                  "max_abs_score_delta": score_delta,
+                  "max_abs_binary_probability_delta": binary_delta,
+                  "max_abs_distribution_delta": distribution_delta,
+                  "first_runtime_metrics": first_metrics,
+                  "shared_runtime_metrics": shared_metrics,
+                  "fresh_runtime_metrics": fresh_metrics,
+                  "cleared_runtime_metrics": cleared_metrics,
+                  "shared_seconds": shared_seconds,
+                  "fresh_seconds": fresh_seconds,
+                  "latency_speedup": (
+                      fresh_seconds / shared_seconds if shared_seconds > 0 else None
+                  ),
+              }
+              Path("/tmp/decisio-repeated-state-cache.json").write_text(
+                  json.dumps(evidence, indent=2, sort_keys=True) + "\n"
+              )
+              print(json.dumps(evidence, sort_keys=True))
+
+              assert evidence["same_choice"], evidence
+              assert score_delta <= 1e-3, evidence
+              assert binary_delta <= 1e-4, evidence
+              assert distribution_delta <= 1e-4, evidence
+              assert first_metrics["repeated_state_cache_misses"] >= 1, evidence
+              assert first_metrics["repeated_state_cache_entries"] >= 1, evidence
+              assert shared_metrics["repeated_state_cache_hits"] >= 1, evidence
+              assert shared_metrics["repeated_state_cache_reused_tokens"] > 0, evidence
+              assert (
+                  shared_metrics["physically_evaluated_tokens"]
+                  < fresh_metrics["physically_evaluated_tokens"]
+              ), evidence
+              assert shared_metrics["repeated_state_cache_entries"] <= 2, evidence
+              assert (
+                  shared_metrics["repeated_state_cache_bytes"]
+                  <= 256 * 1024 * 1024
+              ), evidence
+              assert cleared_metrics["repeated_state_cache_entries"] == 0, evidence
+              assert cleared_metrics["repeated_state_cache_bytes"] == 0, evidence
           finally:
               backend.close()
           PY
@@ -281,6 +329,6 @@ jobs:
             /tmp/decisio-snake-smoke.jsonl
             /tmp/decisio-real-model-smoke.json
             /tmp/decisio-shared-fresh-equivalence.json
-            /tmp/decisio-split-fresh-diagnostic.json
+            /tmp/decisio-repeated-state-cache.json
           if-no-files-found: warn
           retention-days: 14
