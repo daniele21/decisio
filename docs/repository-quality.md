@@ -110,7 +110,7 @@ run a cheap functional smoke
   ↓
 inspect a typed result
   ↓
-optionally run the representative CUDA path
+optionally run the full 4B CPU scorer gate
 ```
 
 The cheap path must be labeled functional/directional and never confused with product evidence.
@@ -138,7 +138,7 @@ Decisio already has unusually good evidence foundations for its age:
 - order perturbation;
 - CI real-model smoke clearly labeled as directional.
 
-### Critical gap before the 4B/CUDA scorer gate
+### Critical gap before the 4B CPU scorer gate
 
 Correctness methodology is stronger than the current performance methodology. A single wall-clock measurement per example, with scorers executed in a fixed order, is not sufficient evidence for a stable latency claim.
 
@@ -146,11 +146,10 @@ Before using performance as a promotion gate, the representative harness should 
 
 - explicit warm-up;
 - repeated measured runs;
-- CUDA synchronization around timed sections;
 - balanced or interleaved scorer execution order;
 - p50 and p95 latency;
 - total throughput / decisions per second;
-- peak GPU memory where practical;
+- process peak RSS as a diagnostic memory high-water mark;
 - exact timing scope;
 - hardware/runtime identity in the report.
 
@@ -263,7 +262,7 @@ The repository should be self-contained and product-specific:
 
 | ID | State on this branch | Evidence / remaining work |
 | --- | --- | --- |
-| RQ-01 | IMPLEMENTED, evidence pending | repeated balanced performance trials, CUDA synchronization, throughput and peak-memory reporting are implemented; representative 4B/CUDA run still required |
+| RQ-01 | IMPLEMENTED, evidence pending | repeated balanced CPU performance trials, throughput and process peak-RSS reporting are implemented; full 4B CPU run still required |
 | RQ-02 | PENDING | default branch still needs branch convergence/merge |
 | RQ-03 | IMPLEMENTED, validation pending | root baseline, commands, E2E, skills, verifier scripts and health/preflight workflows are specialized; inherited template-only root docs are removed |
 | RQ-04 | IMPLEMENTED | committed `uv.lock`, frozen setup commands and CI lock verification |
@@ -288,7 +287,7 @@ Priority meanings:
 
 | ID | Priority | Improvement | Done when |
 | --- | --- | --- | --- |
-| RQ-01 | P0 | Strengthen representative benchmark timing | warm-up, repeats, CUDA sync, balanced execution, latency distribution, throughput and memory/provenance are recorded |
+| RQ-01 | P0 | Strengthen scorer-gate benchmark timing | warm-up, repeats, balanced execution, latency distribution, throughput, CPU/thread identity and peak RSS are recorded |
 | RQ-02 | P0 | Make the default branch Decisio | product foundation and scorer-gate work converge; GitHub landing page no longer presents `repo-template-sw` |
 | RQ-03 | P0 | Finish repository-template specialization | baseline/commands/e2e configuration is project-owned and template-only root material is removed or intentionally retained |
 | RQ-04 | P0 | Make setup reproducible | `uv.lock` exists and CI/setup use a coherent dependency contract |
@@ -307,7 +306,7 @@ Priority meanings:
 
 The repository should not try to complete every item at once.
 
-### Before the representative 4B/CUDA gate
+### Before the full 4B CPU gate
 
 Focus on:
 
