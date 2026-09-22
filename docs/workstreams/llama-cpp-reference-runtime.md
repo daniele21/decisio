@@ -125,27 +125,13 @@ This is a v1 requirement, not a post-gate optimization.
 
 ### Korgis reference patterns
 
-Korgis is the runtime/control-plane reference for llama.cpp lifecycle. Reuse its proven patterns
-rather than creating parallel policy in Decisio:
+Korgis remains the control-plane/lifecycle reference: llama.cpp owns native model memory, while
+Decisio owns scorer-specific reuse semantics and equivalence evidence. Reuse Korgis' pinned runtime
+identity, explicit close/lease and fail-conservative ownership patterns; do not duplicate its
+residency, serving-concurrency, eviction or resource-manager policy here.
 
-- llama.cpp owns runtime-local cache/memory mechanics; Decisio owns scorer-specific reuse semantics;
-- pin and record an attributable llama.cpp/binding build before enabling version-sensitive features;
-- carry the proven `n_ctx`, `n_batch`, `n_ubatch` and thread configuration into runtime provenance;
-- follow Korgis' explicit runtime lease/close/fail-conservative teardown principles so cached native
-  state never outlives its owning model context;
-- do not copy Korgis' serving concurrency, residency, eviction or resource-manager policy into
-  Decisio.
-
-Korgis' managed llama-server path already exercises continuous batching, unified KV configuration,
-cache K/V types and host-memory cache controls. It does not implement Decisio's candidate-branching
-primitive. For that, the Decisio in-process backend should use llama.cpp's generic memory/sequence
-operations (for example sequence copy/remove/state save-restore) behind the backend capability,
-rather than depending on an HTTP prompt-cache abstraction.
-
-Fresh evaluation remains the scorer oracle because prefix-cache reuse may change floating-point
-results when execution/batch shape changes.
-
-
+For Decisio branching, use llama.cpp generic memory/sequence primitives in-process rather than an
+HTTP prompt-cache abstraction. Fresh evaluation remains the scorer oracle.
 
 Two reuse levels are required:
 
