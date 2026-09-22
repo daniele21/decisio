@@ -11,10 +11,10 @@ Decide whether comparative semantic v2 is a strong enough default on the pinned 
 
 | Workstream | Current executable slice | State | Blocker |
 | --- | --- | --- | --- |
-| Product foundation | Scope, architecture, constraints and roadmap | ACTIVE | stacked branches not yet converged to `main` |
-| Scorer decision | Frozen v2/v1/letters/generated gate + order reversal | ACTIVE | representative Qwen3.5-4B BF16 CPU run |
+| Product foundation | Consolidated product + scorer + hardening candidate | ACTIVE | final PR #1 validation and deliberate integration to `main` |
+| Scorer decision | Frozen v2/v1/letters/generated gate + order reversal | ACTIVE | full Qwen3.5-4B BF16 CPU gate on final PR #1 head |
 | Runtime | Candidate batching + selected-vocabulary projection | ACTIVE | shared-prefix/cache reuse not implemented |
-| Repository quality | Root Decisio baseline, locked setup, health/package gates | ACTIVE | final stacked-branch convergence |
+| Repository quality | Root Decisio baseline, locked setup, health/package gates | ACTIVE | final PR #1 integration to `main` |
 | Examples | Snake, support routing and policy gate | ACTIVE | examples remain exploratory rather than quality evidence |
 
 ## Implemented on the active branches
@@ -38,8 +38,10 @@ Decide whether comparative semantic v2 is a strong enough default on the pinned 
 - normal/reversed candidate-order comparison;
 - generated-output invalid-rate accounting;
 - repeated performance trials with warm-up, balanced scorer position, CPU wall-clock timing, p50/p95 workload latency, decisions/sec and process peak RSS;
+- deterministic `scorer-gate-v1` evaluator that applies the precommitted quality, family, order-robustness, zero-generation and generation-latency criteria;
 - 8-case Qwen3.5-0.8B hosted-CPU directional scorer matrix;
-- real-model semantic/Snake integration smoke.
+- real-model semantic/Snake integration smoke;
+- trace-backed Snake MP4 with board + decision evidence hierarchy inspired by Rizzo Flow Snake, without adding a browser UI surface.
 
 ### Repository
 
@@ -54,18 +56,20 @@ Decide whether comparative semantic v2 is a strong enough default on the pinned 
 
 ## Last validated automated evidence
 
-Repository-specialization head `c7577c6a679e2574c80e80efffa0c987ed84f6ee`:
+Support PR convergence completed in order `#4 → #3 → #2 → #1`. Before each squash, the
+owning ready candidate passed its exact-head Integration preflight. The latest pre-convergence
+support evidence was scorer-gate head `0fc1c5bfd21bfec769507c6f9720717d45046475`:
 
-- Repository health: PASS — run `35655630899`;
-- Decisio CI: PASS — run `35655631123`;
-- CI includes lock verification, lint, tests, compile, wheel build and installed-wheel smoke.
+- Repository health: PASS — run `35680410563`;
+- Decisio CI: PASS — run `35680410712`;
+- Integration preflight: PASS — run `35680427750`.
 
-Runtime-hardening head `69d0d187960289ae05563fc614eb1b165e8398d1`:
+The sole remaining integration candidate is PR #1 on the consolidated product branch. Its current
+head must produce fresh exact-head validation after this state update.
 
-- Decisio CI: PASS — run `35653611378`;
-- Real model smoke: PASS — run `35653611388`.
-
-Latest completed directional scorer-matrix evidence remains the hosted-CPU Qwen3.5-0.8B run on `be12009660f7bd9c22cef3d7e7979a9cfe36371f`: all four methods scored 7/8; v2/v1 had 0/8 order changes, letters 1/8 and generated JSON 2/8. This is integration/directional evidence only.
+Latest completed directional scorer-matrix evidence remains the hosted-CPU Qwen3.5-0.8B run on
+`be12009660f7bd9c22cef3d7e7979a9cfe36371f`: all four methods scored 7/8; v2/v1 had 0/8
+order changes, letters 1/8 and generated JSON 2/8. This is integration/directional evidence only.
 
 ## Remaining blockers
 
@@ -84,13 +88,13 @@ Latest completed directional scorer-matrix evidence remains the hosted-CPU Qwen3
 
 ### Repository/integration
 
-- The stacked product/benchmark/docs/hardening branches still need convergence into the product branch and then deliberate promotion to `main`.
-- The full 64-case 4B CPU workflow has not yet produced retained scorer-gate evidence. The existing 0.8B hosted CPU smoke cannot satisfy the gate.
+- Support PRs #2–#4 are converged and closed; PR #1 is now the only candidate toward `main`.
+- PR #1 still needs fresh exact-head Integration preflight plus the full 64-case 4B CPU scorer-gate evidence. The existing 0.8B hosted CPU smoke cannot satisfy that gate.
 
 ## Next
 
-1. Finish exact-head automated validation for the repository-specialization slice and converge the stacked support PRs.
-2. Run the frozen 64-case scorer gate on pinned Qwen3.5-4B BF16 CPU when the repository-owned CPU gate runs.
-3. Decide from the precommitted gate whether comparative semantic v2 remains the default scorer.
+1. Mark consolidated PR #1 ready and run exact-head Integration preflight.
+2. Run the repository-owned frozen 64-case scorer gate on pinned Qwen3.5-4B BF16 CPU.
+3. Apply the committed gate evaluator and decide whether comparative semantic v2 remains the default scorer.
 4. If v2 survives, stabilize the small public Python entry point; if it fails, analyze discordant rows before expanding the API.
 5. Continue broader perturbations, answerability and shared-prefix/cache work in that order.
