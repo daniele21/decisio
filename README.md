@@ -57,7 +57,7 @@ uv run decisio score \
 
 That command proves the real model/compiler/scorer path works. It is **not** representative quality or performance evidence.
 
-The reference target for product evidence is pinned **Qwen3.5-4B BF16 on CUDA**.
+The reference target for scorer-gate evidence is pinned **Qwen3.5-4B BF16 on CPU**. CPU hardware and thread topology are recorded with the run, so systems numbers are not generalized across machines.
 
 ## What comes back
 
@@ -133,7 +133,7 @@ Decisio currently compares four inference strategies on the same frozen workload
 - **letters** — direct A/B/C next-token scoring;
 - **generated JSON** — minimal autoregressive baseline.
 
-The scorer gate measures quality, candidate-order sensitivity, invalid output and systems performance. Representative performance runs use warm-up, repeated balanced trials, CUDA synchronization, throughput and peak-memory reporting.
+The scorer gate measures quality, candidate-order sensitivity, invalid output and systems performance. CPU performance runs use warm-up, repeated balanced trials, p50/p95 latency, throughput and process peak-RSS reporting.
 
 See [Benchmark methodology](benchmarks/scorer-gate-v1.md).
 
@@ -162,7 +162,7 @@ Implemented now:
 
 Still pending before the scoring approach is considered stable:
 
-- full Qwen3.5-4B BF16/CUDA scorer gate;
+- full Qwen3.5-4B BF16 CPU scorer gate;
 - broader perturbation coverage;
 - answerability;
 - shared-prefix/cache reuse;
