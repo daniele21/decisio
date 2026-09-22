@@ -69,6 +69,30 @@ def _report() -> dict:
             "enabled": True,
             "position_balanced": True,
             "measured_rounds": 4,
+            "backend_identity": {
+                "backend": "llama-cpp-python",
+                "runtime": "llama.cpp",
+                "binding_version": "0.3.35",
+                "artifact_filename": "Qwen3.5-4B-Q4_K_M.gguf",
+                "artifact_sha256": (
+                    "25082a7dd3776cc3c741c6347d3bd04523f05796607b3fbc32fa3a25dfa1418c"
+                ),
+                "artifact_size_bytes": 2707513696,
+                "quantization": "Q4_K_M",
+                "device": "cpu",
+                "n_ctx": 8192,
+                "n_batch": 512,
+                "n_ubatch": 512,
+                "n_threads": 2,
+                "n_threads_batch": 2,
+                "zero_generation_native_scoring": True,
+                "shared_context_state": True,
+                "shared_prefix_primitive": "single_sequence_state_snapshot_restore",
+                "repeated_state_cache": "exact_compiler_token_prefix_lru",
+                "repeated_state_cache_max_entries": 2,
+                "repeated_state_cache_max_bytes": 256 * 1024 * 1024,
+                "selected_vocab_projection": False,
+            },
             "scorers": {
                 "semantic": {
                     "duration_seconds": {"p50": 10.0, "p95": 11.0},
@@ -85,6 +109,7 @@ def test_scorer_gate_passes_when_all_precommitted_criteria_hold():
     evaluation = evaluate_report(_report())
 
     assert evaluation["passed"] is True
+    assert evaluation["gate"] == "scorer-gate-v2"
     assert all(item["passed"] for item in evaluation["criteria"].values())
     assert (
         evaluation["criteria"]["order_robustness"]["reference_baseline"]
@@ -132,3 +157,15 @@ def test_scorer_gate_rejects_generation_latency_regression():
 
     assert evaluation["passed"] is False
     assert evaluation["criteria"]["generation_tradeoff"]["passed"] is False
+
+
+def test_scorer_gate_rejects_wrong_runtime_identity():
+    report = _report()
+    report["performance"]["backend_identity"]["artifact_sha256"] = "wrong"
+
+    evaluation = evaluate_report(report)
+
+    assert evaluation["passed"] is False
+    runtime = evaluation["criteria"]["runtime_identity"]
+    assert runtime["passed"] is False
+    assert runtime["mismatches"]["artifact_sha256"]["actual"] == "wrong"

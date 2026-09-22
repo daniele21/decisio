@@ -56,11 +56,11 @@ frozen before representative evidence.
 | ID | State | Outcome |
 | --- | --- | --- |
 | W0 | DONE | Transformers/BF16 no longer controls promotion. |
-| W1 | ACTIVE | Prove scorer primitives on pinned Q4_K_M llama.cpp. |
-| W2 | ACTIVE | Stabilize local-GGUF backend/CLI and provenance. |
-| W3 | ACTIVE | Prove candidate branching + bounded repeated-state reuse. |
-| W4 | BLOCKED | Freeze scorer-gate v2 runtime/artifact/fast-path identity. |
-| W5 | BLOCKED | Run full 64-case CPU gate plus repeated-state performance evidence. |
+| W1 | DONE | Scorer primitives proven on pinned real Q4_K_M llama.cpp smoke. |
+| W2 | DONE | Local-GGUF backend/CLI and provenance stabilized. |
+| W3 | DONE | Candidate branching + bounded repeated-state reuse proved fresh-equivalent on pinned 0.8B smoke. |
+| W4 | DONE | Scorer-gate v2 runtime/artifact/fast-path identity frozen before 4B results. |
+| W5 | ACTIVE | Run full 64-case 4B CPU gate plus representative runtime-equivalence evidence. |
 | W6 | BLOCKED | Stabilize public runtime only if the evidence survives. |
 
 ## W1/W2 runtime contract
@@ -117,7 +117,9 @@ canonical sequence. Run `35717350247` passed the fresh oracle on pinned Qwen3.5-
 - reuse: 152 tokens / 40.4%;
 - serialized prefix state: 22,072,908 bytes.
 
-This proves the branching mechanism, not the representative 4B product result.
+Run `35726724805` additionally proved the bounded cache after native-batch alignment: on a long same-state/different-question request it matched fresh scores/probabilities/distribution exactly, reused 1024 cached-state tokens, evaluated 526 physical tokens versus 2574 fresh, and observed 7.05 s versus 32.24 s latency (~4.57x). Cache clear returned entries/bytes to zero.
+
+These runs prove the branching/cache mechanism on 0.8B, not the representative 4B product result.
 
 ### Repeated-state cache contract
 
@@ -134,25 +136,27 @@ The cache:
 - does not affect the fresh reference view;
 - skips storage when one snapshot exceeds the byte budget.
 
-Current defaults are 2 entries and 256 MiB. The real-model gate must prove a same-state,
-different-question hit, fresh equivalence, physical-token reduction and deterministic clear
-behavior. Latency is recorded; representative 4B speed evidence remains W5.
+Current defaults are 2 entries and 256 MiB. The pinned 0.8B real-model smoke has proved a same-state, different-question hit, fresh equivalence, physical-token reduction and deterministic clear behavior. W5 repeats the oracle on the frozen 4B reference artifact. Latency is recorded; the v2 contract deliberately does not invent a 4B cache-speed threshold from the 0.8B observation.
 
 ## W4/W5 scorer gate
 
-Keep the frozen 64-case workload unless a genuine fixture defect is found. Before the representative
-run, freeze:
+The gate-v2 contract is frozen before representative 4B results:
 
-- exact 4B Q4_K_M GGUF SHA and pinned llama.cpp/binding;
-- CPU-only execution and exact Decisio revision;
-- semantic-v2, semantic-v1, letters and generated JSON;
-- normal/reversed candidate order;
+- artifact: `lmstudio-community/Qwen3.5-4B-GGUF`;
+- revision: `e52a809eba94f740f51bdd80a73f189d06ac9347`;
+- file: `Qwen3.5-4B-Q4_K_M.gguf`;
+- file SHA-256: `25082a7dd3776cc3c741c6347d3bd04523f05796607b3fbc32fa3a25dfa1418c`;
+- binding/runtime package: `llama-cpp-python==0.3.35`, CPU;
+- context/batching: `n_ctx=8192`, `n_batch=512`, `n_ubatch=512`, two scoring threads and two batch threads;
+- shared-state primitive: single-sequence state snapshot/restore;
+- repeated-state cache: exact compiler token-prefix LRU, 2 entries / 256 MiB;
+- full frozen 64-case workload, original + reversed candidates;
 - one warm-up plus four position-balanced measured rounds;
-- production shared-context path plus fresh diagnostics;
-- quality, family, order, zero-generation and latency criteria;
-- repeated-state physical-token, hit-rate and latency evidence.
+- full-workload shared-vs-fresh oracle and long repeated-state cache oracle;
+- unchanged quality, family, order, zero-generation and generated-latency criteria.
 
-Existing promotion thresholds stay fixed unless a pre-result gate version explicitly changes them.
+The reference artifact is evidence identity, not a product restriction: users may select another compatible Qwen GGUF, but its results are a different evidence/calibration identity.
+
 A PASS promotes only the pinned reference configuration. A FAIL keeps v2 experimental.
 
 ## Calibration compatibility
@@ -165,12 +169,11 @@ Without that match, outputs remain uncalibrated.
 
 Before PR #1 returns to ready:
 
-1. prove the repeated-state cache on the pinned real-model smoke;
-2. freeze the 4B artifact/runtime/fast-path identity;
-3. run the full 64-case CPU gate and repeated-state performance fixture;
+1. run the frozen 4B scorer-gate v2 and representative shared/fresh + repeated-cache oracle;
+2. diagnose any failed criterion without weakening the precommitted contract;
+3. update durable docs with exact 4B evidence;
 4. run repository deterministic gates and exact-head integration preflight;
-5. update durable docs with exact evidence;
-6. inspect the complete diff against live `main`.
+5. inspect the complete diff against live `main`.
 
 Completion means product intent, implementation, tests, docs and evidence agree. Representative 4B
 hardware evidence, not code completion, decides release readiness.

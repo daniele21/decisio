@@ -14,13 +14,98 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: scorer-gate-v2-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
 jobs:
-  gate-v2-not-frozen:
-    if: github.event_name == 'workflow_dispatch' || (github.event.pull_request.draft == false && github.base_ref == 'main')
+  scorer-gate-v2:
+    if: github.event_name == 'workflow_dispatch' || github.base_ref == 'main'
     runs-on: ubuntu-latest
+    timeout-minutes: 240
+    env:
+      MODEL: /tmp/Qwen3.5-4B-Q4_K_M.gguf
+      GATE_INPUT: .artifacts/scorer-gate-v2.jsonl
+      GATE_DIR: .artifacts/scorer-gate-v2
     steps:
-      - name: Block promotion until llama.cpp gate v2 is frozen
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install pinned CPU llama.cpp runtime
         run: |
-          echo "The Transformers/BF16 scorer gate is superseded."
-          echo "Freeze the exact Qwen3.5-4B Q4_K_M GGUF + llama.cpp shared-context gate-v2 contract first."
-          exit 1
+          python -m pip install --upgrade pip
+          python -m pip install "diskcache>=5.6.1" "jinja2>=2.11.3" "numpy>=1.20" "typing-extensions>=4.5"
+          python -m pip install --index-url https://abetlen.github.io/llama-cpp-python/whl/cpu --no-deps "llama-cpp-python==0.3.35"
+          python -m pip install -e . --no-deps
+
+      - name: Download frozen Qwen3.5-4B Q4_K_M artifact
+        run: |
+          curl -L --fail --retry 3 \
+            "https://huggingface.co/lmstudio-community/Qwen3.5-4B-GGUF/resolve/e52a809eba94f740f51bdd80a73f189d06ac9347/Qwen3.5-4B-Q4_K_M.gguf?download=true" \
+            -o "$MODEL"
+          echo "25082a7dd3776cc3c741c6347d3bd04523f05796607b3fbc32fa3a25dfa1418c  $MODEL" | sha256sum -c -
+          test "$(stat -c %s "$MODEL")" = "2707513696"
+
+      - name: Materialize frozen scorer workload
+        run: |
+          python benchmarks/build_scorer_gate_fixture.py --output "$GATE_INPUT"
+
+      - name: Verify shared and repeated-state execution against fresh
+        run: |
+          python benchmarks/verify_llama_runtime_gate.py \
+            --fixture "$GATE_INPUT" \
+            --model "$MODEL" \
+            --output "$GATE_DIR/runtime-equivalence.json" \
+            --n-ctx 8192 \
+            --n-batch 512 \
+            --n-ubatch 512 \
+            --threads 2 \
+            --threads-batch 2 \
+            --require-pass
+
+      - name: Run full paired scorer matrix
+        run: |
+          decisio compare \
+            --input "$GATE_INPUT" \
+            --output-dir "$GATE_DIR" \
+            --model "$MODEL" \
+            --device cpu \
+            --n-ctx 8192 \
+            --n-batch 512 \
+            --n-ubatch 512 \
+            --threads 2 \
+            --threads-batch 2 \
+            --warmup-rounds 1 \
+            --performance-rounds 4
+
+      - name: Apply precommitted scorer gate v2
+        run: |
+          python benchmarks/evaluate_scorer_gate.py \
+            --comparison "$GATE_DIR/comparison.json" \
+            --output-dir "$GATE_DIR" \
+            --require-pass
+
+      - name: Record host and source identity
+        if: always()
+        run: |
+          mkdir -p "$GATE_DIR"
+          {
+            echo "github_sha=$GITHUB_SHA"
+            echo "runner_os=$RUNNER_OS"
+            python --version
+            uname -a
+            lscpu
+          } > "$GATE_DIR/host.txt"
+
+      - name: Upload scorer gate evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: decisio-scorer-gate-v2-qwen35-4b-q4km
+          path: |
+            .artifacts/scorer-gate-v2.jsonl
+            .artifacts/scorer-gate-v2/
+          if-no-files-found: warn
+          retention-days: 14

@@ -15,6 +15,28 @@ QUALITY_MARGIN = 0.05
 FAMILY_MAX_CORRECT_GAP = 2
 MAX_ORDER_CHANGES = 1
 SIGNIFICANCE_ALPHA = 0.05
+EXPECTED_BACKEND_IDENTITY = {
+    "backend": "llama-cpp-python",
+    "runtime": "llama.cpp",
+    "binding_version": "0.3.35",
+    "artifact_filename": "Qwen3.5-4B-Q4_K_M.gguf",
+    "artifact_sha256": "25082a7dd3776cc3c741c6347d3bd04523f05796607b3fbc32fa3a25dfa1418c",
+    "artifact_size_bytes": 2707513696,
+    "quantization": "Q4_K_M",
+    "device": "cpu",
+    "n_ctx": 8192,
+    "n_batch": 512,
+    "n_ubatch": 512,
+    "n_threads": 2,
+    "n_threads_batch": 2,
+    "zero_generation_native_scoring": True,
+    "shared_context_state": True,
+    "shared_prefix_primitive": "single_sequence_state_snapshot_restore",
+    "repeated_state_cache": "exact_compiler_token_prefix_lru",
+    "repeated_state_cache_max_entries": 2,
+    "repeated_state_cache_max_bytes": 256 * 1024 * 1024,
+    "selected_vocab_projection": False,
+}
 
 
 def _criterion(passed: bool, **evidence: Any) -> dict[str, Any]:
@@ -33,6 +55,26 @@ def evaluate_report(report: dict[str, Any]) -> dict[str, Any]:
     missing = [key for key in (PRIMARY, *BASELINES) if key not in scorers]
     if missing:
         raise ValueError(f"comparison report missing scorers: {missing}")
+
+    performance = report.get("performance", {})
+    backend_identity = performance.get("backend_identity")
+    runtime_mismatches: dict[str, dict[str, Any]] = {}
+    if not isinstance(backend_identity, dict):
+        runtime_mismatches["backend_identity"] = {
+            "expected": "mapping",
+            "actual": type(backend_identity).__name__,
+        }
+        backend_identity = {}
+    for key, expected in EXPECTED_BACKEND_IDENTITY.items():
+        actual = backend_identity.get(key)
+        if actual != expected:
+            runtime_mismatches[key] = {"expected": expected, "actual": actual}
+    runtime_identity = _criterion(
+        not runtime_mismatches,
+        expected=EXPECTED_BACKEND_IDENTITY,
+        actual=backend_identity,
+        mismatches=runtime_mismatches,
+    )
 
     primary_normal = scorers[PRIMARY]["normal"]
     primary_accuracy = float(primary_normal["accuracy"])
@@ -125,7 +167,6 @@ def evaluate_report(report: dict[str, Any]) -> dict[str, Any]:
         reversed_generated_tokens=reverse_generated,
     )
 
-    performance = report["performance"]
     performance_enabled = bool(performance.get("enabled"))
     position_balanced = bool(performance.get("position_balanced"))
     if performance_enabled:
@@ -152,6 +193,7 @@ def evaluate_report(report: dict[str, Any]) -> dict[str, Any]:
     )
 
     criteria = {
+        "runtime_identity": runtime_identity,
         "overall_quality": overall_quality,
         "family_guardrail": family_guardrail,
         "order_robustness": order_robustness,
@@ -160,7 +202,7 @@ def evaluate_report(report: dict[str, Any]) -> dict[str, Any]:
     }
     return {
         "schema_version": 1,
-        "gate": "scorer-gate-v1",
+        "gate": "scorer-gate-v2",
         "primary_scorer": PRIMARY,
         "input_sha256": report["input_sha256"],
         "examples": report["examples"],
@@ -172,7 +214,7 @@ def evaluate_report(report: dict[str, Any]) -> dict[str, Any]:
 def render_markdown(evaluation: dict[str, Any]) -> str:
     status = "PASS" if evaluation["passed"] else "FAIL"
     lines = [
-        "# Decisio scorer gate v1 evaluation",
+        "# Decisio scorer gate v2 evaluation",
         "",
         f"**Gate result: {status}**",
         "",
@@ -197,7 +239,7 @@ def render_markdown(evaluation: dict[str, Any]) -> str:
 
 
 def build_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(description="Evaluate Decisio scorer-gate v1")
+    parser = argparse.ArgumentParser(description="Evaluate Decisio scorer-gate v2")
     parser.add_argument("--comparison", type=Path, required=True)
     parser.add_argument("--output-dir", type=Path, required=True)
     parser.add_argument(
