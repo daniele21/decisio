@@ -63,13 +63,13 @@ uv run python examples/snake/play.py \
 
 ## Run with the Decisio reference model
 
-On a CUDA machine:
+The current Decisio evidence path is CPU-only:
 
 ```bash
 uv run python examples/snake/play.py \
   --model Qwen/Qwen3.5-4B \
   --revision 1eef1f4e0bc57dec8f814d1e4c714c8e0065d261 \
-  --device cuda \
+  --device cpu \
   --dtype bfloat16 \
   --max-steps 100 \
   --render
@@ -107,6 +107,25 @@ The model is asked to prioritize:
 
 Immediate wall/body validity is no longer delegated to the LLM. Candidate descriptions still contain only the direction and movement delta; the model is not given a handcrafted distance-to-food score.
 
+
+## Visual and UX reference
+
+The Snake evidence view intentionally takes **Rizzo Flow Snake** as its visual/interaction reference:
+<https://github.com/Rizzo-AI-Academy/rizzo-flow/blob/main/src/rizzo_flow/snake.html>.
+
+Decisio does not copy that implementation. It adopts the useful information hierarchy for this
+kind of demo:
+
+- game state and model decision are visible side by side;
+- the chosen move is the primary visual event;
+- candidate probabilities stay close to the board and also remain readable as bars;
+- deterministic filtering is visible but secondary to the model decision;
+- latency, generated-token count and outcome are compact evidence, not decorative dashboard chrome;
+- diagnostics must not imply that uncalibrated relative scores are correctness probabilities.
+
+The current artifact is deliberately a rendered evidence video, not a new browser application.
+An interactive Snake surface should wait until Decisio's scorer semantics and public runtime surface
+are stable enough to justify owning UI lifecycle and interaction code.
 
 ## CI video artifact
 
