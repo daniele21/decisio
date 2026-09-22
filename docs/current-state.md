@@ -71,7 +71,7 @@ Latest completed directional scorer-matrix evidence remains the hosted-CPU Qwen3
 
 ### Scorer decision
 
-- The frozen 64-case Qwen3.5-4B BF16 CPU gate has not run on representative hardware.
+- The frozen 64-case Qwen3.5-4B BF16 CPU gate has not yet run under the full pinned CPU evidence contract.
 - No stable-default conclusion should be made until that evidence exists.
 - Broader paraphrase/wrapping, irrelevant-context, missing-evidence and candidate-count perturbations remain after the first scorer decision.
 
