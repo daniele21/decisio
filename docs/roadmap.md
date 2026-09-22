@@ -13,14 +13,14 @@ Implementation order must optimize for learning. Performance engineering that do
 
 ## Milestone 0 — Reproducible decision laboratory
 
-**Implementation status:** scorer/compiler core exists, but the reference runtime is being migrated from PyTorch/Transformers BF16 to llama.cpp with a pinned Qwen3.5-4B Q4_K_M GGUF. Representative scorer evidence is pending on that path.
+**Implementation status:** scorer/compiler core exists, but the reference runtime is being migrated from PyTorch/Transformers BF16 to llama.cpp with a pinned Qwen3.5-2B Q4_K_M GGUF. Representative scorer evidence is pending on that path.
 
 Goal: establish a trustworthy baseline before building a service.
 
 Features:
 
 - Python package managed with `uv`;
-- pinned Qwen 3.5 4B Q4_K_M GGUF artifact SHA-256;
+- pinned Qwen 3.5 2B Q4_K_M GGUF artifact SHA-256;
 - pinned llama.cpp runtime/build identity with an in-process backend and CPU scorer-gate execution;
 - deterministic request/compiler representation;
 - direct A/B/C answer-token scorer baseline;
@@ -203,7 +203,7 @@ Training should remain optional unless the project intentionally changes its mis
 
 ### Must have for v1
 
-- Qwen 3.5 4B Q4_K_M GGUF reference support through llama.cpp;
+- Qwen 3.5 2B Q4_K_M GGUF reference support through llama.cpp;
 - semantic candidate scorer;
 - direct-logit baseline;
 - answerability;

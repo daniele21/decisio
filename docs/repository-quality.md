@@ -94,7 +94,7 @@ The CLI has direct `score`, `benchmark` and `compare` commands. Support routing,
 
 ### Gaps
 
-- the default reference model is intentionally 4B and can be expensive for a first run;
+- the default reference model is 2B to keep the canonical local CPU run practical;
 - dependency versions are not locked with `uv.lock`;
 - setup requirements and expected hardware behavior are spread across documents;
 - there is no explicit “cheap smoke” onboarding path distinct from representative evidence.
@@ -110,7 +110,7 @@ run a cheap functional smoke
   ↓
 inspect a typed result
   ↓
-optionally run the full 4B CPU scorer gate
+optionally run the full 2B CPU scorer gate
 ```
 
 The cheap path must be labeled functional/directional and never confused with product evidence.
@@ -138,7 +138,7 @@ Decisio already has unusually good evidence foundations for its age:
 - order perturbation;
 - CI real-model smoke clearly labeled as directional.
 
-### Critical gap before the 4B CPU scorer gate
+### Critical gap before the 2B CPU scorer gate
 
 Correctness methodology is stronger than the current performance methodology. A single wall-clock measurement per example, with scorers executed in a fixed order, is not sufficient evidence for a stable latency claim.
 
@@ -262,7 +262,7 @@ The repository should be self-contained and product-specific:
 
 | ID | State on this branch | Evidence / remaining work |
 | --- | --- | --- |
-| RQ-01 | IMPLEMENTED, evidence pending | repeated balanced CPU performance trials, throughput and process peak-RSS reporting are implemented; full 4B CPU run still required |
+| RQ-01 | IMPLEMENTED, evidence pending | repeated balanced CPU performance trials, throughput and process peak-RSS reporting are implemented; full 2B CPU run still required |
 | RQ-02 | PENDING | default branch still needs branch convergence/merge |
 | RQ-03 | IMPLEMENTED, validation pending | root baseline, commands, E2E, skills, verifier scripts and health/preflight workflows are specialized; inherited template-only root docs are removed |
 | RQ-04 | IMPLEMENTED | committed `uv.lock`, frozen setup commands and CI lock verification |
@@ -306,7 +306,7 @@ Priority meanings:
 
 The repository should not try to complete every item at once.
 
-### Before the full 4B CPU gate
+### Before the full 2B CPU gate
 
 Focus on:
 

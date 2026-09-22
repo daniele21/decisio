@@ -3,7 +3,7 @@
 Status: superseded for scorer promotion; retained as Transformers/BF16 historical methodology  
 Owner: Decisio
 
-> **Runtime migration note (2026-09-22):** Decisio v1 now targets a pinned Qwen3.5-4B Q4_K_M GGUF
+> **Runtime migration note (2026-09-22):** Decisio v1 now targets a pinned Qwen3.5-2B Q4_K_M GGUF
 > through llama.cpp. This v1 gate remains useful as the frozen workload, evaluator-threshold and
 > historical Transformers/BF16 methodology source, but a PASS here can no longer promote the stable
 > scorer. The active migration plan is

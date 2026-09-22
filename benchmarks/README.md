@@ -29,7 +29,7 @@ The active decision contract is [`scorer-gate-v2.md`](scorer-gate-v2.md). Histor
 Transformers/BF16 methodology remains in [`scorer-gate-v1.md`](scorer-gate-v1.md) but cannot
 promote the scorer.
 
-The v2 reference evidence artifact is Qwen3.5-4B Q4_K_M GGUF through the pinned llama.cpp binding.
+The v2 reference evidence artifact is Qwen3.5-2B Q4_K_M GGUF through the pinned llama.cpp binding.
 This pin is for reproducible product evidence, not a model-selection restriction: Decisio users can
 point the runtime at another compatible GGUF and produce evidence under that artifact's identity.
 
@@ -54,7 +54,7 @@ uv sync --frozen --extra llama --extra dev
 uv run decisio compare \
   --input .artifacts/scorer-gate-v2.jsonl \
   --output-dir .artifacts/scorer-gate-v2 \
-  --model /path/to/Qwen3.5-4B-Q4_K_M.gguf \
+  --model /path/to/Qwen3.5-2B-Q4_K_M.gguf \
   --device cpu \
   --n-ctx 8192 \
   --n-batch 512 \
@@ -77,7 +77,7 @@ Before the paired matrix, the CPU workflow also runs
 `benchmarks/verify_llama_runtime_gate.py`. It compares semantic v2 shared execution against the
 fresh oracle over all 64 cases, then proves a bounded same-state/different-question cache hit against
 fresh evaluation. Output equality is blocking; cache latency is recorded but is not a precommitted
-4B speed threshold.
+2B speed threshold.
 
 ## Run one scorer
 

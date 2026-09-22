@@ -6,7 +6,7 @@ Decisio takes application state, a question and runtime-defined candidates, then
 directly from model logits. Native scoring generates **zero answer tokens** and requires **no
 fine-tuning**.
 
-The v1 runtime direction is local **GGUF + llama.cpp**. Qwen3.5-4B Q4_K_M is the reference artifact
+The v1 runtime direction is local **GGUF + llama.cpp**. Qwen3.5-2B Q4_K_M is the reference artifact
 for reproducible evidence, but it is not intended to be the only usable quantization: the goal is to
 let developers bring a compatible quantized Qwen GGUF that fits their own hardware, memory and
 quality trade-off.
@@ -83,7 +83,7 @@ This makes model choice a deployment decision while keeping scorer semantics and
 ## Runtime status
 
 Decisio now has an in-process local-GGUF llama.cpp backend on the product branch. The original
-PyTorch/Transformers implementation remains migration-source code only; the representative 4B
+PyTorch/Transformers implementation remains migration-source code only; the representative 2B
 llama.cpp scorer gate is still pending.
 
 The local workflow is:
@@ -92,13 +92,13 @@ The local workflow is:
 decisio compare \
   --input .artifacts/scorer-gate-v2.jsonl \
   --output-dir .artifacts/scorer-gate-v2 \
-  --model /absolute/path/Qwen3.5-4B-Q4_K_M.gguf \
+  --model /absolute/path/Qwen3.5-2B-Q4_K_M.gguf \
   --device cpu \
   --warmup-rounds 1 \
   --performance-rounds 4
 ```
 
-This CLI is implemented but remains experimental until the pinned 4B llama.cpp scorer gate and
+This CLI is implemented but remains experimental until the pinned 2B llama.cpp scorer gate and
 shared-context equivalence evidence pass.
 
 See the active [llama.cpp runtime migration workstream](docs/workstreams/llama-cpp-reference-runtime.md)
@@ -297,7 +297,7 @@ not be declared successful merely because probabilities look smoother.
 
 ### 4. Calibration belongs to the exact decision engine identity
 
-Calibration is not a generic property of “Qwen3.5-4B”. A Q4_K_M artifact and a Q8 artifact can
+Calibration is not a generic property of “Qwen3.5-2B”. A Q4_K_M artifact and a Q8 artifact can
 produce slightly different logits, margins and decision boundaries.
 
 A future Decisio calibration artifact therefore needs to identify at least:
@@ -330,9 +330,10 @@ This is the intended model:
       optional matching calibration artifacts
 ```
 
-Q4_K_M is the first reference configuration so the project has one reproducible baseline. Users
-remain free to choose another compatible quantized Qwen GGUF and measure the trade-off on their own
-workload.
+Qwen3.5-2B Q4_K_M is the first reference configuration so the project has one reproducible,
+locally practical CPU baseline. The 2B choice is not a claim that it is universally better than 4B;
+users remain free to choose another compatible quantized Qwen GGUF and measure the trade-off on
+their own workload.
 
 ### 5. Calibrated output stays explicit
 
@@ -358,7 +359,7 @@ layers visible rather than overwrite one with the other:
     "sales": 0.14
   },
   "probability_status": "temperature_scaled",
-  "calibration_id": "qwen35-4b-q4km-semantic-v2-..."
+  "calibration_id": "qwen35-2b-q4km-semantic-v2-..."
 }
 ```
 

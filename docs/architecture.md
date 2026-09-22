@@ -7,7 +7,7 @@ Owner: repository
 
 Decisio converts a compatible causal language model into a bounded semantic decision engine without running an autoregressive answer-generation loop.
 
-Qwen 3.5 4B remains the reference model and is treated as a semantic scorer. The v1 target runtime is now a pinned Q4_K_M GGUF executed through llama.cpp on CPU for representative scorer evidence. Applications provide only alternatives that remain valid after deterministic domain constraints. The runtime compiles state, question and candidates into comparative scoring prompts, reads the required next-token logits, and post-processes them into an explicitly typed result.
+Qwen 3.5 2B remains the reference model and is treated as a semantic scorer. The v1 target runtime is now a pinned Q4_K_M GGUF executed through llama.cpp on CPU for representative scorer evidence. Applications provide only alternatives that remain valid after deterministic domain constraints. The runtime compiles state, question and candidates into comparative scoring prompts, reads the required next-token logits, and post-processes them into an explicitly typed result.
 
 ## Constraint boundary
 
@@ -282,7 +282,7 @@ Relevant capabilities include:
 - maximum context;
 - backend/device.
 
-Qwen 3.5 4B is the reference implementation, not a permanent dependency boundary.
+Qwen 3.5 2B is the reference implementation, not a permanent dependency boundary.
 
 ## Runtime priorities
 
@@ -337,4 +337,4 @@ Across requests, semantic compilers expose a conservative token-safe boundary af
 state/evidence. The backend may cache that exact sequence state in a small byte-bounded LRU, so a
 later question with identical state can resume after the state prefix instead of prefilling it
 again. Cache reuse remains disabled when the compiler cannot prove the boundary, and representative
-4B latency evidence is still required before a product performance claim.
+2B latency evidence is still required before a product performance claim.

@@ -18,7 +18,7 @@ Last shaped: 2026-09-22
 Make local GGUF + llama.cpp the canonical Decisio v1 runtime, then decide the scorer on the same
 artifact/runtime class users run.
 
-Reference target: Qwen3.5-4B Q4_K_M on CPU. Exact GGUF SHA, runtime build and host identity are
+Reference target: Qwen3.5-2B Q4_K_M on CPU. Exact GGUF SHA, runtime build and host identity are
 frozen before representative evidence.
 
 ## Product intent
@@ -28,6 +28,12 @@ frozen before representative evidence.
 - **Outcome:** point Decisio at a compatible local GGUF and obtain typed zero-generation decisions
   with reproducible provenance and shared-state execution.
 - **Decision:** BUILD.
+- **Reference-model decision:** use Qwen3.5-2B Q4_K_M as the canonical CPU evidence artifact so
+  the local-first workflow is materially easier to run; larger compatible GGUFs remain supported as
+  separate evidence identities.
+- **Risks:** VALUE `LOW`; USABILITY `LOW`; FEASIBILITY `MEDIUM` because the smaller model may change
+  scorer quality and therefore still must pass the unchanged frozen gate; VIABILITY `LOW` because
+  the smaller artifact lowers the hardware/memory burden.
 
 ## Non-goals
 
@@ -59,8 +65,8 @@ frozen before representative evidence.
 | W1 | DONE | Scorer primitives proven on pinned real Q4_K_M llama.cpp smoke. |
 | W2 | DONE | Local-GGUF backend/CLI and provenance stabilized. |
 | W3 | DONE | Candidate branching + bounded repeated-state reuse proved fresh-equivalent on pinned 0.8B smoke. |
-| W4 | DONE | Scorer-gate v2 runtime/artifact/fast-path identity frozen before 4B results. |
-| W5 | ACTIVE | Run full 64-case 4B CPU gate plus representative runtime-equivalence evidence. |
+| W4 | DONE | Scorer-gate v2 runtime/artifact/fast-path identity frozen before 2B results. |
+| W5 | ACTIVE | Run full 64-case 2B CPU gate plus representative runtime-equivalence evidence. |
 | W6 | BLOCKED | Stabilize public runtime only if the evidence survives. |
 
 ## W1/W2 runtime contract
@@ -119,7 +125,7 @@ canonical sequence. Run `35717350247` passed the fresh oracle on pinned Qwen3.5-
 
 Run `35726724805` additionally proved the bounded cache after native-batch alignment: on a long same-state/different-question request it matched fresh scores/probabilities/distribution exactly, reused 1024 cached-state tokens, evaluated 526 physical tokens versus 2574 fresh, and observed 7.05 s versus 32.24 s latency (~4.57x). Cache clear returned entries/bytes to zero.
 
-These runs prove the branching/cache mechanism on 0.8B, not the representative 4B product result.
+These runs prove the branching/cache mechanism on 0.8B, not the representative 2B product result.
 
 ### Repeated-state cache contract
 
@@ -136,16 +142,19 @@ The cache:
 - does not affect the fresh reference view;
 - skips storage when one snapshot exceeds the byte budget.
 
-Current defaults are 2 entries and 256 MiB. The pinned 0.8B real-model smoke has proved a same-state, different-question hit, fresh equivalence, physical-token reduction and deterministic clear behavior. W5 repeats the oracle on the frozen 4B reference artifact. Latency is recorded; the v2 contract deliberately does not invent a 4B cache-speed threshold from the 0.8B observation.
+Current defaults are 2 entries and 256 MiB. The pinned 0.8B real-model smoke has proved a same-state, different-question hit, fresh equivalence, physical-token reduction and deterministic clear behavior. W5 repeats the oracle on the frozen 2B reference artifact. Latency is recorded; the v2 contract deliberately does not invent a 2B cache-speed threshold from the 0.8B observation.
 
 ## W4/W5 scorer gate
 
-The gate-v2 contract is frozen before representative 4B results:
+The gate-v2 contract was re-frozen for the 2B reference before any 2B scorer-matrix result was
+accepted. The earlier 4B runtime oracle only informed the native-batch-safe cache invariant; it does
+not authorize the 2B scorer decision. The frozen 64-case workload and all promotion thresholds are
+unchanged:
 
-- artifact: `lmstudio-community/Qwen3.5-4B-GGUF`;
-- revision: `e52a809eba94f740f51bdd80a73f189d06ac9347`;
-- file: `Qwen3.5-4B-Q4_K_M.gguf`;
-- file SHA-256: `25082a7dd3776cc3c741c6347d3bd04523f05796607b3fbc32fa3a25dfa1418c`;
+- artifact: `unsloth/Qwen3.5-2B-GGUF`;
+- revision: `1c466474d208da1a7c4b8cb87ebcdac78f160e34`;
+- file: `Qwen3.5-2B-Q4_K_M.gguf`;
+- file SHA-256: `aaf42c8b7c3cab2bf3d69c355048d4a0ee9973d48f16c731c0520ee914699223`;
 - binding/runtime package: `llama-cpp-python==0.3.35`, CPU;
 - context/batching: `n_ctx=8192`, `n_batch=512`, `n_ubatch=512`, two scoring threads and two batch threads;
 - shared-state primitive: single-sequence state snapshot/restore;
@@ -169,11 +178,11 @@ Without that match, outputs remain uncalibrated.
 
 Before PR #1 returns to ready:
 
-1. run the frozen 4B scorer-gate v2 and representative shared/fresh + repeated-cache oracle;
+1. run the frozen 2B scorer-gate v2 and representative shared/fresh + repeated-cache oracle;
 2. diagnose any failed criterion without weakening the precommitted contract;
-3. update durable docs with exact 4B evidence;
+3. update durable docs with exact 2B evidence;
 4. run repository deterministic gates and exact-head integration preflight;
 5. inspect the complete diff against live `main`.
 
-Completion means product intent, implementation, tests, docs and evidence agree. Representative 4B
+Completion means product intent, implementation, tests, docs and evidence agree. Representative 2B
 hardware evidence, not code completion, decides release readiness.
