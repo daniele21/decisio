@@ -50,6 +50,10 @@ class _BaseSemanticScorer:
             candidate.id: binary_log_odds(logits[0], logits[1])
             for candidate, logits in zip(request.candidates, logits_batch, strict=True)
         }
+        binary_conditional_probability = {
+            candidate.id: softmax([logits[0], logits[1]])[0]
+            for candidate, logits in zip(request.candidates, logits_batch, strict=True)
+        }
         prompt_hashes = {
             candidate.id: item.sha256
             for candidate, item in zip(request.candidates, compiled, strict=True)
@@ -67,6 +71,7 @@ class _BaseSemanticScorer:
             distribution=distribution,
             scores=scores,
             scorer=self.name,
+            binary_conditional_probability=binary_conditional_probability,
             prompt_sha256=prompt_hashes,
             model=self.backend.identity,
         )
