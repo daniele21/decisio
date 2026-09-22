@@ -12,7 +12,7 @@ Decide whether comparative semantic v2 is a strong enough default on the pinned 
 | Workstream | Current executable slice | State | Blocker |
 | --- | --- | --- | --- |
 | Product foundation | Scope, architecture, constraints and roadmap | ACTIVE | stacked branches not yet converged to `main` |
-| Scorer decision | Frozen v2/v1/letters/generated gate + order reversal | ACTIVE | representative Qwen3.5-4B BF16/CUDA run |
+| Scorer decision | Frozen v2/v1/letters/generated gate + order reversal | ACTIVE | representative Qwen3.5-4B BF16 CPU run |
 | Runtime | Candidate batching + selected-vocabulary projection | ACTIVE | shared-prefix/cache reuse not implemented |
 | Repository quality | Root Decisio baseline, locked setup, health/package gates | ACTIVE | final stacked-branch convergence |
 | Examples | Snake, support routing and policy gate | ACTIVE | examples remain exploratory rather than quality evidence |
@@ -37,7 +37,7 @@ Decide whether comparative semantic v2 is a strong enough default on the pinned 
 - paired correctness and exact McNemar/binomial evidence;
 - normal/reversed candidate-order comparison;
 - generated-output invalid-rate accounting;
-- repeated performance trials with warm-up, balanced scorer position, CUDA synchronization, p50/p95 workload latency, decisions/sec and peak CUDA memory;
+- repeated performance trials with warm-up, balanced scorer position, CPU wall-clock timing, p50/p95 workload latency, decisions/sec and process peak RSS;
 - 8-case Qwen3.5-0.8B hosted-CPU directional scorer matrix;
 - real-model semantic/Snake integration smoke.
 
@@ -71,7 +71,7 @@ Latest completed directional scorer-matrix evidence remains the hosted-CPU Qwen3
 
 ### Scorer decision
 
-- The frozen 64-case Qwen3.5-4B BF16/CUDA gate has not run on representative hardware.
+- The frozen 64-case Qwen3.5-4B BF16 CPU gate has not run on representative hardware.
 - No stable-default conclusion should be made until that evidence exists.
 - Broader paraphrase/wrapping, irrelevant-context, missing-evidence and candidate-count perturbations remain after the first scorer decision.
 
@@ -85,12 +85,12 @@ Latest completed directional scorer-matrix evidence remains the hosted-CPU Qwen3
 ### Repository/integration
 
 - The stacked product/benchmark/docs/hardening branches still need convergence into the product branch and then deliberate promotion to `main`.
-- No repository-owned representative CUDA runner is currently available. Hosted CPU evidence cannot satisfy the 4B/CUDA claim.
+- The full 64-case 4B CPU workflow has not yet produced retained scorer-gate evidence. The existing 0.8B hosted CPU smoke cannot satisfy the gate.
 
 ## Next
 
 1. Finish exact-head automated validation for the repository-specialization slice and converge the stacked support PRs.
-2. Run the frozen 64-case scorer gate on pinned Qwen3.5-4B BF16/CUDA when representative hardware is available.
+2. Run the frozen 64-case scorer gate on pinned Qwen3.5-4B BF16 CPU when the repository-owned CPU gate runs.
 3. Decide from the precommitted gate whether comparative semantic v2 remains the default scorer.
 4. If v2 survives, stabilize the small public Python entry point; if it fails, analyze discordant rows before expanding the API.
 5. Continue broader perturbations, answerability and shared-prefix/cache work in that order.
