@@ -31,7 +31,12 @@ class TimingBackend:
 
     @property
     def identity(self):
-        return {"backend": "fake", "device": "cuda", "dtype": "bfloat16"}
+        return {
+            "backend": "fake",
+            "device": "cpu",
+            "dtype": "bfloat16",
+            "memory_metric": "process_max_rss",
+        }
 
     def synchronize(self):
         self.sync_calls += 1
@@ -215,7 +220,8 @@ def test_comparison_performance_trials_rotate_order_and_capture_memory(tmp_path:
     assert performance["warmup_rounds"] == 1
     assert performance["measured_rounds"] == 4
     assert len({tuple(order) for order in performance["execution_order"]}) == 4
-    assert performance["backend_identity"]["device"] == "cuda"
+    assert performance["backend_identity"]["device"] == "cpu"
+    assert performance["memory_metric"] == "process_max_rss"
     assert performance["scorers"]["semantic"]["peak_memory_bytes"]["max"] == 1024
     assert performance["scorers"]["semantic"]["duration_seconds"]["p95"] >= 0.0
     assert backend.reset_calls == 20
