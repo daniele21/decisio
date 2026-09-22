@@ -13,7 +13,7 @@ Implementation order must optimize for learning. Performance engineering that do
 
 ## Milestone 0 — Reproducible decision laboratory
 
-**Implementation status:** core code complete on the product branch; representative Qwen/CUDA evidence pending.
+**Implementation status:** core code complete on the product branch; full Qwen3.5-4B BF16 CPU scorer-gate evidence pending.
 
 Goal: establish a trustworthy baseline before building a service.
 
@@ -21,7 +21,7 @@ Features:
 
 - Python package managed with `uv`;
 - pinned Qwen 3.5 4B reference revision;
-- PyTorch/CUDA reference backend;
+- PyTorch reference backend with CPU scorer-gate execution and optional CUDA device support;
 - deterministic request/compiler representation;
 - direct A/B/C answer-token scorer baseline;
 - comparative semantic candidate Yes/No log-odds scorer;
@@ -211,7 +211,7 @@ Training should remain optional unless the project intentionally changes its mis
 - typed results;
 - provenance;
 - reproducible benchmark suite;
-- CUDA reference runtime;
+- CPU reference runtime for the scorer decision gate;
 - CLI/library API.
 
 ### Should have after evidence
@@ -256,7 +256,7 @@ Systems measurements:
 - end-to-end latency;
 - decisions/second;
 - first decision latency;
-- peak VRAM/RAM;
+- peak process RSS for the CPU gate;
 - logical input tokens;
 - physically evaluated tokens;
 - generated tokens;

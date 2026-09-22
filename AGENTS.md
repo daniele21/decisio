@@ -8,7 +8,7 @@ Before substantial product or architecture work, read:
 2. `docs/architecture.md` — scoring semantics and proposed system boundaries.
 3. `docs/roadmap.md` — evidence-driven implementation order.
 4. `docs/current-state.md` — integrated/blocked/next truth.
-5. `docs/repository-quality.md` — only when the task affects repository usability, reproducibility, documentation structure or contributor experience.
+5. `docs/repository-quality.md` — repository usability, reproducibility or documentation work.
 
 ## Product invariant
 
@@ -16,7 +16,7 @@ The initial project thesis is:
 
 > Use a general-purpose causal LLM as a semantic decision scorer before using it as a text generator.
 
-v1 is deliberately training-free. Do not introduce fine-tuning, adapters or learned heads unless benchmark evidence has established a material inference-time ceiling and the product scope is explicitly changed.
+v1 is training-free. Do not add fine-tuning, adapters or learned heads without benchmark evidence and an explicit product-scope change.
 
 ## Core technical invariants
 
@@ -37,7 +37,7 @@ v1 is deliberately training-free. Do not introduce fine-tuning, adapters or lear
 
 Follow `docs/roadmap.md`.
 
-Do not jump directly to HTTP service, MLX, quantization, UI, or broad model support before Milestones 0–1 establish the scoring result.
+Do not add HTTP, MLX, quantization, UI or broad model support before Milestones 0–1 establish the scorer.
 
 The first executable question is:
 
@@ -59,7 +59,7 @@ For decision behavior, measure more than accuracy:
 - peak memory;
 - fresh versus shared execution differences.
 
-Every performance optimization that changes outputs must report the changed rows/argmaxes rather than treating speed as equivalent behavior.
+Performance changes that alter outputs must report changed rows/argmaxes.
 
 ## Documentation ownership
 
@@ -72,4 +72,4 @@ Every performance optimization that changes outputs must report the changed rows
 - benchmark methodology/results: `benchmarks/` and focused result docs once implemented
 - repository usability/reproducibility hardening: `docs/repository-quality.md`
 
-The repository was bootstrapped from `repo-template-sw` and still contains inherited baseline material. Treat that as migration residue until specialization/cleanup is complete; do not confuse the baseline's own README/contracts with Decisio product truth.
+Root `.engineering/`, `skills/`, `scripts/`, workflows and Decisio docs are authoritative. `template/` is baseline source only.

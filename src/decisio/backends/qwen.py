@@ -2,6 +2,9 @@
 
 from __future__ import annotations
 
+import os
+import platform
+import sys
 from dataclasses import dataclass
 from typing import Any
 
@@ -83,6 +86,17 @@ class QwenTransformersBackend:
     @property
     def identity(self) -> dict[str, Any]:
         resolved_revision = getattr(self.model.config, "_commit_hash", None) or self.config.revision
+        cuda_device_name = (
+            self._torch.cuda.get_device_name() if self.device == "cuda" else None
+        )
+        cuda_device_capability = (
+            list(self._torch.cuda.get_device_capability()) if self.device == "cuda" else None
+        )
+        cuda_total_memory_bytes = (
+            int(self._torch.cuda.get_device_properties(0).total_memory)
+            if self.device == "cuda"
+            else None
+        )
         return {
             "backend": "transformers",
             "model": self.config.model,
@@ -93,9 +107,47 @@ class QwenTransformersBackend:
             "dtype": str(self.dtype).removeprefix("torch."),
             "transformers": self._transformers_version,
             "torch": self._torch.__version__,
+            "cuda_runtime": self._torch.version.cuda,
+            "cuda_device_name": cuda_device_name,
+            "cuda_device_capability": cuda_device_capability,
+            "cuda_total_memory_bytes": cuda_total_memory_bytes,
+            "cpu_machine": platform.machine() if self.device == "cpu" else None,
+            "cpu_processor": platform.processor() if self.device == "cpu" else None,
+            "cpu_count": os.cpu_count() if self.device == "cpu" else None,
+            "torch_num_threads": self._torch.get_num_threads() if self.device == "cpu" else None,
+            "torch_num_interop_threads": (
+                self._torch.get_num_interop_threads() if self.device == "cpu" else None
+            ),
+            "memory_metric": (
+                "process_max_rss" if self.device == "cpu" else "cuda_max_memory_allocated"
+            ),
             "batched_candidate_scoring": True,
             "selected_vocab_projection": True,
         }
+
+    def synchronize(self) -> None:
+        """Synchronize accelerator work before or after wall-clock timing."""
+        if self.device == "cuda":
+            self._torch.cuda.synchronize()
+
+    def reset_peak_memory(self) -> None:
+        """Reset device peak-memory accounting when the backend supports it."""
+        if self.device == "cuda":
+            self._torch.cuda.reset_peak_memory_stats()
+        # Process max RSS is a lifetime high-water mark and cannot be reset portably.
+
+    def peak_memory_bytes(self) -> int | None:
+        """Return the backend's declared peak-memory metric in bytes."""
+        if self.device == "cuda":
+            return int(self._torch.cuda.max_memory_allocated())
+        if self.device == "cpu":
+            try:
+                import resource
+            except ImportError:  # pragma: no cover - non-POSIX platform
+                return None
+            peak_rss = int(resource.getrusage(resource.RUSAGE_SELF).ru_maxrss)
+            return peak_rss if sys.platform == "darwin" else peak_rss * 1024
+        return None
 
     def _project_selected(
         self,

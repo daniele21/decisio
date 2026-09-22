@@ -39,59 +39,205 @@ def _font(ImageFont: Any, size: int, *, bold: bool = False):
         return ImageFont.load_default()
 
 
-def _draw_board(draw: Any, state: dict[str, Any], *, x0: int, y0: int, size: int) -> None:
+PALETTE = {
+    "bg": "#f6f5f1",
+    "panel": "#ffffff",
+    "ink": "#1b1d1f",
+    "muted": "#6a6f76",
+    "line": "#dedcd5",
+    "accent": "#0b8f6c",
+    "accent_soft": "#dff3ec",
+    "track": "#ebe9e2",
+    "warn": "#b4540a",
+    "warn_soft": "#fbead8",
+    "bad": "#b3261e",
+    "bad_soft": "#fbe3e1",
+}
+
+_DIRECTION_DELTAS = {
+    "up": (0, -1),
+    "right": (1, 0),
+    "down": (0, 1),
+    "left": (-1, 0),
+}
+
+_DIRECTION_ARROWS = {
+    "up": "↑",
+    "right": "→",
+    "down": "↓",
+    "left": "←",
+}
+
+
+def _text_size(draw: Any, text: str, font: Any) -> tuple[int, int]:
+    left, top, right, bottom = draw.textbbox((0, 0), text, font=font)
+    return right - left, bottom - top
+
+
+def _draw_card(
+    draw: Any,
+    box: tuple[int, int, int, int],
+    *,
+    fill: str = PALETTE["panel"],
+    outline: str = PALETTE["line"],
+    radius: int = 14,
+) -> None:
+    draw.rounded_rectangle(box, radius=radius, fill=fill, outline=outline, width=1)
+
+
+def _draw_pill(
+    draw: Any,
+    text: str,
+    *,
+    x: int,
+    y: int,
+    font: Any,
+    fill: str,
+    ink: str,
+    pad_x: int = 10,
+    pad_y: int = 5,
+) -> int:
+    text_w, text_h = _text_size(draw, text, font)
+    width = text_w + 2 * pad_x
+    height = text_h + 2 * pad_y
+    draw.rounded_rectangle(
+        (x, y, x + width, y + height),
+        radius=height // 2,
+        fill=fill,
+    )
+    draw.text((x + pad_x, y + pad_y - 1), text, font=font, fill=ink)
+    return width
+
+
+def _draw_metric(
+    draw: Any,
+    *,
+    x: int,
+    y: int,
+    width: int,
+    value: str,
+    label: str,
+    value_font: Any,
+    label_font: Any,
+) -> None:
+    _draw_card(
+        draw,
+        (x, y, x + width, y + 56),
+        fill=PALETTE["bg"],
+        radius=9,
+    )
+    draw.text((x + 10, y + 7), value, font=value_font, fill=PALETTE["ink"])
+    draw.text((x + 10, y + 34), label, font=label_font, fill=PALETTE["muted"])
+
+
+def _draw_board(
+    draw: Any,
+    state: dict[str, Any],
+    *,
+    distribution: dict[str, float],
+    choice: str,
+    x0: int,
+    y0: int,
+    size: int,
+) -> None:
     board = state["board"]
     width = int(board["width"])
     height = int(board["height"])
-    cell = min(size // width, size // height)
-    board_w = cell * width
-    board_h = cell * height
+    cell = min(size // (width + 2), size // (height + 2))
+    board_w = cell * (width + 2)
+    board_h = cell * (height + 2)
 
-    draw.rounded_rectangle(
-        (x0 - 8, y0 - 8, x0 + board_w + 8, y0 + board_h + 8),
-        radius=16,
-        fill="#111827",
-        outline="#374151",
-        width=2,
+    draw.rectangle((x0, y0, x0 + board_w, y0 + board_h), fill=PALETTE["track"])
+    inner_x = x0 + cell
+    inner_y = y0 + cell
+    draw.rectangle(
+        (inner_x, inner_y, inner_x + cell * width, inner_y + cell * height),
+        fill=PALETTE["panel"],
     )
 
-    for gy in range(height):
-        for gx in range(width):
-            left = x0 + gx * cell
-            top = y0 + gy * cell
-            draw.rectangle(
-                (left, top, left + cell, top + cell),
-                fill="#0b1220",
-                outline="#1f2937",
-                width=1,
-            )
+    for gy in range(height + 1):
+        y = inner_y + gy * cell
+        draw.line(
+            (inner_x, y, inner_x + cell * width, y),
+            fill=PALETTE["line"],
+            width=1,
+        )
+    for gx in range(width + 1):
+        x = inner_x + gx * cell
+        draw.line(
+            (x, inner_y, x, inner_y + cell * height),
+            fill=PALETTE["line"],
+            width=1,
+        )
 
     food = state.get("food")
     if food is not None:
         fx = int(food["x"])
         fy = int(food["y"])
         pad = max(4, cell // 5)
-        left = x0 + fx * cell + pad
-        top = y0 + fy * cell + pad
+        left = inner_x + fx * cell + pad
+        top = inner_y + fy * cell + pad
         draw.ellipse(
             (left, top, left + cell - 2 * pad, top + cell - 2 * pad),
-            fill="#ef4444",
+            fill=PALETTE["bad"],
         )
 
     body = state["snake"]["body_head_first"]
-    for index, part in enumerate(reversed(body)):
-        px = int(part["x"])
-        py = int(part["y"])
-        is_head = index == len(body) - 1
-        pad = max(3, cell // 10)
-        left = x0 + px * cell + pad
-        top = y0 + py * cell + pad
-        fill = "#22c55e" if is_head else "#15803d"
+    body_cells = [(int(part["x"]), int(part["y"])) for part in body]
+    pad = max(3, cell // 10)
+    for index in range(len(body_cells) - 1, -1, -1):
+        px, py = body_cells[index]
+        left = inner_x + px * cell + pad
+        top = inner_y + py * cell + pad
         draw.rounded_rectangle(
             (left, top, left + cell - 2 * pad, top + cell - 2 * pad),
-            radius=max(4, cell // 7),
-            fill=fill,
+            radius=max(4, cell // 5),
+            fill=PALETTE["accent"],
         )
+
+    if body_cells:
+        hx, hy = body_cells[0]
+        direction = state["snake"]["current_direction"]
+        dx, dy = _DIRECTION_DELTAS[direction]
+        eye_r = max(2, cell // 14)
+        cx = inner_x + hx * cell + cell // 2
+        cy = inner_y + hy * cell + cell // 2
+        side_x, side_y = -dy, dx
+        for side in (-1, 1):
+            ex = cx + int(dx * cell * 0.18 + side * side_x * cell * 0.17)
+            ey = cy + int(dy * cell * 0.18 + side * side_y * cell * 0.17)
+            draw.ellipse(
+                (ex - eye_r, ey - eye_r, ex + eye_r, ey + eye_r),
+                fill=PALETTE["panel"],
+            )
+
+        candidate_font = _font(_load_pillow()[2], max(11, cell // 4), bold=True)
+        for direction, probability in distribution.items():
+            dx, dy = _DIRECTION_DELTAS[direction]
+            tx = hx + dx
+            ty = hy + dy
+            left = inner_x + tx * cell + 2
+            top = inner_y + ty * cell + 2
+            right = left + cell - 4
+            bottom = top + cell - 4
+            selected = direction == choice
+            fill = PALETTE["accent_soft"] if selected else PALETTE["track"]
+            outline = PALETTE["accent"] if selected else PALETTE["line"]
+            draw.rounded_rectangle(
+                (left, top, right, bottom),
+                radius=max(4, cell // 6),
+                fill=fill,
+                outline=outline,
+                width=2 if selected else 1,
+            )
+            label = f"{probability:.0%}"
+            tw, th = _text_size(draw, label, candidate_font)
+            draw.text(
+                (left + (cell - 4 - tw) / 2, top + (cell - 4 - th) / 2 - 1),
+                label,
+                font=candidate_font,
+                fill=PALETTE["accent"] if selected else PALETTE["ink"],
+            )
 
 
 def _draw_probability_panel(
@@ -102,46 +248,81 @@ def _draw_probability_panel(
     x0: int,
     y0: int,
     width: int,
-    font: Any,
-    small_font: Any,
-) -> None:
-    draw.text((x0, y0), "Decision", font=font, fill="#f9fafb")
-    y = y0 + 52
-    ordered = sorted(distribution.items(), key=lambda item: item[1], reverse=True)
-    for direction, probability in ordered:
+    label_font: Any,
+    value_font: Any,
+) -> int:
+    y = y0
+    order = ("up", "left", "right", "down")
+    for direction in order:
+        if direction not in distribution:
+            continue
+        probability = float(distribution[direction])
         selected = direction == choice
-        label = f"{direction.upper():<5} {probability:6.1%}"
+        label = f"{_DIRECTION_ARROWS[direction]}  {direction.upper()}"
         draw.text(
             (x0, y),
             label,
-            font=small_font,
-            fill="#f9fafb" if selected else "#d1d5db",
+            font=label_font,
+            fill=PALETTE["ink"],
         )
-        bar_y = y + 28
-        bar_w = max(2, int((width - 20) * probability))
+        pct = f"{probability:.1%}"
+        pct_w, _ = _text_size(draw, pct, value_font)
+        draw.text(
+            (x0 + width - pct_w, y + 1),
+            pct,
+            font=value_font,
+            fill=PALETTE["accent"] if selected else PALETTE["muted"],
+        )
+        track_y = y + 28
         draw.rounded_rectangle(
-            (x0, bar_y, x0 + width - 20, bar_y + 16),
-            radius=8,
-            fill="#1f2937",
+            (x0, track_y, x0 + width, track_y + 11),
+            radius=6,
+            fill=PALETTE["track"],
         )
+        bar_w = max(3, int(width * probability))
         draw.rounded_rectangle(
-            (x0, bar_y, x0 + bar_w, bar_y + 16),
-            radius=8,
-            fill="#60a5fa" if selected else "#4b5563",
+            (x0, track_y, x0 + bar_w, track_y + 11),
+            radius=6,
+            fill=PALETTE["accent"] if selected else PALETTE["muted"],
         )
-        y += 72
+        if selected:
+            draw.rounded_rectangle(
+                (x0 - 8, y - 6, x0 + width + 8, y + 47),
+                radius=9,
+                outline=PALETTE["accent_soft"],
+                width=3,
+            )
+        y += 58
+    return y
+
+
+def _model_label(decision: dict[str, Any]) -> str:
+    model = decision.get("model") or {}
+    if not isinstance(model, dict):
+        return "model"
+    name = model.get("model") or model.get("backend") or "model"
+    dtype = model.get("dtype")
+    device = model.get("device")
+    details = [str(name)]
+    if dtype:
+        details.append(str(dtype))
+    if device:
+        details.append(str(device))
+    return " · ".join(details)
 
 
 def render_frame(record: dict[str, Any], output: Path) -> None:
     Image, ImageDraw, ImageFont = _load_pillow()
     width, height = 1280, 720
-    image = Image.new("RGB", (width, height), "#030712")
+    image = Image.new("RGB", (width, height), PALETTE["bg"])
     draw = ImageDraw.Draw(image)
 
-    title_font = _font(ImageFont, 34, bold=True)
-    heading_font = _font(ImageFont, 26, bold=True)
-    body_font = _font(ImageFont, 20)
-    small_font = _font(ImageFont, 18)
+    title_font = _font(ImageFont, 24, bold=True)
+    section_font = _font(ImageFont, 12, bold=True)
+    verdict_font = _font(ImageFont, 24, bold=True)
+    value_font = _font(ImageFont, 16, bold=True)
+    body_font = _font(ImageFont, 15)
+    small_font = _font(ImageFont, 12)
 
     request = record["request"]
     state = request["state"]
@@ -149,81 +330,187 @@ def render_frame(record: dict[str, Any], output: Path) -> None:
     outcome = record["outcome"]
     constraints = record.get("constraints", {})
     latency = float(record.get("decision_latency_seconds", 0.0))
+    distribution = {
+        str(key): float(value) for key, value in decision["distribution"].items()
+    }
+    choice = str(decision["choice"])
 
-    draw.text((40, 28), "Decisio · Snake", font=title_font, fill="#f9fafb")
+    # Header: restrained product identity + runtime status, inspired by the Rizzo Flow
+    # Snake information hierarchy without copying its page implementation.
+    draw.rectangle((0, 0, width, 70), fill=PALETTE["panel"])
+    draw.line((0, 69, width, 69), fill=PALETTE["line"], width=1)
+    draw.text((28, 21), "Decisio", font=title_font, fill=PALETTE["ink"])
+    title_w, _ = _text_size(draw, "Decisio", title_font)
     draw.text(
-        (40, 76),
-        "Qwen scores semantic actions directly · zero generated answer tokens",
+        (34 + title_w, 24),
+        "snake",
         font=body_font,
-        fill="#9ca3af",
+        fill=PALETTE["muted"],
     )
-
-    _draw_board(draw, state, x0=55, y0=135, size=520)
-
-    panel_x = 650
-    draw.text(
-        (panel_x, 140),
-        f"Step {record['step']}",
-        font=heading_font,
-        fill="#f9fafb",
-    )
-    draw.text(
-        (panel_x, 184),
-        f"Current direction: {state['snake']['current_direction'].upper()}",
-        font=body_font,
-        fill="#d1d5db",
-    )
-    food = state.get("food")
-    food_text = "none" if food is None else f"({food['x']}, {food['y']})"
-    draw.text(
-        (panel_x, 218),
-        f"Food: {food_text}   Score: {state['score']}",
-        font=body_font,
-        fill="#d1d5db",
-    )
-
-    filtered = constraints.get("filtered_actions", {})
-    filtered_text = ", ".join(
-        f"{direction.upper()}:{reason}" for direction, reason in filtered.items()
-    ) or "none"
-    draw.text(
-        (panel_x, 252),
-        f"Filtered before model: {filtered_text}",
-        font=small_font,
-        fill="#f59e0b",
-    )
-
-    _draw_probability_panel(
+    badge_text = _model_label(decision)
+    badge_w = _draw_pill(
         draw,
-        distribution=decision["distribution"],
-        choice=decision["choice"],
-        x0=panel_x,
-        y0=292,
-        width=520,
-        font=heading_font,
-        small_font=small_font,
+        badge_text,
+        x=800,
+        y=19,
+        font=small_font,
+        fill=PALETTE["accent_soft"],
+        ink=PALETTE["accent"],
+    )
+    mode_text = "MODEL" if constraints.get("mode") == "model" else "DETERMINISTIC"
+    _draw_pill(
+        draw,
+        mode_text,
+        x=min(width - 130, 814 + badge_w),
+        y=19,
+        font=small_font,
+        fill=PALETTE["track"],
+        ink=PALETTE["muted"],
     )
 
-    status = "ALIVE" if outcome["alive"] else f"GAME OVER · {outcome['reason']}"
-    status_fill = "#22c55e" if outcome["alive"] else "#ef4444"
-    draw.text(
-        (panel_x, 595),
-        f"Applied move: {decision['choice'].upper()}",
-        font=heading_font,
-        fill="#60a5fa",
+    left = (24, 88, 626, 696)
+    right = (642, 88, 1256, 696)
+    _draw_card(draw, left)
+    _draw_card(draw, right)
+
+    draw.text((42, 106), "GAME", font=section_font, fill=PALETTE["muted"])
+    draw.text((660, 106), "MODEL DECISION", font=section_font, fill=PALETTE["muted"])
+
+    _draw_board(
+        draw,
+        state,
+        distribution=distribution,
+        choice=choice,
+        x0=78,
+        y0=137,
+        size=470,
     )
-    draw.text((panel_x, 635), status, font=body_font, fill=status_fill)
+
+    metric_y = 624
+    metric_w = 126
+    metrics = [
+        (str(outcome.get("game_score", state.get("score", 0))), "score"),
+        (str(len(state["snake"]["body_head_first"])), "length"),
+        (str(record["step"]), "move"),
+        (f"{latency * 1000:.0f} ms" if latency else "0 ms", "decision"),
+    ]
+    for index, (value, label) in enumerate(metrics):
+        _draw_metric(
+            draw,
+            x=42 + index * (metric_w + 10),
+            y=metric_y,
+            width=metric_w,
+            value=value,
+            label=label,
+            value_font=value_font,
+            label_font=small_font,
+        )
+
+    # Verdict first. Diagnostics sit below it.
+    verdict_box = (660, 134, 1238, 218)
+    verdict_fill = PALETTE["accent_soft"] if outcome["alive"] else PALETTE["bad_soft"]
+    _draw_card(draw, verdict_box, fill=verdict_fill, outline=verdict_fill, radius=10)
+    arrow = _DIRECTION_ARROWS.get(choice, "·")
     draw.text(
-        (panel_x, 666),
-        f"decision latency: {latency:.3f}s · mode={constraints.get('mode', 'model')}",
-        font=small_font,
-        fill="#9ca3af",
+        (680, 148),
+        arrow,
+        font=_font(ImageFont, 42, bold=True),
+        fill=PALETTE["accent"] if outcome["alive"] else PALETTE["bad"],
     )
     draw.text(
-        (40, 682),
-        f"scorer={decision['scorer']} · generated_tokens={decision['generated_tokens']}",
+        (742, 149),
+        choice.upper(),
+        font=verdict_font,
+        fill=PALETTE["ink"],
+    )
+    selected_p = distribution.get(choice, 1.0)
+    draw.text(
+        (742, 184),
+        f"selected · {selected_p:.1%} relative preference",
         font=small_font,
-        fill="#6b7280",
+        fill=PALETTE["muted"],
+    )
+
+    bars_end = _draw_probability_panel(
+        draw,
+        distribution=distribution,
+        choice=choice,
+        x0=672,
+        y0=244,
+        width=540,
+        label_font=body_font,
+        value_font=small_font,
+    )
+
+    # Keep hard constraints visible, but secondary to the actual semantic decision.
+    filtered = constraints.get("filtered_actions", {})
+    y = min(475, bars_end + 8)
+    draw.text((672, y), "CONSTRAINTS BEFORE MODEL", font=section_font, fill=PALETTE["muted"])
+    y += 24
+    if filtered:
+        x = 672
+        for direction, reason in filtered.items():
+            pill = f"{str(direction).upper()} · {reason}"
+            pill_w = _draw_pill(
+                draw,
+                pill,
+                x=x,
+                y=y,
+                font=small_font,
+                fill=PALETTE["warn_soft"],
+                ink=PALETTE["warn"],
+            )
+            x += pill_w + 8
+            if x > 1160:
+                x = 672
+                y += 30
+    else:
+        draw.text((672, y), "none", font=body_font, fill=PALETTE["muted"])
+
+    info_y = 554
+    draw.text((672, info_y), "EVIDENCE", font=section_font, fill=PALETTE["muted"])
+    _draw_metric(
+        draw,
+        x=672,
+        y=info_y + 22,
+        width=164,
+        value=f"{latency * 1000:.0f} ms" if latency else "0 ms",
+        label="decision latency",
+        value_font=value_font,
+        label_font=small_font,
+    )
+    _draw_metric(
+        draw,
+        x=846,
+        y=info_y + 22,
+        width=164,
+        value=str(decision.get("generated_tokens", 0)),
+        label="generated tokens",
+        value_font=value_font,
+        label_font=small_font,
+    )
+    _draw_metric(
+        draw,
+        x=1020,
+        y=info_y + 22,
+        width=192,
+        value="ALIVE" if outcome["alive"] else "GAME OVER",
+        label=str(outcome.get("reason") or "after move"),
+        value_font=value_font,
+        label_font=small_font,
+    )
+
+    draw.text(
+        (672, 650),
+        f"scorer: {decision['scorer']}",
+        font=small_font,
+        fill=PALETTE["muted"],
+    )
+    draw.text(
+        (672, 672),
+        "Relative scores are uncalibrated; deterministic invalid moves are filtered first.",
+        font=small_font,
+        fill=PALETTE["muted"],
     )
 
     output.parent.mkdir(parents=True, exist_ok=True)

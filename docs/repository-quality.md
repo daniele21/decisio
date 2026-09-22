@@ -110,7 +110,7 @@ run a cheap functional smoke
   ↓
 inspect a typed result
   ↓
-optionally run the representative CUDA path
+optionally run the full 4B CPU scorer gate
 ```
 
 The cheap path must be labeled functional/directional and never confused with product evidence.
@@ -138,7 +138,7 @@ Decisio already has unusually good evidence foundations for its age:
 - order perturbation;
 - CI real-model smoke clearly labeled as directional.
 
-### Critical gap before the 4B/CUDA scorer gate
+### Critical gap before the 4B CPU scorer gate
 
 Correctness methodology is stronger than the current performance methodology. A single wall-clock measurement per example, with scorers executed in a fixed order, is not sufficient evidence for a stable latency claim.
 
@@ -146,11 +146,10 @@ Before using performance as a promotion gate, the representative harness should 
 
 - explicit warm-up;
 - repeated measured runs;
-- CUDA synchronization around timed sections;
 - balanced or interleaved scorer execution order;
 - p50 and p95 latency;
 - total throughput / decisions per second;
-- peak GPU memory where practical;
+- process peak RSS as a diagnostic memory high-water mark;
 - exact timing scope;
 - hardware/runtime identity in the report.
 
@@ -236,31 +235,47 @@ Every component named in the current diagram should map to a real source owner. 
 
 ### Current gaps
 
-The advanced branch still contains inherited template documents such as `STANDARD.md`, `USAGE.md`, `OPERATING-CONTRACT.md` and a template `CHANGELOG.md`, while project-specific engineering adoption is incomplete.
+The repository was bootstrapped from `repo-template-sw`. Root engineering ownership is now being specialized into `.engineering/`, `skills/`, `scripts/` and repository workflows; the embedded `template/` tree is baseline source material, not Decisio product documentation.
 
-The repository currently lacks:
+The major trust/reproducibility surfaces now exist on the hardening branches: root engineering contracts, a committed dependency lock, license, contribution/security guidance and package validation.
 
-- `.engineering/baseline.json`;
-- `.engineering/commands.json`;
-- `.engineering/e2e.json`;
-- `LICENSE`;
-- `CONTRIBUTING.md`;
-- `SECURITY.md`;
-- `uv.lock`.
+The remaining repository-level gaps are narrower:
 
-This is more than cosmetic cleanup. It makes repository authority ambiguous and reduces reproducibility.
+- the stacked product/hardening branches are not yet converged onto the default branch;
+- the new root Repository health gate must remain green on exact HEAD;
+- the embedded `template/` tree is still present as baseline source material and should not appear as product documentation;
+- stable public API/release semantics remain intentionally blocked on the scorer decision.
 
 ### Required outcome
 
 The repository should be self-contained and product-specific:
 
-- specialize the engineering baseline instead of carrying the source template as product documentation;
-- remove template-only root documents that are not authoritative for Decisio;
+- keep the engineering baseline specialized in root-owned `.engineering/`, `skills/`, `scripts/` and workflows;
+- keep template source material out of the Decisio documentation/navigation surface;
 - add a dependency lock and deterministic setup path;
 - add license, contribution and security guidance;
 - document canonical validation commands;
 - keep `docs/current-state.md` exact and fresh;
 - keep release history about Decisio, not about the template used to bootstrap it.
+
+## Implementation progress
+
+| ID | State on this branch | Evidence / remaining work |
+| --- | --- | --- |
+| RQ-01 | IMPLEMENTED, evidence pending | repeated balanced CPU performance trials, throughput and process peak-RSS reporting are implemented; full 4B CPU run still required |
+| RQ-02 | PENDING | default branch still needs branch convergence/merge |
+| RQ-03 | IMPLEMENTED, validation pending | root baseline, commands, E2E, skills, verifier scripts and health/preflight workflows are specialized; inherited template-only root docs are removed |
+| RQ-04 | IMPLEMENTED | committed `uv.lock`, frozen setup commands and CI lock verification |
+| RQ-05 | IMPLEMENTED | Apache-2.0 `LICENSE` added |
+| RQ-06 | IMPLEMENTED for current choice contract | strict strings/JSON state, finite result validation, duplicate-description rejection and deterministic ties |
+| RQ-07 | IMPLEMENTED | architecture now separates current owners from planned target components |
+| RQ-08 | BLOCKED BY SCORER GATE | stable high-level Python API intentionally waits for scorer semantics |
+| RQ-09 | IMPLEMENTED | README is reorganized around identity, quickstart, semantics, status and deeper docs |
+| RQ-10 | IMPLEMENTED | concise `CONTRIBUTING.md` and `SECURITY.md` added |
+| RQ-11 | PARTIAL | malformed contracts, numerical edge cases and exact ties are covered; backend/tokenizer/context-limit negatives can expand later |
+| RQ-12 | PRESERVED | benchmark methodology keeps internal scorer evidence in Decisio and external endpoint evaluation in Performance Lab |
+| RQ-13 | PLACEHOLDERS ADDED | README and repository-quality docs specify the required future visuals; polished assets wait for stable semantics |
+| RQ-14 | PARTIAL | Decisio-specific version/changelog plus wheel build/install smoke are implemented; release promotion/versioning remains future work |
 
 ## Improvement backlog
 
@@ -272,7 +287,7 @@ Priority meanings:
 
 | ID | Priority | Improvement | Done when |
 | --- | --- | --- | --- |
-| RQ-01 | P0 | Strengthen representative benchmark timing | warm-up, repeats, CUDA sync, balanced execution, latency distribution, throughput and memory/provenance are recorded |
+| RQ-01 | P0 | Strengthen scorer-gate benchmark timing | warm-up, repeats, balanced execution, latency distribution, throughput, CPU/thread identity and peak RSS are recorded |
 | RQ-02 | P0 | Make the default branch Decisio | product foundation and scorer-gate work converge; GitHub landing page no longer presents `repo-template-sw` |
 | RQ-03 | P0 | Finish repository-template specialization | baseline/commands/e2e configuration is project-owned and template-only root material is removed or intentionally retained |
 | RQ-04 | P0 | Make setup reproducible | `uv.lock` exists and CI/setup use a coherent dependency contract |
@@ -291,7 +306,7 @@ Priority meanings:
 
 The repository should not try to complete every item at once.
 
-### Before the representative 4B/CUDA gate
+### Before the full 4B CPU gate
 
 Focus on:
 
