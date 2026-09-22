@@ -48,7 +48,7 @@ Changes to scorer behavior should include direct tests and, when material, updat
 
 Functional CPU or small-model smoke runs prove integration only.
 
-Representative claims about Qwen3.5-4B quality, CUDA latency, throughput or memory require the execution contract in `benchmarks/scorer-gate-v1.md`.
+Scorer-stability claims require the pinned Qwen3.5-4B BF16 CPU execution contract in `benchmarks/scorer-gate-v1.md`. Systems results stay bound to the recorded CPU/thread/runtime identity.
 
 Do not edit a frozen fixture silently. A fixture change requires a new explicit dataset identity or version decision.
 
