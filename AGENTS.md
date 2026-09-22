@@ -18,7 +18,7 @@ The initial project thesis is:
 
 v1 is training-free. Do not add fine-tuning, adapters or learned heads without benchmark evidence and an explicit product-scope change.
 
-The v1 reference runtime is local GGUF inference through llama.cpp. Qwen 3.5 4B Q4_K_M is the first reference artifact class; its exact artifact SHA-256 and llama.cpp runtime/build identity must be frozen before representative scorer evidence is accepted.
+The v1 reference path is Qwen 3.5 4B Q4_K_M GGUF through llama.cpp; representative evidence pins the exact artifact and runtime identity.
 
 ## Core technical invariants
 
@@ -33,8 +33,8 @@ The v1 reference runtime is local GGUF inference through llama.cpp. Qwen 3.5 4B 
 - Shared/cache-optimized execution must be compared against a fresh reference path.
 - Benchmark claims carry exact model revision, scorer/compiler identity, precision/backend and timing scope.
 - Qwen 3.5 4B is the initial reference model, not a hard-coded product boundary.
-- GGUF + llama.cpp is the canonical v1 runtime path; Q4_K_M is the first reference quantization, not a claim of equivalence with BF16.
-- Correctness and evidence precede additional backend/quantization proliferation and UI work.
+- GGUF + llama.cpp is canonical for v1; Q4_K_M is not claimed equivalent to BF16.
+- Evidence precedes additional runtimes, quantizations and UI work.
 
 ## Implementation order
 
