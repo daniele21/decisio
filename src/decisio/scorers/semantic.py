@@ -23,6 +23,10 @@ def _score_compiled(
         [item.readout["yes"], item.readout["no"]]
         for item in compiled
     ]
+    shared_method = getattr(backend, "shared_prefix_batch_next_token_logits", None)
+    if callable(shared_method):
+        return shared_method(input_ids_batch, token_ids_batch)
+
     batch_method = getattr(backend, "batch_next_token_logits", None)
     if callable(batch_method):
         return batch_method(input_ids_batch, token_ids_batch)
