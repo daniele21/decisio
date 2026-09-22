@@ -118,12 +118,12 @@ jobs:
                   runtime._clear_scoring_state()
                   runtime._decode_tokens(
                       item.input_ids[:prefix_len],
-                      seq_ids=(0,),
+                      seq_id=0,
                       n_past=0,
                   )
                   runtime._decode_tokens(
                       item.input_ids[prefix_len:],
-                      seq_ids=(0,),
+                      seq_id=0,
                       n_past=prefix_len,
                   )
                   split = runtime._selected_logits(token_ids)
