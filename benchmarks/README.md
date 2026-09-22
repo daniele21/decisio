@@ -57,7 +57,9 @@ also include repeated CPU full-workload timing with balanced scorer order, throu
 peak-RSS evidence. Omit the performance flags for cheap functional smoke runs.
 
 The stable-scorer decision requires the pinned Qwen3.5-4B BF16 CPU execution contract and the
-precommitted margins in the methodology. Smaller-model or reduced-workload results are directional only.
+precommitted margins in the methodology. The full CPU workflow applies those margins with
+`benchmarks/evaluate_scorer_gate.py` and retains a machine-readable gate verdict beside the raw
+comparison evidence. Smaller-model or reduced-workload results are directional only.
 
 ## Run one scorer
 
