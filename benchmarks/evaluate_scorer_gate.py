@@ -36,13 +36,14 @@ def evaluate_report(report: dict[str, Any]) -> dict[str, Any]:
 
     primary_normal = scorers[PRIMARY]["normal"]
     primary_accuracy = float(primary_normal["accuracy"])
-    baseline_accuracies = {
-        key: float(scorers[key]["normal"]["accuracy"]) for key in BASELINES
+    baseline_correct = {
+        key: int(scorers[key]["normal"]["correct"]) for key in BASELINES
     }
-    strongest_accuracy = max(baseline_accuracies.values())
-    strongest = [
-        key for key in BASELINES if baseline_accuracies[key] == strongest_accuracy
-    ]
+    strongest_correct = max(baseline_correct.values())
+    strongest = [key for key in BASELINES if baseline_correct[key] == strongest_correct]
+    strongest_accuracy = max(
+        float(scorers[key]["normal"]["accuracy"]) for key in strongest
+    )
     strongest_reference = min(
         strongest,
         key=lambda key: (
@@ -175,9 +176,9 @@ def render_markdown(evaluation: dict[str, Any]) -> str:
         "",
         f"**Gate result: {status}**",
         "",
-        f"- input SHA-256: \`{evaluation['input_sha256']}\`",
+        f"- input SHA-256: `{evaluation['input_sha256']}`",
         f"- examples: {evaluation['examples']}",
-        f"- primary scorer: \`{evaluation['primary_scorer']}\`",
+        f"- primary scorer: `{evaluation['primary_scorer']}`",
         "",
         "| criterion | result |",
         "| --- | --- |",
