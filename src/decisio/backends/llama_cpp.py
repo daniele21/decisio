@@ -188,7 +188,7 @@ class _NativeLlamaCppRuntime:
         params.n_seq_max = self.n_seq_max
         params.embeddings = False
         params.offload_kqv = False
-        params.flash_attn = False
+        params.flash_attn_type = llama_cpp.LLAMA_FLASH_ATTN_TYPE_DISABLED
         params.kv_unified = True
 
         self._score_ctx = _internals.LlamaContext(
