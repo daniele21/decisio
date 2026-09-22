@@ -158,6 +158,20 @@ def _peak_memory_bytes(scorer: Scorer) -> int | None:
     return None
 
 
+def _reset_runtime_metrics(scorer: Scorer) -> None:
+    method = getattr(_backend(scorer), "reset_runtime_metrics", None)
+    if callable(method):
+        method()
+
+
+def _runtime_metrics(scorer: Scorer) -> dict[str, Any] | None:
+    method = getattr(_backend(scorer), "runtime_metrics", None)
+    if not callable(method):
+        return None
+    value = method()
+    return dict(value) if isinstance(value, dict) else None
+
+
 def _rotate_scorer_keys(offset: int) -> tuple[str, ...]:
     amount = offset % len(SCORER_KEYS)
     return SCORER_KEYS[amount:] + SCORER_KEYS[:amount]
@@ -169,6 +183,7 @@ def _run_performance_trial(
 ) -> dict[str, Any]:
     _synchronize(scorer)
     _reset_peak_memory(scorer)
+    _reset_runtime_metrics(scorer)
     started = time.perf_counter()
     for request in requests:
         scorer.score(request)
@@ -178,6 +193,7 @@ def _run_performance_trial(
         "duration_seconds": duration,
         "decisions_per_second": len(requests) / duration,
         "peak_memory_bytes": _peak_memory_bytes(scorer),
+        "runtime_metrics": _runtime_metrics(scorer),
     }
 
 

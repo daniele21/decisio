@@ -47,42 +47,40 @@ It is an **example and behavioral probe**, not evidence that Decisio is a good g
 
 ## Run a cheap smoke
 
-The GitHub CI uses the official Qwen3.5-0.8B checkpoint for functional integration. You can use the same model:
+Install the llama.cpp runtime and point Snake at any compatible local Qwen GGUF:
 
 ```bash
-uv sync --extra qwen --extra dev
+uv sync --extra llama --extra dev
 
-uv run python examples/snake/play.py \
-  --model Qwen/Qwen3.5-0.8B \
-  --revision 2fc06364 \
-  --device cpu \
-  --dtype bfloat16 \
+uv run python -m examples.snake.play \
+  --model /path/to/Qwen3.5-0.8B-Q4_K_M.gguf \
+  --threads 4 \
   --max-steps 10 \
   --render
 ```
 
-## Run with the Decisio reference model
+## Run with the Decisio reference artifact class
 
-The current Decisio evidence path is CPU-only:
+The reference path is CPU-only Qwen3.5-4B Q4_K_M GGUF:
 
 ```bash
-uv run python examples/snake/play.py \
-  --model Qwen/Qwen3.5-4B \
-  --revision 1eef1f4e0bc57dec8f814d1e4c714c8e0065d261 \
-  --device cpu \
-  --dtype bfloat16 \
+uv run python -m examples.snake.play \
+  --model /path/to/Qwen3.5-4B-Q4_K_M.gguf \
+  --threads 8 \
   --max-steps 100 \
   --render
 ```
+
+The exact 4B artifact SHA and runtime identity are frozen by scorer-gate v2, not by this example.
 
 ## Compare scoring strategies
 
 Run the same deterministic episode with the same model and seed:
 
 ```bash
-uv run python -m examples.snake.play --seed 42 --scorer semantic --max-steps 50
-uv run python -m examples.snake.play --seed 42 --scorer semantic-independent --max-steps 50
-uv run python -m examples.snake.play --seed 42 --scorer letters --max-steps 50
+uv run python -m examples.snake.play --model /path/model.gguf --seed 42 --scorer semantic --max-steps 50
+uv run python -m examples.snake.play --model /path/model.gguf --seed 42 --scorer semantic-independent --max-steps 50
+uv run python -m examples.snake.play --model /path/model.gguf --seed 42 --scorer letters --max-steps 50
 ```
 
 This is not yet a rigorous benchmark because both runs may diverge after the first differing action. A future Snake evaluation harness should compare fixed board states as well as full rollouts.
@@ -90,7 +88,8 @@ This is not yet a rigorous benchmark because both runs may diverge after the fir
 ## Record every decision
 
 ```bash
-uv run python examples/snake/play.py \
+uv run python -m examples.snake.play \
+  --model /path/model.gguf \
   --seed 42 \
   --max-steps 50 \
   --trace .artifacts/snake-semantic.jsonl

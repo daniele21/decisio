@@ -13,6 +13,9 @@ authors = [{name = "Decisio contributors"}]
 dependencies = []
 
 [project.optional-dependencies]
+llama = [
+  "llama-cpp-python==0.3.35",
+]
 qwen = [
   "torch>=2.6",
   "transformers>=5.17,<6",

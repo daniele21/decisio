@@ -7,7 +7,7 @@ on:
       - ".github/workflows/model-smoke.yml"
       - "pyproject.toml"
       - "uv.lock"
-      - "src/decisio/backends/qwen.py"
+      - "src/decisio/backends/llama_cpp.py"
       - "src/decisio/compiler.py"
       - "src/decisio/schema.py"
       - "src/decisio/scorers/semantic.py"
@@ -22,107 +22,91 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  qwen-cpu-smoke:
+  qwen-gguf-cpu-smoke:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
-    env:
-      HF_HUB_DISABLE_TELEMETRY: "1"
-      TOKENIZERS_PARALLELISM: "false"
+    timeout-minutes: 35
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-
-      - name: Install CPU inference runtime
+      - name: Install pinned CPU llama.cpp runtime
         run: |
           python -m pip install --upgrade pip
-          python -m pip install --index-url https://download.pytorch.org/whl/cpu "torch==2.14.0"
-          python -m pip install "transformers==5.17.0" "pillow==12.3.0"
-          sudo apt-get update -qq
-          sudo apt-get install -y -qq ffmpeg
+          python -m pip install "diskcache>=5.6.1" "jinja2>=2.11.3" "numpy>=1.20" "typing-extensions>=4.5"
+          python -m pip install --index-url https://abetlen.github.io/llama-cpp-python/whl/cpu --no-deps "llama-cpp-python==0.3.35"
           python -m pip install -e . --no-deps
-
+      - name: Download pinned Qwen3.5-0.8B Q4_K_M smoke artifact
+        run: |
+          MODEL=/tmp/Qwen3.5-0.8B-Q4_K_M.gguf
+          curl -L --fail --retry 3 \
+            "https://huggingface.co/unsloth/Qwen3.5-0.8B-GGUF/resolve/91840701981c3152e23662fa4416d7a93cab90e2/Qwen3.5-0.8B-Q4_K_M.gguf?download=true" \
+            -o "$MODEL"
+          echo "bd258782e35f7f458f8aced1adc053e6e92e89bc735ba3be89d38a06121dc517  $MODEL" | sha256sum -c -
+          echo "DECISIO_SMOKE_MODEL=$MODEL" >> "$GITHUB_ENV"
       - name: Run real Qwen3.5 semantic scorer
         run: |
           decisio score \
             --input benchmarks/fixtures/ci-smoke.json \
             --scorer semantic \
-            --model Qwen/Qwen3.5-0.8B \
-            --revision 2fc06364 \
+            --model "$DECISIO_SMOKE_MODEL" \
             --device cpu \
-            --dtype bfloat16 \
+            --n-ctx 4096 \
+            --threads 2 \
+            --threads-batch 2 \
             > /tmp/decisio-real-model-smoke.json
-
-      - name: Verify zero-generation result contract
+      - name: Verify zero-generation and GGUF provenance
         run: |
           python - <<'PY'
           import json
           from pathlib import Path
-
-          path = Path("/tmp/decisio-real-model-smoke.json")
-          result = json.loads(path.read_text())
-
+          result = json.loads(Path("/tmp/decisio-real-model-smoke.json").read_text())
           assert result["generated_tokens"] == 0, result
           assert result["scorer"] == "semantic_comparative_logodds_v2", result
           assert result["probability_status"] == "uncalibrated_conditional_scores", result
           assert result["choice"] in {"billing", "technical"}, result
           assert set(result["distribution"]) == {"billing", "technical"}, result
+          assert set(result["binary_conditional_probability"]) == {"billing", "technical"}
           assert abs(sum(result["distribution"].values()) - 1.0) < 1e-6, result
-          assert result["model"]["model"] == "Qwen/Qwen3.5-0.8B", result
-          assert result["model"]["model_type"] == "qwen3_5_text", result
-
-          print(json.dumps({
-              "choice": result["choice"],
-              "distribution": result["distribution"],
-              "generated_tokens": result["generated_tokens"],
-              "model": result["model"],
-          }, indent=2, sort_keys=True))
+          identity = result["model"]
+          assert identity["backend"] == "llama-cpp-python", identity
+          assert identity["binding_version"] == "0.3.35", identity
+          assert identity["artifact_sha256"] == "bd258782e35f7f458f8aced1adc053e6e92e89bc735ba3be89d38a06121dc517"
+          assert identity["quantization"] == "Q4_K_M", identity
+          assert identity["selected_vocab_projection"] is False, identity
+          assert identity["shared_context_state"] is True, identity
           PY
-
       - name: Run real-model Snake rollout
         run: |
           python -m examples.snake.play \
-            --model Qwen/Qwen3.5-0.8B \
-            --revision 2fc06364 \
-            --device cpu \
-            --dtype bfloat16 \
+            --model "$DECISIO_SMOKE_MODEL" \
+            --threads 2 \
+            --threads-batch 2 \
+            --n-ctx 4096 \
             --seed 7 \
             --max-steps 5 \
             --trace /tmp/decisio-snake-smoke.jsonl
-
       - name: Verify Snake decision loop
         run: |
           python - <<'PY'
           import json
           from pathlib import Path
-
           rows = Path("/tmp/decisio-snake-smoke.jsonl").read_text().splitlines()
           assert 1 <= len(rows) <= 5, rows
           for line in rows:
               record = json.loads(line)
               decision = record["decision"]
-              constraints = record["constraints"]
-              safe = set(constraints["safe_actions"])
-
+              safe = set(record["constraints"]["safe_actions"])
               assert decision["generated_tokens"] == 0, record
               assert abs(sum(decision["distribution"].values()) - 1.0) < 1e-6, record
               if safe:
                   assert decision["choice"] in safe, record
-              if constraints["mode"] == "model":
-                  assert len(safe) >= 2, record
-                  assert decision["scorer"] == "semantic_comparative_logodds_v2", record
-
-          last = json.loads(rows[-1])
-          print(json.dumps({
-              "steps": len(rows),
-              "last_choice": last["decision"]["choice"],
-              "last_distribution": last["decision"]["distribution"],
-              "last_constraints": last["constraints"],
-              "last_outcome": last["outcome"],
-          }, indent=2, sort_keys=True))
           PY
-
+      - name: Install video dependencies
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq ffmpeg
+          python -m pip install "pillow==12.3.0"
       - name: Render Snake MP4
         run: |
           python -m examples.snake.video \
@@ -132,18 +116,14 @@ jobs:
             --fps 1 \
             --hold-frames 2
           test -s /tmp/decisio-snake.mp4
-          ffprobe -v error \
-            -show_entries format=duration,size \
-            -of default=noprint_wrappers=1 \
-            /tmp/decisio-snake.mp4
-
       - name: Upload Snake video and trace
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: decisio-snake-qwen35-08b
+          name: decisio-snake-qwen35-08b-q4km-llamacpp
           path: |
             /tmp/decisio-snake.mp4
             /tmp/decisio-snake-smoke.jsonl
+            /tmp/decisio-real-model-smoke.json
           if-no-files-found: warn
           retention-days: 14

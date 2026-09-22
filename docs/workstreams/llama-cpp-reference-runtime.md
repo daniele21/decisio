@@ -69,9 +69,9 @@ Reference target: Qwen3.5-4B Q4_K_M GGUF on CPU. Freeze the exact GGUF SHA-256 a
 | ID | State | Outcome | Owns / writes | Depends on |
 | --- | --- | --- | --- | --- |
 | W0 | DONE | Stop treating Transformers/BF16 as promotion authority; reshape product truth. | product/architecture/roadmap/current-state/gate status | — |
-| W1 | READY | Prove all four scorer paths on exact Q4_K_M through in-process llama.cpp. | llama.cpp spike + focused backend tests + 8-case smoke | W0 |
-| W2 | BLOCKED | Stable `LlamaCppBackend` + local-GGUF CLI; remove Transformers from reference path. | `src/decisio/backends/**`, CLI, packaging, tests | W1 |
-| W3 | BLOCKED | Shared context-state fast path: candidate branching + repeated-state cache, proven equivalent to fresh. | llama.cpp runtime, cache lifecycle, equivalence/perf tests | W2 |
+| W1 | ACTIVE | Prove all four scorer paths on pinned Q4_K_M through in-process llama.cpp. | backend + real-model smoke | W0 |
+| W2 | ACTIVE | Stable `LlamaCppBackend` + local-GGUF CLI implemented; real-runtime validation pending. | `src/decisio/backends/**`, CLI, packaging, tests | W1 evidence |
+| W3 | ACTIVE | Candidate branching implemented; repeated-state cache + real fresh equivalence pending. | llama.cpp runtime, cache lifecycle, equivalence/perf tests | W2 |
 | W4 | BLOCKED | Freeze scorer-gate v2 runtime/artifact contract with shared execution as the production path. | benchmark contract/evaluator/workflow metadata | W3 |
 | W5 | BLOCKED | Full 64-case CPU evidence and semantic-v2 decision plus repeated-state speed evidence. | remote workflow/artifacts/current-state | W4 |
 | W6 | BLOCKED | Stabilize public local runtime only if scorer and fast path survive. | public API/README/usage | W5 PASS |
@@ -168,9 +168,13 @@ Acceptance:
   and wall-clock latency;
 - a long-state/many-question fixture demonstrates measurable physical-token and latency reduction.
 
-The scorer already prefers the optional backend capability
-`shared_prefix_batch_next_token_logits(...)` when present; the llama.cpp backend owns its safe
-implementation.
+The scorer prefers `shared_prefix_batch_next_token_logits(...)`. The llama.cpp backend now
+implements candidate branching with a dedicated multi-sequence scoring context that shares the
+loaded model weights with the generation context. It evaluates the exact token common-prefix once,
+copies llama.cpp model memory to candidate sequence IDs, then evaluates only each suffix.
+
+The remaining W3 work is real-model fresh-equivalence evidence plus a bounded checkpoint/cache
+boundary for reusing an unchanged long state across later questions.
 
 ## W4/W5 scorer gate
 

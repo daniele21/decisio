@@ -82,13 +82,11 @@ This makes model choice a deployment decision while keeping scorer semantics and
 
 ## Runtime status
 
-Decisio is currently migrating from its initial PyTorch/Transformers reference implementation to
-an in-process llama.cpp backend.
+Decisio now has an in-process local-GGUF llama.cpp backend on the product branch. The original
+PyTorch/Transformers implementation remains migration-source code only; the representative 4B
+llama.cpp scorer gate is still pending.
 
-The current executable Transformers path established the scorer/compiler semantics. It is now
-migration-source code, not the authority for selecting the stable scorer.
-
-The target local workflow is:
+The local workflow is:
 
 ```bash
 decisio compare \
@@ -100,8 +98,8 @@ decisio compare \
   --performance-rounds 4
 ```
 
-That command shape is the **target interface under active implementation**, not yet the stable public
-CLI contract.
+This CLI is implemented but remains experimental until the pinned 4B llama.cpp scorer gate and
+shared-context equivalence evidence pass.
 
 See the active [llama.cpp runtime migration workstream](docs/workstreams/llama-cpp-reference-runtime.md)
 and [current state](docs/current-state.md).
@@ -488,9 +486,8 @@ Implemented now:
 
 Active migration:
 
-- Qwen3.5-4B Q4_K_M GGUF compatibility spike;
-- in-process llama.cpp backend;
-- shared candidate-prefix branching and bounded repeated-state cache;
+- real-model validation of the in-process llama.cpp backend;
+- shared candidate-prefix branching (implemented) and bounded repeated-state cache (pending);
 - fresh-vs-shared equivalence plus physical-token/reuse metrics;
 - local-GGUF CLI path;
 - exact GGUF/runtime provenance;

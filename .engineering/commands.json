@@ -4,7 +4,7 @@
   "commands": {
     "setup": {
       "status": "required",
-      "run": "uv sync --frozen --extra qwen --extra dev"
+      "run": "uv sync --frozen --extra llama --extra dev"
     },
     "doctor": {
       "status": "recommended",
@@ -24,7 +24,7 @@
     },
     "e2e": {
       "status": "recommended",
-      "run": "uv run decisio score --input examples/support-routing/request.json --model Qwen/Qwen3.5-0.8B --revision 2fc06364 --device cpu --dtype bfloat16"
+      "run": "uv run decisio score --input examples/support-routing/request.json --model \"${DECISIO_MODEL:?set DECISIO_MODEL to a local GGUF path}\" --device cpu"
     },
     "build": {
       "status": "required",

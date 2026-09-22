@@ -69,7 +69,7 @@
   ],
   "execution_environments": [
     {
-      "id": "github-hosted-cpu-qwen35-08b-transformers",
+      "id": "github-hosted-cpu-qwen35-08b-llamacpp",
       "fidelity_class": "host_or_fake",
       "automation": "automated",
       "platform": "github-hosted-linux-cpu",
@@ -78,24 +78,8 @@
         "qwen35-4b-q4km-llamacpp-cpu"
       ],
       "known_gaps": [
-        "smaller Qwen3.5-0.8B model",
-        "Transformers/BF16 rather than llama.cpp/Q4_K_M GGUF",
+        "smaller Qwen3.5-0.8B Q4_K_M GGUF instead of the 4B reference artifact",
         "8-case directional workload instead of the frozen 64-case gate",
-        "host CPU identity may vary across runs"
-      ]
-    },
-    {
-      "id": "github-hosted-cpu-qwen35-4b-transformers",
-      "fidelity_class": "host_or_fake",
-      "automation": "automated",
-      "platform": "github-hosted-linux-cpu",
-      "artifact_surface": "source",
-      "target_environment_refs": [
-        "qwen35-4b-q4km-llamacpp-cpu"
-      ],
-      "known_gaps": [
-        "Transformers/BF16 rather than the target llama.cpp/Q4_K_M GGUF runtime",
-        "non-authoritative for scorer promotion after the runtime decision",
         "host CPU identity may vary across runs"
       ]
     }
@@ -110,7 +94,7 @@
         "qwen35-4b-q4km-llamacpp-cpu"
       ],
       "automated_environment_refs": [
-        "github-hosted-cpu-qwen35-08b-transformers"
+        "github-hosted-cpu-qwen35-08b-llamacpp"
       ],
       "minimum_automated_fidelity": "host_or_fake",
       "residual_gaps": [
@@ -129,7 +113,7 @@
         "qwen35-4b-q4km-llamacpp-cpu"
       ],
       "automated_environment_refs": [
-        "github-hosted-cpu-qwen35-4b-transformers"
+        "github-hosted-cpu-qwen35-08b-llamacpp"
       ],
       "minimum_automated_fidelity": "host_or_fake",
       "residual_gaps": [
@@ -148,7 +132,7 @@
         "qwen35-4b-q4km-llamacpp-cpu"
       ],
       "automated_environment_refs": [
-        "github-hosted-cpu-qwen35-08b-transformers"
+        "github-hosted-cpu-qwen35-08b-llamacpp"
       ],
       "minimum_automated_fidelity": "host_or_fake",
       "residual_gaps": [

@@ -13,15 +13,21 @@ from .schema import ChoiceRequest
 
 
 def _backend(args: argparse.Namespace):
-    from .backends.qwen import QwenBackendConfig, QwenTransformersBackend
+    from .backends.llama_cpp import LlamaCppBackend, LlamaCppBackendConfig
 
-    return QwenTransformersBackend(
-        QwenBackendConfig(
+    return LlamaCppBackend(
+        LlamaCppBackendConfig(
             model=args.model,
-            revision=args.revision,
             device=args.device,
-            dtype=args.dtype,
-            local_files_only=args.local_files_only,
+            n_ctx=args.n_ctx,
+            n_batch=args.n_batch,
+            n_ubatch=args.n_ubatch,
+            n_threads=args.threads,
+            n_threads_batch=args.threads_batch,
+            max_sequences=args.max_sequences,
+            use_mmap=not args.no_mmap,
+            use_mlock=args.mlock,
+            verbose=args.verbose_runtime,
         )
     )
 
@@ -29,33 +35,31 @@ def _backend(args: argparse.Namespace):
 def _scorer(name: str, backend: Any):
     if name == "semantic":
         from .scorers import SemanticBinaryScorer
-
         return SemanticBinaryScorer(backend)
     if name == "semantic-independent":
         from .scorers import IndependentSemanticScorer
-
         return IndependentSemanticScorer(backend)
     if name == "letters":
         from .scorers import LetterTokenScorer
-
         return LetterTokenScorer(backend)
     if name == "generated":
         from .baselines import GeneratedJsonScorer
-
         return GeneratedJsonScorer(backend)
     raise ValueError(f"unknown scorer {name!r}")
 
 
 def _add_model_args(parser: argparse.ArgumentParser) -> None:
-    from .backends.qwen import DEFAULT_MODEL, DEFAULT_REVISION
-
-    parser.add_argument("--model", default=DEFAULT_MODEL)
-    parser.add_argument("--revision", default=DEFAULT_REVISION)
-    parser.add_argument("--device", choices=["auto", "cuda", "cpu"], default="auto")
-    parser.add_argument(
-        "--dtype", choices=["bfloat16", "float16", "float32"], default="bfloat16"
-    )
-    parser.add_argument("--local-files-only", action="store_true")
+    parser.add_argument("--model", type=Path, required=True, help="local GGUF model path")
+    parser.add_argument("--device", choices=["cpu"], default="cpu")
+    parser.add_argument("--n-ctx", type=int, default=8192)
+    parser.add_argument("--n-batch", type=int, default=512)
+    parser.add_argument("--n-ubatch", type=int, default=512)
+    parser.add_argument("--threads", type=int)
+    parser.add_argument("--threads-batch", type=int)
+    parser.add_argument("--max-sequences", type=int, default=8)
+    parser.add_argument("--mlock", action="store_true")
+    parser.add_argument("--no-mmap", action="store_true")
+    parser.add_argument("--verbose-runtime", action="store_true")
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -76,23 +80,12 @@ def build_parser() -> argparse.ArgumentParser:
     _add_model_args(benchmark)
 
     compare = subparsers.add_parser(
-        "compare",
-        help="run the paired v2/v1/letters/generated scorer matrix",
+        "compare", help="run the paired v2/v1/letters/generated scorer matrix"
     )
     compare.add_argument("--input", type=Path, required=True)
     compare.add_argument("--output-dir", type=Path, required=True)
-    compare.add_argument(
-        "--warmup-rounds",
-        type=int,
-        default=0,
-        help="full-workload warm-up rounds before repeated performance measurement",
-    )
-    compare.add_argument(
-        "--performance-rounds",
-        type=int,
-        default=0,
-        help="repeated full-workload performance rounds; zero disables performance trials",
-    )
+    compare.add_argument("--warmup-rounds", type=int, default=0)
+    compare.add_argument("--performance-rounds", type=int, default=0)
     _add_model_args(compare)
     return parser
 
@@ -100,48 +93,40 @@ def build_parser() -> argparse.ArgumentParser:
 def main(argv: list[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
     backend = _backend(args)
+    try:
+        if args.command == "score":
+            scorer = _scorer(args.scorer, backend)
+            data = json.loads(args.input.read_text(encoding="utf-8"))
+            result = scorer.score(ChoiceRequest.from_dict(data))
+            print(json.dumps(result.to_dict(), ensure_ascii=False, indent=2, sort_keys=True))
+            return 0
 
-    if args.command == "score":
-        scorer = _scorer(args.scorer, backend)
-        data = json.loads(args.input.read_text(encoding="utf-8"))
-        result = scorer.score(ChoiceRequest.from_dict(data))
-        print(json.dumps(result.to_dict(), ensure_ascii=False, indent=2, sort_keys=True))
-        return 0
+        if args.command == "benchmark":
+            scorer = _scorer(args.scorer, backend)
+            summary = run_benchmark(
+                args.input, args.output, scorer, reverse_candidates=args.reverse_candidates
+            )
+            print(json.dumps(summary, ensure_ascii=False, indent=2, sort_keys=True))
+            return 0
 
-    if args.command == "benchmark":
-        scorer = _scorer(args.scorer, backend)
-        summary = run_benchmark(
+        scorers = {name: _scorer(name, backend) for name in SCORER_KEYS}
+        report = run_comparison(
             args.input,
-            args.output,
-            scorer,
-            reverse_candidates=args.reverse_candidates,
+            args.output_dir,
+            scorers,
+            warmup_rounds=args.warmup_rounds,
+            performance_rounds=args.performance_rounds,
         )
-        print(json.dumps(summary, ensure_ascii=False, indent=2, sort_keys=True))
+        print(json.dumps({
+            "input_sha256": report["input_sha256"],
+            "examples": report["examples"],
+            "report_json": str(args.output_dir / "comparison.json"),
+            "report_markdown": str(args.output_dir / "comparison.md"),
+        }, ensure_ascii=False, indent=2, sort_keys=True))
         return 0
-
-    scorers = {name: _scorer(name, backend) for name in SCORER_KEYS}
-    report = run_comparison(
-        args.input,
-        args.output_dir,
-        scorers,
-        warmup_rounds=args.warmup_rounds,
-        performance_rounds=args.performance_rounds,
-    )
-    print(
-        json.dumps(
-            {
-                "input_sha256": report["input_sha256"],
-                "examples": report["examples"],
-                "report_json": str(args.output_dir / "comparison.json"),
-                "report_markdown": str(args.output_dir / "comparison.md"),
-            },
-            ensure_ascii=False,
-            indent=2,
-            sort_keys=True,
-        )
-    )
-    return 0
+    finally:
+        backend.close()
 
 
-if __name__ == "__main__":  # pragma: no cover
+if __name__ == "__main__":
     raise SystemExit(main())

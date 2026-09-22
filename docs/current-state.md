@@ -13,8 +13,8 @@ Active plan: [llama.cpp reference runtime migration](workstreams/llama-cpp-refer
 
 | Workstream | Current executable slice | State | Blocker |
 | --- | --- | --- | --- |
-| llama.cpp reference runtime | W1 Qwen3.5-4B Q4_K_M compatibility spike | ACTIVE | prove tokenizer/logit/generation primitives through the in-process bridge |
-| Shared context-state fast path | backend contract already wired; W3 real llama.cpp branching/cache pending | BLOCKED | W2 LlamaCppBackend |
+| llama.cpp reference runtime | W1/W2 backend + local-GGUF CLI implemented | ACTIVE | real Qwen3.5 GGUF smoke/evidence pending |
+| Shared context-state fast path | candidate branching implemented with llama.cpp sequence memory | ACTIVE | real-model fresh equivalence + repeated-state cache pending |
 | Scorer decision | Preserve frozen 64-case workload and promotion semantics | BLOCKED | shared llama.cpp path + gate-v2 identity |
 | Product foundation | Consolidated candidate in PR #1 | ACTIVE | runtime migration and representative evidence |
 | Repository quality | Baseline/health/package gates | ACTIVE | final exact-head integration |
@@ -34,8 +34,11 @@ The existing PyTorch/Transformers backend remains migration-source code; it no l
 - comparative semantic v2, semantic v1, letters and generated JSON;
 - semantic scorers preserve candidate-local YES/NO `binary_conditional_probability` separately from cross-candidate `distribution`;
 - zero generated answer tokens on native paths;
-- current Qwen3.5 Transformers backend with batching/selected-vocabulary projection;
-- semantic scorer dispatch prefers an optional `shared_prefix_batch_next_token_logits` backend capability before generic batching;
+- in-process `LlamaCppBackend` for local GGUF on CPU with exact artifact SHA/provenance;
+- GGUF chat-template/tokenizer readout, native logits and generated JSON through one loaded model;
+- semantic candidate-prefix branching through a second multi-sequence llama.cpp context sharing the same model weights;
+- logical/physical token and prefix-reuse metrics;
+- current Qwen3.5 Transformers backend retained only as migration-source code;
 - frozen 64-case workload, normal/reversed comparison and paired correctness evidence;
 - deterministic gate evaluator with quality, family, order, zero-generation and latency criteria;
 - CPU timing/p50/p95/throughput/RSS infrastructure;
@@ -54,22 +57,17 @@ Qwen3.5-4B BF16/Transformers CPU run `35680562215` is non-authoritative for scor
 
 ## Blockers
 
-### W1 — llama.cpp compatibility
+### W1/W2 — real runtime evidence
 
-- load exact Qwen3.5-4B Q4_K_M GGUF and capture SHA/runtime metadata;
-- verify GGUF/runtime tokenizer IDs for scorer readouts;
-- obtain semantic-v2/v1 and letters next-token logits;
-- run generated JSON through the same model/runtime;
-- prove deterministic 8-case CPU smoke.
+- prove GGUF tokenizer/readout, native logits and generated JSON on pinned Qwen3.5 Q4_K_M artifacts;
+- verify the 0.8B CI smoke artifact SHA and then freeze the exact 4B reference artifact/runtime;
+- remove Torch/Transformers from supported setup after migration diagnostics are no longer needed.
 
-### W2/W3 — runtime and shared fast path
+### W3 — complete shared context-state reuse
 
-- stable llama.cpp backend contract and local-GGUF CLI;
-- candidate-prefix branching from one shared model context state;
-- bounded repeated-state cache for many questions over one long state;
-- fresh-vs-shared choice/score/probability equivalence;
-- logical vs physically evaluated token instrumentation;
-- remove Torch/Transformers from the reference path.
+- prove candidate branching against fresh choice/score/probability outputs on a real hybrid model;
+- add a bounded repeated-state cache for many questions over one long state;
+- retain logical vs physically evaluated token/reuse instrumentation.
 
 ### W4/W5 — scorer decision
 
