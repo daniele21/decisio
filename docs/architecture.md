@@ -63,18 +63,6 @@ runtime/build identity. BF16/Transformers results are not treated as equivalent 
 
 ## Current implementation architecture
 
-```mermaid
-flowchart LR
-    A[Application state] --> B[Deterministic constraints]
-    B --> C[ChoiceRequest]
-    C --> D[Prompt compiler]
-    D --> E[Semantic or letter scorer]
-    E --> F[Qwen Transformers backend]
-    F --> G[Selected next-token logits]
-    G --> H[Log-odds / softmax]
-    H --> I[DecisionResult]
-```
-
 Current code owners:
 
 | Concern | Current owner |
