@@ -72,25 +72,15 @@ uncalibrated unless a calibration artifact matches that identity.
 
 ## Meaningful differentiation
 
-Decisio is not differentiated merely by "reading logits"; that already exists in open projects.
-
-Its intended differentiation combines:
-
-1. **comparative semantic candidate scoring** rather than arbitrary answer tokens;
-2. **separate answerability and honest probability status**;
-3. **shared/parallel execution with reproducible strategy evidence**;
-4. **training-free first**, adding training only if evidence shows a meaningful ceiling.
+Decisio combines comparative semantic scoring, separate answerability/probability semantics,
+shared execution and reproducible evidence, while staying training-free until evidence justifies
+a learned layer. Reading logits alone is not the differentiator.
 
 ## Core outcomes
 
-A successful Decisio user should be able to:
-
-- replace a bounded generative classification/routing call with a typed non-generative decision call;
-- define candidates dynamically at runtime;
-- receive a ranked/normalized distribution plus answerability and provenance;
-- process multiple candidates/questions without re-reading the same long state unnecessarily;
-- understand whether returned values are raw/conditional/calibrated;
-- benchmark the chosen model/scorer on their own workload before automation.
+A successful Decisio user should be able to replace bounded generation with typed decisions over
+runtime-defined candidates, reuse shared context, inspect probability/provenance status, and
+benchmark the chosen model/scorer before automation.
 
 ## Non-goals
 
