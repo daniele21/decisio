@@ -8,9 +8,10 @@ import platform
 import re
 import sys
 import threading
+from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Callable, Mapping, Protocol, Sequence
+from typing import Any, Protocol
 
 LLAMA_CPP_PYTHON_VERSION = "0.3.35"
 
@@ -443,7 +444,7 @@ class _NativeLlamaCppRuntime:
 
 
 class _TokenizerAdapter:
-    def __init__(self, backend: "LlamaCppBackend"):
+    def __init__(self, backend: LlamaCppBackend):
         self._backend = backend
 
     def encode(self, text: str, *, add_special_tokens: bool = False) -> list[int]:
@@ -614,7 +615,7 @@ class LlamaCppBackend:
 
     shutdown = close
 
-    def __enter__(self) -> "LlamaCppBackend":
+    def __enter__(self) -> LlamaCppBackend:
         return self
 
     def __exit__(self, exc_type, exc, traceback) -> None:
