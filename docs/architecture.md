@@ -7,7 +7,7 @@ Owner: repository
 
 Decisio converts a compatible causal language model into a bounded semantic decision engine without running an autoregressive answer-generation loop.
 
-The first implementation uses Qwen 3.5 4B as the reference model and treats the model as a semantic scorer. Applications provide only alternatives that remain valid after deterministic domain constraints. The runtime compiles state, question and candidates into comparative scoring prompts, batches candidate prompts when supported, reads only the requested readout logits, and post-processes them into an explicitly typed result.
+Qwen 3.5 4B remains the reference model and is treated as a semantic scorer. The v1 target runtime is now a pinned Q4_K_M GGUF executed through llama.cpp on CPU for representative scorer evidence. Applications provide only alternatives that remain valid after deterministic domain constraints. The runtime compiles state, question and candidates into comparative scoring prompts, reads the required next-token logits, and post-processes them into an explicitly typed result.
 
 ## Constraint boundary
 
@@ -33,6 +33,34 @@ Examples include geometry, schema validity, hard policy requirements, resource b
 
 This boundary avoids spending model compute on impossible options and prevents a probabilistic scorer from overruling facts such as "this move hits a wall."
 
+## Reference-runtime migration
+
+The repository currently contains a PyTorch/Transformers reference backend. That implementation
+established scorer/compiler semantics but is being replaced as the product reference path by an
+in-process llama.cpp backend over local GGUF artifacts.
+
+The target boundary is:
+
+```mermaid
+flowchart LR
+    A[Application state] --> B[Deterministic constraints]
+    B --> C[ChoiceRequest]
+    C --> D[Prompt compiler]
+    D --> E[Semantic or letter scorer]
+    E --> F[LlamaCpp backend]
+    F --> G[Qwen3.5 GGUF]
+    G --> H[Requested next-token logits]
+    H --> I[Log-odds / softmax]
+    I --> J[DecisionResult]
+```
+
+llama.cpp owns model execution, quantized kernels, context/batch/sequence mechanics and device
+support. Decisio owns prompt/scorer semantics, deterministic constraints boundary, probability
+status, provenance, evaluation and the eventual calibration layer.
+
+Representative evidence must bind to the exact GGUF SHA-256, quantization and llama.cpp
+runtime/build identity. BF16/Transformers results are not treated as equivalent to Q4_K_M results.
+
 ## Current implementation architecture
 
 ```mermaid
@@ -54,7 +82,7 @@ Current code owners:
 | Request/result contracts | `src/decisio/schema.py` |
 | Prompt compilation | `src/decisio/compiler.py` |
 | Semantic and letter scoring | `src/decisio/scorers/` |
-| Qwen loading, batching and selected-vocabulary projection | `src/decisio/backends/qwen.py` |
+| Current Qwen/Transformers loading, batching and selected-vocabulary projection (migration source) | `src/decisio/backends/qwen.py` |
 | Benchmark execution | `src/decisio/benchmark.py` |
 | Paired scorer comparison | `src/decisio/comparison.py` |
 | CLI | `src/decisio/cli.py` |
@@ -219,7 +247,7 @@ The API should expose raw candidate scores in debug/audit mode and always expose
 
 ## Model abstraction
 
-The model adapter must describe capabilities explicitly rather than assume every causal LM supports identical optimizations.
+The model adapter must describe capabilities explicitly rather than assume every causal LM supports identical optimizations. llama.cpp/GGUF is the canonical v1 path; additional runtimes remain optional future adapters.
 
 Relevant capabilities include:
 
@@ -236,12 +264,12 @@ Qwen 3.5 4B is the reference implementation, not a permanent dependency boundary
 
 ## Runtime priorities
 
-1. correctness-equivalent comparative semantic scoring;
-2. candidate batching + selected-vocabulary projection;
-3. shared state/question reuse;
-4. multi-question reuse;
-5. backend portability;
-6. quantization/performance specialization.
+1. correctness-stable comparative semantic scoring on the pinned Q4_K_M llama.cpp path;
+2. explicit GGUF/runtime provenance and local model loading;
+3. candidate batching using llama.cpp-supported execution semantics;
+4. shared state/question reuse with fresh-path equivalence evidence;
+5. multi-question reuse;
+6. additional backend/quantization portability only after the reference path is proven.
 
 ## Trust and data boundaries
 
@@ -277,6 +305,6 @@ These should be answered by evidence rather than preference:
 
 ## Current implementation boundary
 
-The current reference path implements comparative semantic scoring and backend candidate batching. All candidate prompts are padded into one model batch, final hidden states are selected at each real sequence end, and only requested vocabulary rows are projected. This removes sequential full forwards and full-vocabulary projection without changing the zero-generation contract.
+The current code path implements comparative semantic scoring and PyTorch/Transformers candidate batching, but it is no longer the target reference runtime. All candidate prompts are padded into one model batch, final hidden states are selected at each real sequence end, and only requested vocabulary rows are projected. This removes sequential full forwards and full-vocabulary projection without changing the zero-generation contract.
 
 The batch still duplicates the common state/question tokens across rows. Qwen3.5 uses a hybrid 3:1 Gated DeltaNet/full-attention text stack, so true shared-prefix/cache branching requires model-specific equivalence work rather than assuming a conventional KV-only decoder cache. Shared-prefix and multi-question reuse therefore remain pending.
