@@ -31,6 +31,7 @@ The existing PyTorch/Transformers backend remains migration-source code; it no l
 
 - strict request/result contracts and deterministic compiler;
 - comparative semantic v2, semantic v1, letters and generated JSON;
+- semantic scorers preserve candidate-local YES/NO `binary_conditional_probability` separately from cross-candidate `distribution`;
 - zero generated answer tokens on native paths;
 - current Qwen3.5 Transformers backend with batching/selected-vocabulary projection;
 - frozen 64-case workload, normal/reversed comparison and paired correctness evidence;
