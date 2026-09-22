@@ -10,7 +10,7 @@ Decisio is pre-release. Until the first stable release, this file records produc
 - independent semantic v1, direct-letter and generated JSON baselines;
 - Qwen3.5 reference backend with candidate batching and selected-vocabulary projection;
 - frozen paired scorer gate with order perturbation and auditable raw evidence;
-- repeated balanced performance trials with CUDA synchronization, throughput and peak-memory reporting;
+- repeated balanced CPU performance trials with throughput and process peak-RSS reporting;
 - constraint-first Snake, support-routing and policy-gate examples;
 - repository-specific engineering, contribution, security and benchmark documentation.
 
@@ -23,7 +23,7 @@ Decisio is pre-release. Until the first stable release, this file records produc
 
 ### Pending evidence
 
-- representative Qwen3.5-4B BF16/CUDA scorer gate;
+- Qwen3.5-4B BF16 CPU scorer gate;
 - answerability;
 - shared-prefix/cache reuse;
 - stable high-level Python API;
