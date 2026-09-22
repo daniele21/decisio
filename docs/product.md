@@ -64,6 +64,30 @@ Candidate scores are then normalized across the supplied alternatives.
 
 A separate answerability judgment estimates whether the state contains enough information to answer at all.
 
+## Reference runtime
+
+Decisio v1 is local-first around **GGUF inference through llama.cpp**. The first reference artifact
+class is Qwen 3.5 4B Q4_K_M on CPU.
+
+This is a product/runtime choice rather than a claim that Q4_K_M is numerically equivalent to BF16.
+The exact GGUF SHA-256, quantization, llama.cpp runtime/build identity, binding identity, CPU/thread
+configuration and scorer/compiler identity must travel with benchmark evidence.
+
+The initial implementation used PyTorch/Transformers to establish scorer semantics. That path is now
+a migration source/research reference rather than the authority for choosing the stable Decisio
+scorer. Representative promotion evidence must use the llama.cpp/GGUF reference path.
+
+llama.cpp provides inference; Decisio owns deterministic compilation, scorer semantics, probability
+status, provenance and decision evidence. The first bridge is intended to be in-process rather than
+an HTTP/server dependency so Decisio can access the logits and runtime capabilities required by its
+scorers.
+
+GGUF does not remove post-hoc calibration. Until a validated calibration artifact matches the exact
+GGUF/scorer/compiler/runtime identity, normalized values remain
+`uncalibrated_conditional_scores` and must not be described as probability of correctness.
+
+A separate answerability judgment estimates whether the state contains enough information to answer at all.
+
 ## Meaningful differentiation
 
 Decisio is not differentiated merely by "reading logits"; that already exists in open projects.
@@ -113,7 +137,7 @@ Decisio deliberately does not own:
 - **Scores are not confidence until calibrated.** API naming and metadata must preserve that distinction.
 - **Share expensive context.** Long state should be processed once wherever model/runtime semantics safely allow it.
 - **Benchmark the failure modes.** Accuracy alone is insufficient; permutation robustness, missing evidence, calibration, latency and memory matter.
-- **Reference implementation before abstraction explosion.** Prove one model/backend path before generalizing.
+- **Reference implementation before abstraction explosion.** Prove Qwen 3.5 4B Q4_K_M on llama.cpp before generalizing to other runtimes or quantizations.
 
 ## Product quality attributes
 
