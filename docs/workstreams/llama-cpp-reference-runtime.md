@@ -168,12 +168,18 @@ Run `35716601748` then reproduced the exact same mismatch with the upstream-shap
 score delta `0.1005306244`, binary-probability delta `0.0170685730`, and final-distribution delta
 `0.0001724743`. The predeclared fresh-equivalence tolerances remain unchanged.
 
-The next discriminating check compares a single candidate decoded fresh in one batch against the
-same single sequence split at the common-prefix boundary, with no reuse at all. This isolates
-batch-boundary numerics from multi-sequence state sharing before adopting llama.cpp sequence
-snapshot/restore as the candidate primitive.
+Run `35716946549` isolated the cause: a single sequence decoded fresh versus the same sequence
+split at common-prefix token 152 produced exactly identical YES/NO logits for both candidates
+(max absolute logit delta `0.0`). The mismatch therefore comes from multi-sequence sharing, not
+from the prefix/suffix decode boundary.
 
-The remaining W3 work is exact fresh-equivalence evidence for a safe prefix-reuse primitive plus a
+The candidate primitive is now llama.cpp single-sequence state snapshot/restore. Decisio prefills
+the common prefix once on sequence 0, captures the complete sequence memory with
+`llama_state_seq_get_data`, then restores it with `llama_state_seq_set_data` before each later
+candidate suffix. This follows llama.cpp's own save/load-state test pattern while avoiding the
+multi-sequence hybrid path that failed the fresh oracle.
+
+The remaining W3 work is exact fresh-equivalence evidence for this sequence-state primitive plus a
 bounded checkpoint/cache boundary for reusing an unchanged long state across later questions.
 
 ## W4/W5 scorer gate

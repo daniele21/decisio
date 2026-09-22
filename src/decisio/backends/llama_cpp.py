@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import ctypes
 import hashlib
 import os
 import platform
@@ -121,52 +122,6 @@ def _longest_common_prefix(rows: Sequence[tuple[int, ...]]) -> int:
     return limit
 
 
-@dataclass(frozen=True, slots=True)
-class _SharedBatchRow:
-    token: int
-    position: int
-    seq_ids: tuple[int, ...]
-    output_sequences: tuple[int, ...] = ()
-
-
-def _build_shared_batch_rows(
-    input_ids_batch: Sequence[tuple[int, ...]],
-    prefix_len: int,
-) -> list[_SharedBatchRow]:
-    sequence_ids = tuple(range(len(input_ids_batch)))
-    prefix_outputs = tuple(
-        seq_id
-        for seq_id, input_ids in enumerate(input_ids_batch)
-        if len(input_ids) == prefix_len
-    )
-    rows: list[_SharedBatchRow] = []
-
-    prefix = input_ids_batch[0][:prefix_len]
-    for position, token in enumerate(prefix):
-        outputs = prefix_outputs if position == prefix_len - 1 else ()
-        rows.append(
-            _SharedBatchRow(
-                token=token,
-                position=position,
-                seq_ids=sequence_ids,
-                output_sequences=outputs,
-            )
-        )
-
-    for seq_id, input_ids in enumerate(input_ids_batch):
-        suffix = input_ids[prefix_len:]
-        for offset, token in enumerate(suffix):
-            rows.append(
-                _SharedBatchRow(
-                    token=token,
-                    position=prefix_len + offset,
-                    seq_ids=(seq_id,),
-                    output_sequences=(seq_id,) if offset == len(suffix) - 1 else (),
-                )
-            )
-
-    return rows
-
 
 class _NativeLlamaCppRuntime:
     """Pinned adapter over llama-cpp-python plus one low-level scoring context."""
@@ -200,6 +155,9 @@ class _NativeLlamaCppRuntime:
             "reused_prefix_tokens": 0,
             "fresh_calls": 0,
             "shared_prefix_calls": 0,
+            "prefix_state_snapshot_bytes": 0,
+            "prefix_state_restore_bytes": 0,
+            "prefix_state_restores": 0,
         }
 
         self._llm = Llama(
@@ -303,81 +261,78 @@ class _NativeLlamaCppRuntime:
         self,
         tokens: Sequence[int],
         *,
-        seq_ids: Sequence[int],
+        seq_id: int,
         n_past: int,
     ) -> None:
-        if not seq_ids:
-            raise ValueError("seq_ids must not be empty")
-        if len(seq_ids) > self.n_seq_max:
-            raise ValueError("seq_ids exceed the configured sequence capacity")
-        if len(set(seq_ids)) != len(seq_ids):
-            raise ValueError("seq_ids must be unique")
-        if any(seq_id < 0 or seq_id >= self.n_seq_max for seq_id in seq_ids):
-            raise ValueError("seq_ids contain an id outside the configured sequence capacity")
+        if seq_id < 0 or seq_id >= self.n_seq_max:
+            raise ValueError("seq_id is outside the configured sequence capacity")
 
         batch = self._batch.batch
         batch.n_tokens = len(tokens)
         for index, token in enumerate(tokens):
             batch.token[index] = int(token)
             batch.pos[index] = n_past + index
-            batch.n_seq_id[index] = len(seq_ids)
-            for seq_index, seq_id in enumerate(seq_ids):
-                batch.seq_id[index][seq_index] = seq_id
+            batch.seq_id[index][0] = seq_id
+            batch.n_seq_id[index] = 1
             batch.logits[index] = False
         batch.logits[len(tokens) - 1] = True
-
-    def _set_shared_batch_rows(self, rows: Sequence[_SharedBatchRow]) -> None:
-        if not rows:
-            raise ValueError("shared batch rows must not be empty")
-        if len(rows) > self.n_batch:
-            raise ValueError("shared batch chunk exceeds n_batch")
-
-        batch = self._batch.batch
-        batch.n_tokens = len(rows)
-        for index, row in enumerate(rows):
-            seq_ids = row.seq_ids
-            if not seq_ids:
-                raise ValueError("seq_ids must not be empty")
-            if len(seq_ids) > self.n_seq_max:
-                raise ValueError("seq_ids exceed the configured sequence capacity")
-            if len(set(seq_ids)) != len(seq_ids):
-                raise ValueError("seq_ids must be unique")
-            if any(seq_id < 0 or seq_id >= self.n_seq_max for seq_id in seq_ids):
-                raise ValueError(
-                    "seq_ids contain an id outside the configured sequence capacity"
-                )
-
-            batch.token[index] = int(row.token)
-            batch.pos[index] = int(row.position)
-            batch.n_seq_id[index] = len(seq_ids)
-            for seq_index, seq_id in enumerate(seq_ids):
-                batch.seq_id[index][seq_index] = seq_id
-            batch.logits[index] = bool(row.output_sequences)
 
     def _decode_tokens(
         self,
         tokens: Sequence[int],
         *,
-        seq_ids: Sequence[int],
+        seq_id: int,
         n_past: int,
     ) -> None:
         offset = 0
         while offset < len(tokens):
             chunk = tokens[offset : offset + self.n_batch]
-            self._set_batch(chunk, seq_ids=seq_ids, n_past=n_past + offset)
+            self._set_batch(chunk, seq_id=seq_id, n_past=n_past + offset)
             self._score_ctx.decode(self._batch)
             offset += len(chunk)
 
-    def _selected_logits(
-        self,
-        token_ids: list[int],
-        *,
-        batch_index: int = -1,
-    ) -> list[float]:
-        logits = self._score_ctx.get_logits_ith(batch_index)
+    def _selected_logits(self, token_ids: list[int]) -> list[float]:
+        logits = self._score_ctx.get_logits_ith(-1)
         if not logits:
-            raise RuntimeError("llama.cpp did not expose requested logits")
+            raise RuntimeError("llama.cpp did not expose final-token logits")
         return [float(logits[token_id]) for token_id in token_ids]
+
+    def _capture_sequence_state(self, seq_id: int) -> Any:
+        size = int(
+            self._llama_cpp.llama_state_seq_get_size(self._score_ctx.ctx, seq_id)
+        )
+        if size < 1:
+            raise RuntimeError("llama.cpp returned an empty sequence state")
+        state = (ctypes.c_uint8 * size)()
+        copied = int(
+            self._llama_cpp.llama_state_seq_get_data(
+                self._score_ctx.ctx,
+                state,
+                size,
+                seq_id,
+            )
+        )
+        if copied != size:
+            raise RuntimeError(
+                f"llama.cpp copied {copied} sequence-state bytes; expected {size}"
+            )
+        return state
+
+    def _restore_sequence_state(self, state: Any, seq_id: int) -> int:
+        size = len(state)
+        restored = int(
+            self._llama_cpp.llama_state_seq_set_data(
+                self._score_ctx.ctx,
+                state,
+                size,
+                seq_id,
+            )
+        )
+        if restored != size:
+            raise RuntimeError(
+                f"llama.cpp restored {restored} sequence-state bytes; expected {size}"
+            )
+        return restored
 
     def _validate(
         self,
@@ -403,7 +358,7 @@ class _NativeLlamaCppRuntime:
         self._require_open()
         self._validate(input_ids, token_ids)
         self._clear_scoring_state()
-        self._decode_tokens(input_ids, seq_ids=(0,), n_past=0)
+        self._decode_tokens(input_ids, seq_id=0, n_past=0)
         self._metrics["logical_input_tokens"] += len(input_ids)
         self._metrics["physically_evaluated_tokens"] += len(input_ids)
         self._metrics["fresh_calls"] += 1
@@ -440,44 +395,58 @@ class _NativeLlamaCppRuntime:
                 )
             ]
 
-        rows = _build_shared_batch_rows(input_ids_batch, prefix_len)
-        physical = len(rows)
-        if physical > self.n_ctx:
-            return [
-                self.next_token_logits(input_ids, token_ids)
-                for input_ids, token_ids in zip(
-                    input_ids_batch, token_ids_batch, strict=True
-                )
-            ]
+        prefix = input_ids_batch[0][:prefix_len]
+        physical = prefix_len + sum(
+            len(input_ids) - prefix_len for input_ids in input_ids_batch
+        )
 
-        # Match llama.cpp's HellaSwag/multiple-choice layout exactly: build one
-        # logical flat batch containing the shared prefix followed by every
-        # candidate suffix. The runtime may split that batch only at n_batch
-        # boundaries, preserving llama.cpp's hybrid recurrent rollback behavior.
+        # Multi-sequence prefix sharing is not fresh-equivalent for the pinned
+        # Qwen3.5 hybrid runtime. Keep one canonical sequence instead: prefill the
+        # common prefix once, snapshot llama.cpp's complete sequence memory, and
+        # restore that snapshot before each later candidate suffix.
         self._clear_scoring_state()
+        self._decode_tokens(prefix, seq_id=0, n_past=0)
         result: list[list[float] | None] = [None] * len(input_ids_batch)
-        offset = 0
-        while offset < physical:
-            chunk = rows[offset : offset + self.n_batch]
-            self._set_shared_batch_rows(chunk)
-            self._score_ctx.decode(self._batch)
 
-            for batch_index, row in enumerate(chunk):
-                for seq_id in row.output_sequences:
-                    result[seq_id] = self._selected_logits(
-                        token_ids_batch[seq_id],
-                        batch_index=batch_index,
-                    )
-            offset += len(chunk)
+        for candidate_index, input_ids in enumerate(input_ids_batch):
+            if len(input_ids) == prefix_len:
+                result[candidate_index] = self._selected_logits(
+                    token_ids_batch[candidate_index]
+                )
+
+        prefix_state = self._capture_sequence_state(0)
+        snapshot_size = len(prefix_state)
+        restore_count = 0
+        live_prefix_state = True
+
+        for candidate_index, input_ids in enumerate(input_ids_batch):
+            suffix = input_ids[prefix_len:]
+            if not suffix:
+                continue
+            if not live_prefix_state:
+                self._clear_scoring_state()
+                self._restore_sequence_state(prefix_state, 0)
+                restore_count += 1
+
+            self._decode_tokens(suffix, seq_id=0, n_past=prefix_len)
+            result[candidate_index] = self._selected_logits(
+                token_ids_batch[candidate_index]
+            )
+            live_prefix_state = False
 
         if any(row is None for row in result):
-            raise RuntimeError("llama.cpp shared batch did not produce all candidate logits")
+            raise RuntimeError(
+                "llama.cpp sequence-state reuse did not produce all candidate logits"
+            )
 
         logical = sum(len(row) for row in input_ids_batch)
         self._metrics["logical_input_tokens"] += logical
         self._metrics["physically_evaluated_tokens"] += physical
         self._metrics["reused_prefix_tokens"] += logical - physical
         self._metrics["shared_prefix_calls"] += 1
+        self._metrics["prefix_state_snapshot_bytes"] += snapshot_size
+        self._metrics["prefix_state_restore_bytes"] += snapshot_size * restore_count
+        self._metrics["prefix_state_restores"] += restore_count
         return [row for row in result if row is not None]
 
     def generate(
@@ -652,7 +621,7 @@ class LlamaCppBackend:
             "memory_metric": "process_max_rss",
             "zero_generation_native_scoring": True,
             "shared_context_state": True,
-            "shared_prefix_primitive": "flat_multi_sequence_batch",
+            "shared_prefix_primitive": "single_sequence_state_snapshot_restore",
             "selected_vocab_projection": False,
             "logit_readout": "full_final_position_vocab_then_select",
         }

@@ -8,7 +8,6 @@ import pytest
 from decisio.backends.llama_cpp import (
     LlamaCppBackend,
     LlamaCppBackendConfig,
-    _build_shared_batch_rows,
     _NativeLlamaCppRuntime,
 )
 
@@ -122,7 +121,10 @@ def test_identity_is_path_free_and_hashes_artifact(tmp_path: Path):
     assert str(tmp_path) not in str(identity)
     assert identity["selected_vocab_projection"] is False
     assert identity["shared_context_state"] is True
-    assert identity["shared_prefix_primitive"] == "flat_multi_sequence_batch"
+    assert (
+        identity["shared_prefix_primitive"]
+        == "single_sequence_state_snapshot_restore"
+    )
 
 
 def test_tokenizer_uses_runtime_chat_template_and_no_implicit_bos(tmp_path: Path):
@@ -193,48 +195,57 @@ class _FakeBatchOwner:
         self.batch = _FakeBatchData(n_tokens=n_tokens, n_seq_max=n_seq_max)
 
 
-def test_native_batch_attaches_common_prefix_to_all_candidate_sequences():
+def test_native_batch_is_single_sequence():
     runtime = object.__new__(_NativeLlamaCppRuntime)
     runtime.n_seq_max = 4
     runtime._batch = _FakeBatchOwner(n_tokens=8, n_seq_max=4)
 
-    runtime._set_batch((11, 12, 13), seq_ids=(0, 1, 2), n_past=7)
+    runtime._set_batch((11, 12, 13), seq_id=0, n_past=7)
 
     batch = runtime._batch.batch
     assert batch.n_tokens == 3
     assert batch.token[:3] == [11, 12, 13]
     assert batch.pos[:3] == [7, 8, 9]
-    assert batch.n_seq_id[:3] == [3, 3, 3]
-    assert [row[:3] for row in batch.seq_id[:3]] == [[0, 1, 2]] * 3
+    assert batch.n_seq_id[:3] == [1, 1, 1]
+    assert [row[0] for row in batch.seq_id[:3]] == [0, 0, 0]
     assert batch.logits[:3] == [False, False, True]
 
 
+class _FakeSequenceStateApi:
+    def __init__(self):
+        self.restored = []
 
-def test_shared_batch_rows_match_llama_multiple_choice_layout():
-    rows = _build_shared_batch_rows(
-        [(1, 2, 3, 4), (1, 2, 5, 6, 7)],
-        prefix_len=2,
-    )
+    def llama_state_seq_get_size(self, ctx, seq_id):
+        del ctx, seq_id
+        return 4
 
-    assert [
-        (row.token, row.position, row.seq_ids, row.output_sequences)
-        for row in rows
-    ] == [
-        (1, 0, (0, 1), ()),
-        (2, 1, (0, 1), ()),
-        (3, 2, (0,), ()),
-        (4, 3, (0,), (0,)),
-        (5, 2, (1,), ()),
-        (6, 3, (1,), ()),
-        (7, 4, (1,), (1,)),
-    ]
+    def llama_state_seq_get_data(self, ctx, dst, size, seq_id):
+        del ctx, seq_id
+        payload = b"test"
+        assert size == len(payload)
+        for index, value in enumerate(payload):
+            dst[index] = value
+        return size
+
+    def llama_state_seq_set_data(self, ctx, src, size, seq_id):
+        del ctx
+        self.restored.append((bytes(src[:size]), seq_id))
+        return size
 
 
-def test_shared_batch_rows_can_emit_logits_from_exact_prefix():
-    rows = _build_shared_batch_rows(
-        [(1, 2), (1, 2, 3)],
-        prefix_len=2,
-    )
+class _FakeScoreContext:
+    ctx = object()
 
-    assert rows[1].output_sequences == (0,)
-    assert rows[2].output_sequences == (1,)
+
+def test_native_sequence_state_round_trip_uses_llama_state_api():
+    runtime = object.__new__(_NativeLlamaCppRuntime)
+    runtime._llama_cpp = _FakeSequenceStateApi()
+    runtime._score_ctx = _FakeScoreContext()
+
+    state = runtime._capture_sequence_state(0)
+    restored = runtime._restore_sequence_state(state, 0)
+
+    assert bytes(state) == b"test"
+    assert restored == 4
+    assert runtime._llama_cpp.restored == [(b"test", 0)]
+

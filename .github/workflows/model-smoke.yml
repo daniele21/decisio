@@ -75,7 +75,7 @@ jobs:
           assert identity["quantization"] == "Q4_K_M", identity
           assert identity["selected_vocab_projection"] is False, identity
           assert identity["shared_context_state"] is True, identity
-          assert identity["shared_prefix_primitive"] == "flat_multi_sequence_batch", identity
+          assert identity["shared_prefix_primitive"] == "single_sequence_state_snapshot_restore", identity
           PY
       - name: Diagnose single-sequence prefix split against fresh
         run: |
@@ -216,6 +216,8 @@ jobs:
               assert binary_delta <= 1e-4, evidence
               assert distribution_delta <= 1e-4, evidence
               assert shared_metrics["reused_prefix_tokens"] > 0, evidence
+              assert shared_metrics["prefix_state_snapshot_bytes"] > 0, evidence
+              assert shared_metrics["prefix_state_restores"] > 0, evidence
               assert (
                   shared_metrics["physically_evaluated_tokens"]
                   < shared_metrics["logical_input_tokens"]
