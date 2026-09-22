@@ -5,96 +5,124 @@ Owner: repository
 
 ## Current milestone
 
-Decide whether comparative semantic v2 is a strong enough default on the pinned Qwen3.5-4B reference model, while keeping the repository reproducible and integration-ready.
+Migrate Decisio's reference runtime from PyTorch/Transformers BF16 to local GGUF inference through
+llama.cpp, then rerun the frozen scorer decision on the runtime/artifact class that defines the
+product.
+
+Active plan: [llama.cpp reference runtime migration](workstreams/llama-cpp-reference-runtime.md).
 
 ## Active workstreams
 
 | Workstream | Current executable slice | State | Blocker |
 | --- | --- | --- | --- |
-| Product foundation | Consolidated product + scorer + hardening candidate | ACTIVE | final PR #1 validation and deliberate integration to `main` |
-| Scorer decision | Frozen v2/v1/letters/generated gate + order reversal | ACTIVE | full Qwen3.5-4B BF16 CPU gate on final PR #1 head |
-| Runtime | Candidate batching + selected-vocabulary projection | ACTIVE | shared-prefix/cache reuse not implemented |
-| Repository quality | Root Decisio baseline, locked setup, health/package gates | ACTIVE | final PR #1 integration to `main` |
-| Examples | Snake, support routing and policy gate | ACTIVE | examples remain exploratory rather than quality evidence |
+| llama.cpp reference runtime | W1 compatibility spike on Qwen3.5-4B Q4_K_M GGUF | ACTIVE | prove tokenizer/logit/generation primitives through the in-process llama.cpp bridge |
+| Scorer decision | Preserve frozen 64-case workload and precommitted promotion semantics | BLOCKED | llama.cpp backend + gate-v2 runtime/artifact identity |
+| Product foundation | Consolidated product/scorer/repository candidate in PR #1 | ACTIVE | llama.cpp migration and new representative evidence |
+| Repository quality | Root Decisio baseline, locked setup, health/package gates | ACTIVE | final exact-head integration after runtime migration |
+| Examples | Snake, support routing and policy gate | ACTIVE | examples remain exploratory rather than scorer-quality evidence |
 
-## Implemented on the active branches
+## Product/runtime decision
 
-### Decision path
+The v1 canonical runtime target is now:
+
+- Qwen3.5-4B;
+- Q4_K_M GGUF;
+- llama.cpp through an in-process backend;
+- CPU-only representative scorer gate;
+- exact GGUF SHA-256 plus llama.cpp/binding/build and host/thread provenance.
+
+The exact reference artifact SHA and runtime build are intentionally not frozen until W1 proves the
+candidate artifact and binding can satisfy Decisio's scorer primitives.
+
+The existing PyTorch/Transformers implementation remains in the branch as the current executable
+migration source. It is no longer the product authority for choosing the stable scorer.
+
+## Implemented today
+
+### Decision semantics
 
 - strict choice/request/result contracts with deterministic JSON state validation;
 - comparative semantic v2 scorer and independent semantic v1 baseline;
 - direct A/B/C baseline and generated JSON baseline;
 - deterministic compiler and one-token readout verification;
-- Qwen3.5 Transformers backend pinned to an exact model revision;
-- one-batch candidate scoring and selected-vocabulary projection;
 - deterministic candidate-ID tie breaking;
 - zero generated answer tokens on native scoring paths;
-- scorer/model/prompt provenance and frozen input SHA-256.
+- frozen input/provenance infrastructure.
 
-### Evidence
+### Current runtime implementation
 
-- frozen 64-example scorer-gate v1 workload across four semantic families;
+- Qwen3.5 PyTorch/Transformers backend;
+- candidate batching and selected-vocabulary projection;
+- CPU timing, p50/p95, throughput and process peak RSS;
+- hosted 0.8B real-model smoke and scorer-matrix smoke.
+
+These runtime details are migration source evidence, not the target v1 runtime contract.
+
+### Evidence harness
+
+- frozen 64-example workload across four semantic families;
 - paired correctness and exact McNemar/binomial evidence;
 - normal/reversed candidate-order comparison;
 - generated-output invalid-rate accounting;
-- repeated performance trials with warm-up, balanced scorer position, CPU wall-clock timing, p50/p95 workload latency, decisions/sec and process peak RSS;
-- deterministic `scorer-gate-v1` evaluator that applies the precommitted quality, family, order-robustness, zero-generation and generation-latency criteria;
-- 8-case Qwen3.5-0.8B hosted-CPU directional scorer matrix;
-- real-model semantic/Snake integration smoke;
-- trace-backed Snake MP4 with board + decision evidence hierarchy inspired by Rizzo Flow Snake, without adding a browser UI surface.
+- deterministic scorer-gate evaluator with quality, family, order-robustness,
+  zero-generation and generation-latency criteria.
 
-### Repository
+The workload and gate semantics should be preserved across the runtime migration unless a genuine
+fixture/measurement defect is found before representative llama.cpp results exist.
 
-- `uv.lock` with frozen setup and lock verification;
-- Apache-2.0 license, contribution/security guidance and Decisio-specific changelog/version;
-- root `.engineering`, `skills/` and `scripts/` as the operational engineering authority;
-- Repository health and integration-preflight workflows;
-- CI lint/test/compile plus wheel build/install smoke;
-- current-vs-target architecture separated in documentation;
-- inherited repo-template contracts removed from the repository root;
-- embedded `template/` retained only as baseline source material.
+## Evidence status
 
-## Last validated automated evidence
+Support PRs #2–#4 were converged into PR #1 with exact-head integration evidence before the runtime
+decision changed.
 
-Support PR convergence completed in order `#4 → #3 → #2 → #1`. Before each squash, the
-owning ready candidate passed its exact-head Integration preflight. The latest pre-convergence
-support evidence was scorer-gate head `0fc1c5bfd21bfec769507c6f9720717d45046475`:
+PR #1 is now deliberately **draft** again because the reference runtime and scientific evidence
+contract are being changed.
 
-- Repository health: PASS — run `35680410563`;
-- Decisio CI: PASS — run `35680410712`;
-- Integration preflight: PASS — run `35680427750`.
+The previously triggered Qwen3.5-4B BF16/Transformers CPU gate (run `35680562215`) is
+non-authoritative for scorer promotion after this decision. It may remain useful as historical or
+directional comparison evidence, but it cannot make semantic v2 the stable default.
 
-The sole remaining integration candidate is PR #1 on the consolidated product branch. Its current
-head must produce fresh exact-head validation after this state update.
-
-Latest completed directional scorer-matrix evidence remains the hosted-CPU Qwen3.5-0.8B run on
-`be12009660f7bd9c22cef3d7e7979a9cfe36371f`: all four methods scored 7/8; v2/v1 had 0/8
-order changes, letters 1/8 and generated JSON 2/8. This is integration/directional evidence only.
+Latest completed 0.8B hosted-CPU scorer-matrix evidence also remains directional only.
 
 ## Remaining blockers
 
-### Scorer decision
+### W1 — llama.cpp compatibility
 
-- The frozen 64-case Qwen3.5-4B BF16 CPU gate has not yet run under the full pinned CPU evidence contract.
-- No stable-default conclusion should be made until that evidence exists.
-- Broader paraphrase/wrapping, irrelevant-context, missing-evidence and candidate-count perturbations remain after the first scorer decision.
+- load an exact local Qwen3.5-4B Q4_K_M GGUF;
+- capture its SHA-256 and runtime/model metadata;
+- verify GGUF/runtime tokenization for all scorer readout tokens;
+- obtain next-token logits for semantic-v2/v1 and letters;
+- run generated JSON through the same loaded llama.cpp model;
+- prove deterministic 8-case CPU smoke behavior.
 
-### Product capability
+### W2/W3 — runtime and gate contract
 
-- Answerability is not implemented.
-- Shared-prefix/cache execution and multi-question reuse are not implemented.
-- Candidate batching still repeats shared prompt tokens across batch rows.
-- Stable high-level Python API is intentionally deferred until scorer semantics are decided.
+- replace the reference Transformers backend with a stable llama.cpp backend contract;
+- make local GGUF path the reference CLI flow;
+- freeze exact Q4_K_M artifact/runtime identity;
+- version the scorer gate for llama.cpp/GGUF;
+- preserve probability honesty: no calibrated-probability claim without a matching calibration
+  artifact.
 
-### Repository/integration
+### W4 — representative scorer decision
 
-- Support PRs #2–#4 are converged and closed; PR #1 is now the only candidate toward `main`.
-- PR #1 still needs fresh exact-head Integration preflight plus the full 64-case 4B CPU scorer-gate evidence. The existing 0.8B hosted CPU smoke cannot satisfy that gate.
+- run the full frozen 64-case matrix on the pinned Q4_K_M + llama.cpp CPU configuration;
+- apply the precommitted evaluator;
+- keep v2 experimental if any criterion fails rather than weakening thresholds after the result.
+
+### Later product capability
+
+- answerability;
+- shared state/question reuse through llama.cpp sequence/cache primitives;
+- multi-question reuse;
+- optional calibration bound to exact GGUF/scorer/compiler/runtime identity;
+- stable high-level Python API after scorer semantics survive the new gate.
 
 ## Next
 
-1. Mark consolidated PR #1 ready and run exact-head Integration preflight.
-2. Run the repository-owned frozen 64-case scorer gate on pinned Qwen3.5-4B BF16 CPU.
-3. Apply the committed gate evaluator and decide whether comparative semantic v2 remains the default scorer.
-4. If v2 survives, stabilize the small public Python entry point; if it fails, analyze discordant rows before expanding the API.
-5. Continue broader perturbations, answerability and shared-prefix/cache work in that order.
+1. Execute W1 from `docs/workstreams/llama-cpp-reference-runtime.md`.
+2. If the in-process binding proves sufficient, implement W2 and remove Torch/Transformers from the
+   reference path; otherwise use the smallest direct libllama bridge.
+3. Freeze scorer-gate v2 artifact/runtime identity before representative results exist.
+4. Run the full CPU gate and decide semantic v2 from that evidence.
+5. Only then return PR #1 to ready-for-review and run exact-head integration preflight.
