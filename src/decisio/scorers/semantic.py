@@ -25,6 +25,16 @@ def _score_compiled(
     ]
     shared_method = getattr(backend, "shared_prefix_batch_next_token_logits", None)
     if callable(shared_method):
+        reusable_prefix_lens = {item.reusable_prefix_len for item in compiled}
+        reusable_prefix_len = (
+            reusable_prefix_lens.pop() if len(reusable_prefix_lens) == 1 else None
+        )
+        if getattr(backend, "supports_reusable_prefix_hint", False):
+            return shared_method(
+                input_ids_batch,
+                token_ids_batch,
+                reusable_prefix_len=reusable_prefix_len,
+            )
         return shared_method(input_ids_batch, token_ids_batch)
 
     batch_method = getattr(backend, "batch_next_token_logits", None)
