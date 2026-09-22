@@ -135,6 +135,32 @@ def _longest_common_prefix(rows: Sequence[tuple[int, ...]]) -> int:
     return limit
 
 
+def _shared_prefix_plan(
+    *,
+    common_prefix_len: int,
+    reusable_prefix_len: int | None,
+    max_input_len: int,
+    n_batch: int,
+) -> tuple[int, int | None]:
+    if common_prefix_len < 1:
+        return 0, None
+    if max_input_len <= n_batch:
+        # The pinned short-prompt path is already fresh-equivalent. Do not create
+        # an inter-request checkpoint inside its single native decode batch.
+        return common_prefix_len, None
+
+    aligned_common = (common_prefix_len // n_batch) * n_batch
+    if aligned_common < 1:
+        return 0, None
+
+    if reusable_prefix_len is not None:
+        reusable_limit = min(common_prefix_len, reusable_prefix_len)
+        aligned_reusable = (reusable_limit // n_batch) * n_batch
+        if aligned_reusable > 0:
+            return aligned_reusable, aligned_reusable
+    return aligned_common, None
+
+
 @dataclass(slots=True)
 class _CachedSequenceState:
     tokens: tuple[int, ...]
@@ -484,7 +510,13 @@ class _NativeLlamaCppRuntime:
         ):
             self._validate(input_ids, token_ids)
 
-        prefix_len = _longest_common_prefix(input_ids_batch)
+        common_prefix_len = _longest_common_prefix(input_ids_batch)
+        prefix_len, cache_prefix_len = _shared_prefix_plan(
+            common_prefix_len=common_prefix_len,
+            reusable_prefix_len=reusable_prefix_len,
+            max_input_len=max(len(row) for row in input_ids_batch),
+            n_batch=self.n_batch,
+        )
         if prefix_len < 1:
             return [
                 self.next_token_logits(input_ids, token_ids)
@@ -494,13 +526,13 @@ class _NativeLlamaCppRuntime:
             ]
 
         prefix = input_ids_batch[0][:prefix_len]
-        cache_key = self._repeated_cache_key(prefix, reusable_prefix_len)
+        cache_key = self._repeated_cache_key(prefix, cache_prefix_len)
         cache_entry = None
         cache_reused_tokens = 0
 
-        # Preserve the already-proven miss path exactly. On a cache hit, restore a
-        # compiler-proven single-sequence checkpoint and evaluate only the remaining
-        # common prompt. A miss never inserts an intermediate snapshot into scoring.
+        # Long prompts branch only on native decode boundaries. This preserves the
+        # same 0,n_batch,2*n_batch... chunk schedule as fresh evaluation while
+        # keeping compiler semantics as an upper bound on reusable state.
         self._clear_scoring_state()
         if cache_key is not None:
             cache_entry = self._lookup_repeated_prefix_state(cache_key)
@@ -526,6 +558,8 @@ class _NativeLlamaCppRuntime:
 
         prefix_state = self._capture_sequence_state(0)
         self._metrics["prefix_state_snapshot_bytes"] += len(prefix_state)
+        if cache_key is not None and cache_entry is None:
+            self._store_repeated_prefix_state(cache_key, prefix_state)
         live_prefix_state = True
 
         for candidate_index, input_ids in enumerate(input_ids_batch):
@@ -549,23 +583,11 @@ class _NativeLlamaCppRuntime:
                 "llama.cpp sequence-state reuse did not produce all candidate logits"
             )
 
-        cache_build_tokens = 0
-        if cache_key is not None and cache_entry is None:
-            # Prime separately after scoring so cache construction cannot perturb
-            # the fresh-equivalent candidate path on a miss.
-            self._clear_scoring_state()
-            self._decode_tokens(cache_key, seq_id=0, n_past=0)
-            cached_state = self._capture_sequence_state(0)
-            self._metrics["prefix_state_snapshot_bytes"] += len(cached_state)
-            self._store_repeated_prefix_state(cache_key, cached_state)
-            cache_build_tokens = len(cache_key)
-
         logical = sum(len(row) for row in input_ids_batch)
         physical = (
             prefix_len
             - cache_reused_tokens
             + sum(len(input_ids) - prefix_len for input_ids in input_ids_batch)
-            + cache_build_tokens
         )
         self._metrics["logical_input_tokens"] += logical
         self._metrics["physically_evaluated_tokens"] += physical
