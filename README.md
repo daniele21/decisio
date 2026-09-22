@@ -396,6 +396,38 @@ semantic preference
 A probabilistic model should not overrule facts such as a wall collision, an invalid state transition
 or an explicit authorization rule.
 
+## Why shared context state matters
+
+Zero answer generation removes decoding work, but repeated **prefill** can still dominate CPU
+latency. Decisio therefore treats shared context-state reuse as part of the v1 runtime, not a later
+micro-optimization.
+
+```text
+long state + question + alternatives
+              │
+         prefill once
+              │
+      reusable model state
+       /       |       \
+      A        B        C
+      │        │        │
+   YES/NO   YES/NO   YES/NO
+```
+
+For repeated decisions, the target is also to retain a bounded prefix state so a long unchanged
+state is not recomputed for every new question.
+
+> **IMAGE PLACEHOLDER — Shared context-state reuse**  
+> Show two panels. Left: naive execution repeats the same long state separately for candidates A/B/C
+> and for later questions; visually repeat a large “STATE” block and label it “re-prefill”.
+> Right: Decisio + llama.cpp prefills STATE once, keeps a reusable model-context block, then branches
+> into questions and candidate suffixes. Label the cache “KV + hybrid/recurrent model state”, not
+> merely “KV cache”. Add metrics below: logical tokens, physically evaluated tokens, reuse rate,
+> fresh-vs-shared equivalence. Do not print speedup numbers until measured.
+
+Fresh evaluation remains the oracle: the shared fast path becomes default only after it preserves
+the same choice and keeps score/probability deltas within a declared tolerance.
+
 ## Target architecture
 
 ```mermaid
@@ -458,6 +490,8 @@ Active migration:
 
 - Qwen3.5-4B Q4_K_M GGUF compatibility spike;
 - in-process llama.cpp backend;
+- shared candidate-prefix branching and bounded repeated-state cache;
+- fresh-vs-shared equivalence plus physical-token/reuse metrics;
 - local-GGUF CLI path;
 - exact GGUF/runtime provenance;
 - scorer-gate v2 on CPU.
@@ -466,7 +500,7 @@ Still pending after the reference runtime is established:
 
 - broader perturbation coverage;
 - answerability;
-- shared state/question reuse;
+- scaled multi-question scheduling;
 - calibration;
 - stable high-level Python API;
 - representative release/runtime evidence.
