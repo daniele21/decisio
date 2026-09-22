@@ -195,9 +195,13 @@ Ask the same reference model to generate the smallest valid structured answer. T
 
 Baselines are evaluation paths first; Decisio's public runtime should default to the primary semantic scorer rather than expose every experimental method as permanent API surface.
 
-## Shared execution (planned)
+## Shared context-state execution
 
-The target optimization is hierarchical reuse:
+Shared execution is a v1 runtime requirement because repeated prefilling can dominate local CPU
+latency. The runtime must reuse **model context state**, not assume a classic KV-only cache: Qwen3.5
+mixes attention with recurrent/DeltaNet-style state.
+
+The target reuse hierarchy is:
 
 ```text
 state
@@ -206,9 +210,18 @@ state
           -> candidate micro-batch
 ```
 
-Implementation should initially prefer the simplest cache boundary proven correct for Qwen 3.5.
+There are two required reuse levels:
 
-Correctness comes before maximum cache reuse: shared execution must be continuously compared against fresh execution, because low-level cache/batching differences can move borderline logits.
+- within one decision, prefill the common candidate prefix once and branch state for candidate suffixes;
+- across decisions, keep a bounded reusable state prefix so many questions over the same long state
+  avoid repeating its prefill.
+
+The semantic scorer exposes an optional backend fast-path capability,
+`shared_prefix_batch_next_token_logits`. A backend that implements it owns exact-prefix detection,
+state branching and safe fallback.
+
+Fresh evaluation remains the correctness oracle. Shared execution must continuously report changed
+choices and score/probability deltas. Reuse is disabled for a boundary the backend cannot prove safe.
 
 ## Target component map
 
@@ -283,9 +296,9 @@ Qwen 3.5 4B is the reference implementation, not a permanent dependency boundary
 
 1. correctness-stable comparative semantic scoring on the pinned Q4_K_M llama.cpp path;
 2. explicit GGUF/runtime provenance and local model loading;
-3. candidate batching using llama.cpp-supported execution semantics;
-4. shared state/question reuse with fresh-path equivalence evidence;
-5. multi-question reuse;
+3. shared candidate-prefix branching with fresh-path equivalence;
+4. bounded repeated-state context reuse with physical-token instrumentation;
+5. scaled multi-question reuse;
 6. additional backend/quantization portability only after the reference path is proven.
 
 ## Trust and data boundaries
