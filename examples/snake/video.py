@@ -383,7 +383,7 @@ def render_frame(record: dict[str, Any], output: Path) -> None:
         choice=choice,
         x0=78,
         y0=137,
-        size=500,
+        size=470,
     )
 
     metric_y = 624
@@ -426,7 +426,7 @@ def render_frame(record: dict[str, Any], output: Path) -> None:
     selected_p = distribution.get(choice, 1.0)
     draw.text(
         (742, 184),
-        f"selected · {selected_p:.1%} relative score",
+        f"selected · {selected_p:.1%} relative preference",
         font=small_font,
         fill=PALETTE["muted"],
     )
@@ -515,6 +515,7 @@ def render_frame(record: dict[str, Any], output: Path) -> None:
 
     output.parent.mkdir(parents=True, exist_ok=True)
     image.save(output)
+
 
 def render_video(
     trace_path: Path,
