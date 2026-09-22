@@ -4,10 +4,13 @@ from __future__ import annotations
 
 import json
 import math
+import statistics
+import time
 from pathlib import Path
 from typing import Any
 
-from .benchmark import Scorer, run_benchmark
+from .benchmark import Scorer, load_jsonl, run_benchmark
+from .schema import ChoiceRequest
 
 SCORER_KEYS = ("semantic", "semantic-independent", "letters", "generated")
 PRIMARY_SCORER_KEY = "semantic"
@@ -25,6 +28,10 @@ def _load_records(path: Path) -> dict[str, dict[str, Any]]:
                 raise ValueError(f"duplicate result id {example_id!r} in {path}:{line_number}")
             records[example_id] = record
     return records
+
+
+def _load_requests(path: Path) -> list[ChoiceRequest]:
+    return [ChoiceRequest.from_dict(row) for row in load_jsonl(path)]
 
 
 def _exact_two_sided_binomial_pvalue(left_only: int, right_only: int) -> float:
@@ -110,6 +117,149 @@ def _order_sensitivity(
     }
 
 
+def _percentile(values: list[float], quantile: float) -> float:
+    if not values:
+        raise ValueError("percentile requires at least one value")
+    if not 0.0 <= quantile <= 1.0:
+        raise ValueError("quantile must be between zero and one")
+    ordered = sorted(values)
+    if len(ordered) == 1:
+        return ordered[0]
+    position = quantile * (len(ordered) - 1)
+    lower = math.floor(position)
+    upper = math.ceil(position)
+    if lower == upper:
+        return ordered[lower]
+    fraction = position - lower
+    return ordered[lower] * (1.0 - fraction) + ordered[upper] * fraction
+
+
+def _backend(scorer: Scorer) -> Any | None:
+    return getattr(scorer, "backend", None)
+
+
+def _synchronize(scorer: Scorer) -> None:
+    method = getattr(_backend(scorer), "synchronize", None)
+    if callable(method):
+        method()
+
+
+def _reset_peak_memory(scorer: Scorer) -> None:
+    method = getattr(_backend(scorer), "reset_peak_memory", None)
+    if callable(method):
+        method()
+
+
+def _peak_memory_bytes(scorer: Scorer) -> int | None:
+    method = getattr(_backend(scorer), "peak_memory_bytes", None)
+    if callable(method):
+        value = method()
+        return None if value is None else int(value)
+    return None
+
+
+def _rotate_scorer_keys(offset: int) -> tuple[str, ...]:
+    amount = offset % len(SCORER_KEYS)
+    return SCORER_KEYS[amount:] + SCORER_KEYS[:amount]
+
+
+def _run_performance_trial(
+    requests: list[ChoiceRequest],
+    scorer: Scorer,
+) -> dict[str, Any]:
+    _synchronize(scorer)
+    _reset_peak_memory(scorer)
+    started = time.perf_counter()
+    for request in requests:
+        scorer.score(request)
+    _synchronize(scorer)
+    duration = time.perf_counter() - started
+    return {
+        "duration_seconds": duration,
+        "decisions_per_second": len(requests) / duration,
+        "peak_memory_bytes": _peak_memory_bytes(scorer),
+    }
+
+
+def _run_performance_trials(
+    input_path: Path,
+    scorers: dict[str, Scorer],
+    *,
+    warmup_rounds: int,
+    measured_rounds: int,
+) -> dict[str, Any]:
+    if warmup_rounds < 0:
+        raise ValueError("warmup_rounds must be non-negative")
+    if measured_rounds < 1:
+        raise ValueError("measured_rounds must be positive")
+
+    requests = _load_requests(input_path)
+    for round_index in range(warmup_rounds):
+        for key in _rotate_scorer_keys(round_index):
+            _run_performance_trial(requests, scorers[key])
+
+    trials: dict[str, list[dict[str, Any]]] = {key: [] for key in SCORER_KEYS}
+    execution_order: list[list[str]] = []
+    for round_index in range(measured_rounds):
+        order = _rotate_scorer_keys(warmup_rounds + round_index)
+        execution_order.append(list(order))
+        for position, key in enumerate(order):
+            trial = _run_performance_trial(requests, scorers[key])
+            trials[key].append(
+                {
+                    "round": round_index + 1,
+                    "position": position + 1,
+                    **trial,
+                }
+            )
+
+    summaries: dict[str, Any] = {}
+    for key in SCORER_KEYS:
+        durations = [float(item["duration_seconds"]) for item in trials[key]]
+        throughputs = [float(item["decisions_per_second"]) for item in trials[key]]
+        memory = [
+            int(item["peak_memory_bytes"])
+            for item in trials[key]
+            if item["peak_memory_bytes"] is not None
+        ]
+        summaries[key] = {
+            "trials": trials[key],
+            "duration_seconds": {
+                "mean": statistics.fmean(durations),
+                "p50": _percentile(durations, 0.50),
+                "p95": _percentile(durations, 0.95),
+                "min": min(durations),
+                "max": max(durations),
+            },
+            "decisions_per_second": {
+                "mean": statistics.fmean(throughputs),
+                "p50": _percentile(throughputs, 0.50),
+            },
+            "peak_memory_bytes": {
+                "max": max(memory),
+                "p50": int(_percentile([float(value) for value in memory], 0.50)),
+            }
+            if memory
+            else None,
+        }
+
+    backend = _backend(scorers[PRIMARY_SCORER_KEY])
+    identity = getattr(backend, "identity", None)
+    memory_metric = identity.get("memory_metric") if isinstance(identity, dict) else None
+    return {
+        "enabled": True,
+        "timing_scope": "full normal-order workload, in-process wall clock",
+        "examples_per_trial": len(requests),
+        "warmup_rounds": warmup_rounds,
+        "measured_rounds": measured_rounds,
+        "position_balanced": measured_rounds % len(SCORER_KEYS) == 0,
+        "execution_order": execution_order,
+        "backend_identity": identity if isinstance(identity, dict) else None,
+        "memory_metric": memory_metric,
+        "scorers": summaries,
+    }
+
+
 def _render_markdown(report: dict[str, Any]) -> str:
     lines = [
         "# Decisio scorer comparison",
@@ -118,11 +268,11 @@ def _render_markdown(report: dict[str, Any]) -> str:
         f"- examples: {report['examples']}",
         f"- primary scorer: `{report['primary_scorer']}`",
         "",
-        "## Aggregate",
+        "## Quality and order robustness",
         "",
         (
             "| scorer | normal acc | reversed acc | order changes | invalid normal | "
-            "median latency normal | generated tokens |"
+            "single-pass median/example | generated tokens |"
         ),
         "| --- | ---: | ---: | ---: | ---: | ---: | ---: |",
     ]
@@ -145,6 +295,52 @@ def _render_markdown(report: dict[str, Any]) -> str:
                 ]
             )
             + " |"
+        )
+
+    performance = report["performance"]
+    if performance["enabled"]:
+        lines.extend(
+            [
+                "",
+                "## Repeated performance trials",
+                "",
+                (
+                    f"Warm-up rounds: {performance['warmup_rounds']}; measured rounds: "
+                    f"{performance['measured_rounds']}; scope: {performance['timing_scope']}."
+                ),
+                "",
+                (
+                    "| scorer | total p50 | total p95 | decisions/s p50 | peak memory"
+                    f" ({performance.get('memory_metric') or 'backend metric'}) |"
+                ),
+                "| --- | ---: | ---: | ---: | ---: |",
+            ]
+        )
+        for key in SCORER_KEYS:
+            item = performance["scorers"][key]
+            peak = item["peak_memory_bytes"]
+            peak_text = f"{peak['max'] / (1024**3):.3f} GiB" if peak is not None else "n/a"
+            lines.append(
+                "| "
+                + " | ".join(
+                    [
+                        key,
+                        f"{item['duration_seconds']['p50']:.4f}s",
+                        f"{item['duration_seconds']['p95']:.4f}s",
+                        f"{item['decisions_per_second']['p50']:.3f}",
+                        peak_text,
+                    ]
+                )
+                + " |"
+            )
+    else:
+        lines.extend(
+            [
+                "",
+                "## Repeated performance trials",
+                "",
+                "Disabled for this run. Single-pass per-example timings above are diagnostic only.",
+            ]
         )
 
     lines.extend(
@@ -184,8 +380,8 @@ def _render_markdown(report: dict[str, Any]) -> str:
             "",
             (
                 "This report is evidence, not an automatic product verdict. A stable-scorer "
-                "decision requires the pinned Qwen3.5-4B BF16/CUDA run described by the "
-                "scorer-gate methodology. Hosted CPU or smaller-model runs are "
+                "decision requires the pinned Qwen3.5-4B BF16 CPU run described by the "
+                "scorer-gate methodology. Smaller-model or non-frozen-contract runs are "
                 "integration/directional evidence only."
             ),
             "",
@@ -198,9 +394,16 @@ def run_comparison(
     input_path: Path,
     output_dir: Path,
     scorers: dict[str, Scorer],
+    *,
+    warmup_rounds: int = 0,
+    performance_rounds: int = 0,
 ) -> dict[str, Any]:
     if tuple(scorers) != SCORER_KEYS:
         raise ValueError(f"scorers must be supplied in order {SCORER_KEYS!r}")
+    if warmup_rounds < 0 or performance_rounds < 0:
+        raise ValueError("performance round counts must be non-negative")
+    if warmup_rounds and not performance_rounds:
+        raise ValueError("warmup_rounds requires performance_rounds")
     output_dir.mkdir(parents=True, exist_ok=True)
 
     summaries: dict[str, dict[str, Any]] = {}
@@ -239,13 +442,29 @@ def run_comparison(
             for perturbation in ("none", "reverse_candidates")
         }
 
+    performance = (
+        _run_performance_trials(
+            input_path,
+            scorers,
+            warmup_rounds=warmup_rounds,
+            measured_rounds=performance_rounds,
+        )
+        if performance_rounds
+        else {
+            "enabled": False,
+            "warmup_rounds": warmup_rounds,
+            "measured_rounds": 0,
+        }
+    )
+
     report = {
-        "schema_version": 1,
+        "schema_version": 2,
         "primary_scorer": PRIMARY_SCORER_KEY,
         "input_sha256": primary["input_sha256"],
         "examples": primary["examples"],
         "scorers": summaries,
         "paired_vs_primary": paired,
+        "performance": performance,
     }
     (output_dir / "comparison.json").write_text(
         json.dumps(report, ensure_ascii=False, indent=2, sort_keys=True) + "\n",

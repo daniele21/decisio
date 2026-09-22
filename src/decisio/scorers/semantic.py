@@ -10,7 +10,7 @@ from decisio.compiler import (
     compile_independent_semantic_candidate,
     compile_semantic_candidate,
 )
-from decisio.math import binary_log_odds, softmax
+from decisio.math import binary_log_odds, softmax, stable_argmax
 from decisio.schema import ChoiceRequest, DecisionResult
 
 
@@ -61,7 +61,7 @@ class _BaseSemanticScorer:
             candidate.id: probability
             for candidate, probability in zip(request.candidates, probabilities, strict=True)
         }
-        choice = max(distribution, key=distribution.__getitem__)
+        choice = stable_argmax(distribution)
         return DecisionResult(
             choice=choice,
             distribution=distribution,

@@ -2,8 +2,31 @@
 
 from __future__ import annotations
 
+import json
+import math
 from dataclasses import dataclass, field
 from typing import Any
+
+
+def _require_non_empty_string(value: Any, *, field_name: str) -> str:
+    if not isinstance(value, str):
+        raise ValueError(f"{field_name} must be a string")
+    if not value.strip():
+        raise ValueError(f"{field_name} must be non-empty")
+    return value
+
+
+def _validate_json_state(value: Any) -> None:
+    try:
+        json.dumps(
+            value,
+            ensure_ascii=False,
+            sort_keys=True,
+            separators=(",", ":"),
+            allow_nan=False,
+        )
+    except (TypeError, ValueError) as exc:
+        raise ValueError("state must be deterministic JSON-serializable data") from exc
 
 
 @dataclass(frozen=True, slots=True)
@@ -12,14 +35,20 @@ class Candidate:
     description: str
 
     def __post_init__(self) -> None:
-        if not self.id or not self.id.strip():
-            raise ValueError("candidate id must be non-empty")
-        if not self.description or not self.description.strip():
-            raise ValueError(f"candidate {self.id!r} description must be non-empty")
+        _require_non_empty_string(self.id, field_name="candidate id")
+        _require_non_empty_string(self.description, field_name=f"candidate {self.id!r} description")
 
     @classmethod
     def from_dict(cls, value: dict[str, Any]) -> Candidate:
-        return cls(id=str(value["id"]), description=str(value["description"]))
+        if not isinstance(value, dict):
+            raise ValueError("candidate must be an object")
+        return cls(
+            id=_require_non_empty_string(value.get("id"), field_name="candidate id"),
+            description=_require_non_empty_string(
+                value.get("description"),
+                field_name="candidate description",
+            ),
+        )
 
     def to_dict(self) -> dict[str, str]:
         return {"id": self.id, "description": self.description}
@@ -33,23 +62,33 @@ class ChoiceRequest:
     id: str | None = None
 
     def __post_init__(self) -> None:
-        if not self.question or not self.question.strip():
-            raise ValueError("question must be non-empty")
+        _validate_json_state(self.state)
+        _require_non_empty_string(self.question, field_name="question")
+        if self.id is not None:
+            _require_non_empty_string(self.id, field_name="request id")
         if len(self.candidates) < 2:
             raise ValueError("choice requires at least two candidates")
         ids = [candidate.id for candidate in self.candidates]
         if len(ids) != len(set(ids)):
             raise ValueError("candidate ids must be unique")
+        descriptions = [candidate.description.strip() for candidate in self.candidates]
+        if len(descriptions) != len(set(descriptions)):
+            raise ValueError("candidate descriptions must be unique")
 
     @classmethod
     def from_dict(cls, value: dict[str, Any]) -> ChoiceRequest:
+        if not isinstance(value, dict):
+            raise ValueError("choice request must be an object")
         raw = value.get("candidates")
         if not isinstance(raw, list):
             raise ValueError("candidates must be a list")
+        request_id = value.get("id")
+        if request_id is not None:
+            request_id = _require_non_empty_string(request_id, field_name="request id")
         return cls(
-            id=str(value["id"]) if value.get("id") is not None else None,
+            id=request_id,
             state=value.get("state"),
-            question=str(value["question"]),
+            question=_require_non_empty_string(value.get("question"), field_name="question"),
             candidates=tuple(Candidate.from_dict(item) for item in raw),
         )
 
@@ -76,13 +115,30 @@ class DecisionResult:
     model: dict[str, Any] = field(default_factory=dict)
 
     def __post_init__(self) -> None:
+        _require_non_empty_string(self.choice, field_name="choice")
+        _require_non_empty_string(self.scorer, field_name="scorer")
+        _require_non_empty_string(self.probability_status, field_name="probability_status")
         if self.generated_tokens != 0:
             raise ValueError("native Decisio scoring must not report generated answer tokens")
         if self.choice not in self.distribution:
             raise ValueError("choice must be present in distribution")
         if set(self.distribution) != set(self.scores):
             raise ValueError("distribution and scores must cover the same candidates")
-        total = sum(self.distribution.values())
+        if not self.distribution:
+            raise ValueError("distribution must not be empty")
+        if any(
+            not isinstance(value, (int, float))
+            or not math.isfinite(float(value))
+            or not 0.0 <= float(value) <= 1.0
+            for value in self.distribution.values()
+        ):
+            raise ValueError("distribution values must be finite values between zero and one")
+        if any(
+            not isinstance(value, (int, float)) or not math.isfinite(float(value))
+            for value in self.scores.values()
+        ):
+            raise ValueError("scores must be finite numbers")
+        total = math.fsum(float(value) for value in self.distribution.values())
         if abs(total - 1.0) > 1e-6:
             raise ValueError(f"distribution must sum to one, got {total}")
 
