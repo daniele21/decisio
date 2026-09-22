@@ -66,12 +66,9 @@ A separate answerability judgment estimates whether the state contains enough in
 
 ## Reference runtime
 
-Decisio v1 targets Qwen 3.5 4B Q4_K_M GGUF through llama.cpp on CPU. Representative evidence binds
-to the exact GGUF, runtime/build, host and scorer/compiler identity; BF16/Transformers evidence is
-not equivalent.
-
-llama.cpp owns inference. Decisio owns scoring semantics, provenance and probability status.
-Normalized scores remain uncalibrated unless a calibration artifact matches that exact identity.
+v1 uses Qwen 3.5 4B Q4_K_M GGUF via llama.cpp on CPU. Promotion evidence pins the exact
+artifact/runtime/host/scorer identity; BF16/Transformers is not equivalent. Scores remain
+uncalibrated unless a calibration artifact matches that identity.
 
 ## Meaningful differentiation
 
