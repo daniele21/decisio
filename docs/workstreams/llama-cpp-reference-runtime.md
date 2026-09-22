@@ -156,13 +156,20 @@ Acceptance:
 
 The scorer prefers `shared_prefix_batch_next_token_logits(...)`. The llama.cpp backend now
 implements candidate branching with a dedicated multi-sequence scoring context that shares the
-loaded model weights with the generation context. It evaluates the exact token common-prefix once
-with every prefix token assigned to every candidate sequence ID in the same llama.cpp batch,
-matching llama.cpp's multiple-choice/HellaSwag pattern and preserving hybrid model state without
-KV-only sequence copying. Each candidate suffix is then evaluated only on its own sequence.
+loaded model weights with the generation context. It builds the same flat logical batch shape used
+by llama.cpp's multiple-choice/HellaSwag path: common-prefix token rows belong to every candidate
+sequence, followed by each candidate suffix on its own sequence. Decoding is split only at
+`n_batch` boundaries, so hybrid recurrent rollback/snapshot handling stays inside llama.cpp rather
+than being reconstructed by Decisio. No KV-only sequence copying is used.
 
-The remaining W3 work is real-model fresh-equivalence evidence for this multi-sequence primitive
-plus a bounded checkpoint/cache boundary for reusing an unchanged long state across later questions.
+Run `35715986281` proved that merely attaching the prefix to all sequences while decoding suffixes
+in separate calls still reproduced the old numerical mismatch, despite 40.4% physical-token reuse.
+The flat-batch form is therefore the next discriminating experiment; the predeclared fresh-equivalence
+tolerances remain unchanged.
+
+The remaining W3 work is real-model fresh-equivalence evidence for this flat multi-sequence
+primitive plus a bounded checkpoint/cache boundary for reusing an unchanged long state across later
+questions.
 
 ## W4/W5 scorer gate
 

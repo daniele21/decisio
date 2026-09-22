@@ -9,6 +9,7 @@ from decisio.backends.llama_cpp import (
     LlamaCppBackend,
     LlamaCppBackendConfig,
     _NativeLlamaCppRuntime,
+    _build_shared_batch_rows,
 )
 
 
@@ -121,7 +122,7 @@ def test_identity_is_path_free_and_hashes_artifact(tmp_path: Path):
     assert str(tmp_path) not in str(identity)
     assert identity["selected_vocab_projection"] is False
     assert identity["shared_context_state"] is True
-    assert identity["shared_prefix_primitive"] == "multi_sequence_batch_membership"
+    assert identity["shared_prefix_primitive"] == "flat_multi_sequence_batch"
 
 
 def test_tokenizer_uses_runtime_chat_template_and_no_implicit_bos(tmp_path: Path):
@@ -206,3 +207,34 @@ def test_native_batch_attaches_common_prefix_to_all_candidate_sequences():
     assert batch.n_seq_id[:3] == [3, 3, 3]
     assert [row[:3] for row in batch.seq_id[:3]] == [[0, 1, 2]] * 3
     assert batch.logits[:3] == [False, False, True]
+
+
+
+def test_shared_batch_rows_match_llama_multiple_choice_layout():
+    rows = _build_shared_batch_rows(
+        [(1, 2, 3, 4), (1, 2, 5, 6, 7)],
+        prefix_len=2,
+    )
+
+    assert [
+        (row.token, row.position, row.seq_ids, row.output_sequences)
+        for row in rows
+    ] == [
+        (1, 0, (0, 1), ()),
+        (2, 1, (0, 1), ()),
+        (3, 2, (0,), ()),
+        (4, 3, (0,), (0,)),
+        (5, 2, (1,), ()),
+        (6, 3, (1,), ()),
+        (7, 4, (1,), (1,)),
+    ]
+
+
+def test_shared_batch_rows_can_emit_logits_from_exact_prefix():
+    rows = _build_shared_batch_rows(
+        [(1, 2), (1, 2, 3)],
+        prefix_len=2,
+    )
+
+    assert rows[1].output_sequences == (0,)
+    assert rows[2].output_sequences == (1,)

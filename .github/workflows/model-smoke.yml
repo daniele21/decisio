@@ -75,7 +75,7 @@ jobs:
           assert identity["quantization"] == "Q4_K_M", identity
           assert identity["selected_vocab_projection"] is False, identity
           assert identity["shared_context_state"] is True, identity
-          assert identity["shared_prefix_primitive"] == "multi_sequence_batch_membership", identity
+          assert identity["shared_prefix_primitive"] == "flat_multi_sequence_batch", identity
           PY
       - name: Compare shared-prefix path with fresh reference
         run: |
