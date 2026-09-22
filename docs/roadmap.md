@@ -13,15 +13,15 @@ Implementation order must optimize for learning. Performance engineering that do
 
 ## Milestone 0 — Reproducible decision laboratory
 
-**Implementation status:** core code complete on the product branch; full Qwen3.5-4B BF16 CPU scorer-gate evidence pending.
+**Implementation status:** scorer/compiler core exists, but the reference runtime is being migrated from PyTorch/Transformers BF16 to llama.cpp with a pinned Qwen3.5-4B Q4_K_M GGUF. Representative scorer evidence is pending on that path.
 
 Goal: establish a trustworthy baseline before building a service.
 
 Features:
 
 - Python package managed with `uv`;
-- pinned Qwen 3.5 4B reference revision;
-- PyTorch reference backend with CPU scorer-gate execution and optional CUDA device support;
+- pinned Qwen 3.5 4B Q4_K_M GGUF artifact SHA-256;
+- pinned llama.cpp runtime/build identity with an in-process backend and CPU scorer-gate execution;
 - deterministic request/compiler representation;
 - direct A/B/C answer-token scorer baseline;
 - comparative semantic candidate Yes/No log-odds scorer;
@@ -143,17 +143,17 @@ Indicative request:
 }
 ```
 
-## Milestone 5 — Local runtime portability
+## Milestone 5 — Additional runtime portability
 
-Goal: broaden usability after semantics stabilize.
+Goal: broaden beyond the proven llama.cpp/Q4_K_M reference path after semantics stabilize.
 
 Features:
 
-- MLX/Apple Silicon adapter;
-- BF16 equivalence diagnostics;
-- Q8/Q4 experiments with quality delta reporting;
+- additional GGUF quantizations such as Q8 where quality evidence justifies them;
+- optional Metal/other llama.cpp device acceleration outside the CPU scientific gate;
+- optional non-llama.cpp adapters only when they add user value;
+- cross-runtime/quantization equivalence diagnostics;
 - model capability registry;
-- local checkpoint path and pinned remote revision support;
 - memory guards.
 
 Do not claim backend/quantization equivalence without measurements.
@@ -201,7 +201,7 @@ Training should remain optional unless the project intentionally changes its mis
 
 ### Must have for v1
 
-- Qwen 3.5 4B reference support;
+- Qwen 3.5 4B Q4_K_M GGUF reference support through llama.cpp;
 - semantic candidate scorer;
 - direct-logit baseline;
 - answerability;
@@ -211,14 +211,14 @@ Training should remain optional unless the project intentionally changes its mis
 - typed results;
 - provenance;
 - reproducible benchmark suite;
-- CPU reference runtime for the scorer decision gate;
+- CPU llama.cpp reference runtime for the scorer decision gate;
 - CLI/library API.
 
 ### Should have after evidence
 
 - HTTP API;
-- MLX;
-- quantization;
+- additional runtimes such as MLX;
+- additional quantizations beyond the reference Q4_K_M;
 - post-hoc calibration;
 - batching controls;
 - result audit/debug mode.
