@@ -109,6 +109,7 @@ class DecisionResult:
     distribution: dict[str, float]
     scores: dict[str, float]
     scorer: str
+    binary_conditional_probability: dict[str, float] = field(default_factory=dict)
     probability_status: str = "uncalibrated_conditional_scores"
     generated_tokens: int = 0
     prompt_sha256: dict[str, str] = field(default_factory=dict)
@@ -124,6 +125,12 @@ class DecisionResult:
             raise ValueError("choice must be present in distribution")
         if set(self.distribution) != set(self.scores):
             raise ValueError("distribution and scores must cover the same candidates")
+        if self.binary_conditional_probability and (
+            set(self.binary_conditional_probability) != set(self.scores)
+        ):
+            raise ValueError(
+                "binary_conditional_probability and scores must cover the same candidates"
+            )
         if not self.distribution:
             raise ValueError("distribution must not be empty")
         if any(
@@ -138,12 +145,21 @@ class DecisionResult:
             for value in self.scores.values()
         ):
             raise ValueError("scores must be finite numbers")
+        if any(
+            not isinstance(value, (int, float))
+            or not math.isfinite(float(value))
+            or not 0.0 <= float(value) <= 1.0
+            for value in self.binary_conditional_probability.values()
+        ):
+            raise ValueError(
+                "binary_conditional_probability values must be finite values between zero and one"
+            )
         total = math.fsum(float(value) for value in self.distribution.values())
         if abs(total - 1.0) > 1e-6:
             raise ValueError(f"distribution must sum to one, got {total}")
 
     def to_dict(self) -> dict[str, Any]:
-        return {
+        data = {
             "choice": self.choice,
             "distribution": self.distribution,
             "scores": self.scores,
@@ -153,3 +169,6 @@ class DecisionResult:
             "prompt_sha256": self.prompt_sha256,
             "model": self.model,
         }
+        if self.binary_conditional_probability:
+            data["binary_conditional_probability"] = self.binary_conditional_probability
+        return data
