@@ -498,9 +498,9 @@ class _NativeLlamaCppRuntime:
         cache_entry = None
         cache_reused_tokens = 0
 
-        # Keep one canonical sequence for Qwen3.5's hybrid state. A compiler-proven
-        # state prefix may be restored across requests; the remaining common prompt
-        # is evaluated once and snapshotted for candidate continuations.
+        # Preserve the already-proven miss path exactly. On a cache hit, restore a
+        # compiler-proven single-sequence checkpoint and evaluate only the remaining
+        # common prompt. A miss never inserts an intermediate snapshot into scoring.
         self._clear_scoring_state()
         if cache_key is not None:
             cache_entry = self._lookup_repeated_prefix_state(cache_key)
@@ -510,25 +510,11 @@ class _NativeLlamaCppRuntime:
                 self._metrics["prefix_state_restores"] += 1
                 cache_reused_tokens = len(cache_entry.tokens)
 
-        decode_start = cache_reused_tokens
-        if cache_key is not None and cache_entry is None:
-            checkpoint_len = len(cache_key)
-            if checkpoint_len > decode_start:
-                self._decode_tokens(
-                    prefix[decode_start:checkpoint_len],
-                    seq_id=0,
-                    n_past=decode_start,
-                )
-                decode_start = checkpoint_len
-                cached_state = self._capture_sequence_state(0)
-                self._metrics["prefix_state_snapshot_bytes"] += len(cached_state)
-                self._store_repeated_prefix_state(cache_key, cached_state)
-
-        if decode_start < prefix_len:
+        if cache_reused_tokens < prefix_len:
             self._decode_tokens(
-                prefix[decode_start:prefix_len],
+                prefix[cache_reused_tokens:prefix_len],
                 seq_id=0,
-                n_past=decode_start,
+                n_past=cache_reused_tokens,
             )
 
         result: list[list[float] | None] = [None] * len(input_ids_batch)
@@ -563,11 +549,23 @@ class _NativeLlamaCppRuntime:
                 "llama.cpp sequence-state reuse did not produce all candidate logits"
             )
 
+        cache_build_tokens = 0
+        if cache_key is not None and cache_entry is None:
+            # Prime separately after scoring so cache construction cannot perturb
+            # the fresh-equivalent candidate path on a miss.
+            self._clear_scoring_state()
+            self._decode_tokens(cache_key, seq_id=0, n_past=0)
+            cached_state = self._capture_sequence_state(0)
+            self._metrics["prefix_state_snapshot_bytes"] += len(cached_state)
+            self._store_repeated_prefix_state(cache_key, cached_state)
+            cache_build_tokens = len(cache_key)
+
         logical = sum(len(row) for row in input_ids_batch)
         physical = (
             prefix_len
             - cache_reused_tokens
             + sum(len(input_ids) - prefix_len for input_ids in input_ids_batch)
+            + cache_build_tokens
         )
         self._metrics["logical_input_tokens"] += logical
         self._metrics["physically_evaluated_tokens"] += physical
