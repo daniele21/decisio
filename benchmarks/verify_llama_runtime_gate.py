@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import sys
 import time
 from pathlib import Path
 from typing import Any
@@ -16,6 +17,60 @@ from decisio.scorers import SemanticBinaryScorer
 SCORE_TOLERANCE = 1e-3
 BINARY_TOLERANCE = 1e-4
 DISTRIBUTION_TOLERANCE = 1e-4
+
+
+def _format_duration(seconds: float) -> str:
+    total_seconds = max(0, int(round(seconds)))
+    hours, remainder = divmod(total_seconds, 3600)
+    minutes, seconds = divmod(remainder, 60)
+    return f"{hours:02d}:{minutes:02d}:{seconds:02d}"
+
+
+def _progress_line(
+    *,
+    stage: str,
+    completed: int,
+    total: int,
+    label: str,
+    elapsed_seconds: float,
+) -> str:
+    if total < 1:
+        raise ValueError("progress total must be positive")
+    if completed < 0 or completed > total:
+        raise ValueError("progress completed must be between zero and total")
+
+    percent = (completed / total) * 100.0
+    if completed == 0 or completed == total:
+        eta_text = "--:--:--" if completed == 0 else "00:00:00"
+    else:
+        seconds_per_item = elapsed_seconds / completed
+        eta_text = _format_duration(seconds_per_item * (total - completed))
+    width = len(str(total))
+    return (
+        f"[{stage} {completed:>{width}}/{total} | {percent:5.1f}%] {label} | "
+        f"elapsed {_format_duration(elapsed_seconds)} | ETA {eta_text}"
+    )
+
+
+def _report_progress(
+    *,
+    stage: str,
+    completed: int,
+    total: int,
+    label: str,
+    started_at: float,
+) -> None:
+    print(
+        _progress_line(
+            stage=stage,
+            completed=completed,
+            total=total,
+            label=label,
+            elapsed_seconds=time.perf_counter() - started_at,
+        ),
+        file=sys.stderr,
+        flush=True,
+    )
 
 
 def _deltas(shared: Any, fresh: Any) -> dict[str, float | bool]:
@@ -74,8 +129,19 @@ def evaluate(args: argparse.Namespace) -> dict[str, Any]:
         shared_fast_path_rows = 0
         safe_fallback_rows = 0
 
-        for row in load_jsonl(args.fixture):
+        fixture_rows = list(load_jsonl(args.fixture))
+        fixture_total = len(fixture_rows)
+        fixture_started = time.perf_counter()
+        for index, row in enumerate(fixture_rows, start=1):
             request = ChoiceRequest.from_dict(row)
+            example_id = request.id or "unknown"
+            _report_progress(
+                stage="fixture",
+                completed=index - 1,
+                total=fixture_total,
+                label=f"running {example_id}",
+                started_at=fixture_started,
+            )
             backend.reset_runtime_metrics()
             shared = shared_scorer.score(request)
             shared_metrics = backend.runtime_metrics()
@@ -90,7 +156,6 @@ def evaluate(args: argparse.Namespace) -> dict[str, Any]:
                 safe_fallback_rows += 1
 
             delta = _deltas(shared, fresh)
-            example_id = request.id or "unknown"
             if not delta["same_choice"]:
                 changed_choices.append(example_id)
             max_score_delta = max(max_score_delta, float(delta["max_abs_score_delta"]))
@@ -111,6 +176,13 @@ def evaluate(args: argparse.Namespace) -> dict[str, Any]:
                 }
             )
 
+        _report_progress(
+            stage="fixture",
+            completed=fixture_total,
+            total=fixture_total,
+            label="complete",
+            started_at=fixture_started,
+        )
         fixture_evidence = {
             "examples": len(rows),
             "changed_choices": changed_choices,
@@ -156,22 +228,51 @@ def evaluate(args: argparse.Namespace) -> dict[str, Any]:
             candidates=candidates,
         )
 
+        cache_started = time.perf_counter()
+        _report_progress(
+            stage="cache",
+            completed=0,
+            total=3,
+            label="priming repeated-state cache",
+            started_at=cache_started,
+        )
         backend.reset_runtime_metrics()
         shared_scorer.score(first_request)
         prime_metrics = backend.runtime_metrics()
 
+        _report_progress(
+            stage="cache",
+            completed=1,
+            total=3,
+            label="running cached evaluation",
+            started_at=cache_started,
+        )
         backend.reset_runtime_metrics()
         shared_started = time.perf_counter()
         shared = shared_scorer.score(second_request)
         shared_seconds = time.perf_counter() - shared_started
         hit_metrics = backend.runtime_metrics()
 
+        _report_progress(
+            stage="cache",
+            completed=2,
+            total=3,
+            label="running fresh oracle",
+            started_at=cache_started,
+        )
         backend.reset_runtime_metrics()
         fresh_started = time.perf_counter()
         fresh = fresh_scorer.score(second_request)
         fresh_seconds = time.perf_counter() - fresh_started
         fresh_metrics = backend.runtime_metrics()
 
+        _report_progress(
+            stage="cache",
+            completed=3,
+            total=3,
+            label="complete",
+            started_at=cache_started,
+        )
         repeated_delta = _deltas(shared, fresh)
         backend.clear_repeated_state_cache()
         cleared_metrics = backend.runtime_metrics()
