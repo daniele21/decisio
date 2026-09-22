@@ -18,6 +18,8 @@ The initial project thesis is:
 
 v1 is training-free. Do not add fine-tuning, adapters or learned heads without benchmark evidence and an explicit product-scope change.
 
+The v1 reference runtime is local GGUF inference through llama.cpp. Qwen 3.5 4B Q4_K_M is the first reference artifact class; its exact artifact SHA-256 and llama.cpp runtime/build identity must be frozen before representative scorer evidence is accepted.
+
 ## Core technical invariants
 
 - Native Decisio scoring paths generate zero answer tokens.
@@ -31,17 +33,18 @@ v1 is training-free. Do not add fine-tuning, adapters or learned heads without b
 - Shared/cache-optimized execution must be compared against a fresh reference path.
 - Benchmark claims carry exact model revision, scorer/compiler identity, precision/backend and timing scope.
 - Qwen 3.5 4B is the initial reference model, not a hard-coded product boundary.
-- Correctness and evidence precede backend proliferation, quantization and UI work.
+- GGUF + llama.cpp is the canonical v1 runtime path; Q4_K_M is the first reference quantization, not a claim of equivalence with BF16.
+- Correctness and evidence precede additional backend/quantization proliferation and UI work.
 
 ## Implementation order
 
 Follow `docs/roadmap.md`.
 
-Do not add HTTP, MLX, quantization, UI or broad model support before Milestones 0–1 establish the scorer.
+Do not add HTTP, MLX, additional runtime backends/quantizations, UI or broad model support before Milestones 0–1 establish the scorer on the llama.cpp/GGUF reference path.
 
 The first executable question is:
 
-> On the same frozen workload and Qwen 3.5 4B checkpoint, does semantic candidate log-odds provide a useful quality/robustness trade-off against direct answer-token scoring and generated structured output?
+> On the same frozen workload and pinned Qwen 3.5 4B Q4_K_M GGUF + llama.cpp runtime, does semantic candidate log-odds provide a useful quality/robustness trade-off against direct answer-token scoring and generated structured output?
 
 ## Validation priorities
 
