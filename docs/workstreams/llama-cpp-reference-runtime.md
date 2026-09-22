@@ -9,157 +9,102 @@ Last shaped: 2026-09-22
 ## Axes
 
 - PRODUCT: `PRODUCT_STRATEGIC`
-- DELIVERY: `ITERATION` until the new reference gate is proven; then `INTEGRATION`
+- DELIVERY: `ITERATION` until the new gate is proven; then `INTEGRATION`
 - VALIDATION: `STRONG`
-- EXECUTION: `AGENT_LOCAL` for deterministic code/tests plus `REMOTE_AUTOMATED` for the pinned Linux CPU evidence run
+- EXECUTION: `AGENT_LOCAL` for deterministic work plus `REMOTE_AUTOMATED` for the pinned Linux CPU gate
 
 ## Goal
 
-Make GGUF + llama.cpp the canonical Decisio v1 inference path so the scorer decision is made on
-the runtime and model artifact users are expected to run locally.
+Make GGUF + llama.cpp the canonical Decisio v1 runtime so scorer selection is performed on the same runtime/artifact class users run locally.
 
-The first reference target is Qwen3.5-4B in Q4_K_M GGUF form on CPU. The exact GGUF artifact
-SHA-256 and llama.cpp/binding build identity must be frozen before the full scorer gate.
+Reference target: Qwen3.5-4B Q4_K_M GGUF on CPU. Freeze the exact GGUF SHA-256 and llama.cpp/binding build identity before representative scorer evidence.
 
 ## Product intent
 
-**User / consumer:** AI/application engineers who want bounded semantic decisions from a local
-open-weight model without a PyTorch/Transformers deployment stack.
+- **User:** engineers using local open-weight models for bounded semantic decisions.
+- **Problem:** current scorer evidence is BF16/Transformers while the intended product runtime is GGUF/llama.cpp.
+- **Outcome:** point Decisio at a local compatible GGUF and obtain typed zero-generation decisions with reproducible evidence.
+- **Decision:** `BUILD`; llama.cpp/GGUF becomes the v1 reference path, not an optional later adapter.
 
-**Problem / job:** Decisio currently evaluates its core scorer on a BF16 Transformers path even
-though the intended local product workflow is a compact GGUF/llama.cpp runtime. That makes the
-scientific gate and the product runtime diverge.
-
-**Desired outcome:** a user can point Decisio at a local compatible GGUF, obtain zero-generation
-typed decisions, and reproduce scorer evidence using the same llama.cpp execution model.
-
-**Why it matters:** scorer quality, order robustness, latency and memory can change with runtime
-and quantization. The stable scorer must therefore be selected on the runtime/artifact class that
-defines the product.
-
-**Non-goals:**
+## Non-goals
 
 - no HTTP/server transport in this migration;
-- no broad model/backend matrix before the Qwen3.5-4B reference path is proven;
-- no claim that Q4_K_M is numerically equivalent to BF16;
-- no calibrated-probability claim without a calibration artifact fitted for the exact runtime
-  identity;
-- no Metal/CUDA performance gate; the scientific reference gate remains CPU-only;
+- no broad model/backend/quantization matrix before the reference path is proven;
+- no claim that Q4_K_M is equivalent to BF16;
+- no calibrated-probability claim without a matching calibration artifact;
+- no Metal/CUDA performance gate; representative scorer evidence remains CPU-only;
 - no shared-prefix optimization before fresh llama.cpp scoring is correctness-stable.
 
-## Product risks
+## Risks and assumptions
 
-| Risk | Level | Reason / mitigation |
+| Item | Level | Consequence / next evidence |
 | --- | --- | --- |
-| VALUE | LOW | GGUF/llama.cpp aligns directly with the local/open product promise. |
-| USABILITY | MEDIUM | Local model paths/build variants can be confusing; CLI and provenance must make the active artifact explicit. |
-| FEASIBILITY | HIGH | Decisio needs reliable next-token logits, tokenizer/readout verification and generated-baseline support for Qwen3.5 through llama.cpp bindings. Prove this first. |
-| VIABILITY | MEDIUM | llama.cpp moves quickly; exact runtime/build and binding identity must be pinned and recorded rather than relying on `latest`. |
-
-## Material assumptions
-
-### A1 — llama.cpp exposes the scorer primitives Decisio needs
-
-If wrong: the reference-runtime choice cannot support semantic-v2/v1/letters without a custom
-low-level bridge.
-
-Evidence: llama.cpp provides batched decode/logit primitives; repository-specific Qwen3.5 behavior
-is not yet proven in Decisio.
-
-Next evidence: W1 compatibility spike on the exact Qwen3.5-4B Q4_K_M artifact.
-
-### A2 — `llama-cpp-python` is a sufficient in-process bridge
-
-If wrong: use the smallest direct libllama/C-ABI bridge that preserves the same backend contract.
-Do not fall back to a server/HTTP dependency merely to obtain logits.
-
-Evidence: not yet proven against Decisio's required low-level semantics.
-
-Next evidence: W1.
-
-### A3 — Q4_K_M preserves enough scorer quality for the product gate
-
-If wrong: keep llama.cpp but choose a higher-fidelity GGUF quantization or narrow the supported
-reference artifact. Do not lower scorer thresholds after seeing the result.
-
-Evidence: none yet on the frozen 64-case gate.
-
-Next evidence: W3/W4.
-
-### A4 — calibration remains available
-
-If wrong: probability semantics would need to stay explicitly uncalibrated.
-
-Evidence: calibration is post-hoc over Decisio scores and does not require Transformers, but it
-must be fitted and validated for the exact GGUF/scorer/compiler/runtime identity.
-
-Next evidence: later calibration milestone; this migration only preserves the identity contract.
+| VALUE | LOW | Directly aligns with the local/open product promise. |
+| USABILITY | MEDIUM | Local paths/builds need explicit CLI and provenance. |
+| FEASIBILITY | HIGH | W1 must prove Qwen3.5 tokenizer, logits and generation through llama.cpp. |
+| VIABILITY | MEDIUM | Pin runtime/build identity; never depend on `latest`. |
+| A1 llama.cpp exposes required scorer primitives | HIGH | If not, use the smallest direct libllama bridge. |
+| A2 `llama-cpp-python` is sufficient in-process | HIGH | Prove in W1; do not fall back to HTTP merely for logits. |
+| A3 Q4_K_M preserves enough scorer quality | HIGH | Decide only with the frozen 64-case gate; never lower thresholds post-result. |
+| A4 calibration remains possible | MEDIUM | Preserve exact runtime identity; validate in a later milestone. |
 
 ## Technical invariants
 
-- native Decisio scoring generates zero answer tokens;
-- deterministic/domain constraints filter impossible candidates before model scoring;
-- scorer/compiler semantics remain backend-independent;
-- the backend exposes exact tokenizer IDs and next-token logits required by each scorer;
-- no silent prompt/input truncation;
-- candidate IDs remain independent from presentation order;
-- Q4_K_M results are never described as BF16-equivalent;
-- conditional score distributions remain labeled uncalibrated unless a matching calibration
-  artifact is active;
-- benchmark provenance includes GGUF SHA-256, quantization, llama.cpp build/version, binding
-  version, tokenizer/model metadata, CPU identity, thread count and relevant context/batch settings;
-- performance claims are bound to the exact recorded host/runtime identity;
-- a future shared-prefix path must be compared against the fresh reference path and report changed
-  choices/scores.
+- native scorers generate zero answer tokens;
+- deterministic/domain constraints filter impossible candidates before scoring;
+- scorer/compiler semantics stay backend-independent;
+- backend exposes exact tokenizer IDs and required next-token logits;
+- no silent truncation; candidate IDs stay order-independent;
+- Q4_K_M is never described as BF16-equivalent;
+- scores remain `uncalibrated_conditional_scores` unless a matching calibration artifact is active;
+- evidence records GGUF SHA, quantization, llama.cpp/binding build, model metadata, CPU/threads and material context/batch settings;
+- performance claims stay bound to the recorded host/runtime;
+- future shared-prefix execution must be compared against the fresh reference path.
 
 ## Execution DAG
 
-| ID | State | Outcome | Owns / writes | Depends on | Validation |
-| --- | --- | --- | --- | --- | --- |
-| W0 | DONE | Stop treating the Transformers/BF16 run as the scorer-promotion authority and reshape product truth around llama.cpp/GGUF. | product/architecture/roadmap/current-state, scorer-gate status, PR state | — | docs/governance checks |
-| W1 | READY | Prove the exact Qwen3.5-4B Q4_K_M GGUF can run all four Decisio scorer paths through in-process llama.cpp semantics. | experimental llama.cpp backend, focused backend tests, 8-case smoke | W0 | load/tokenize/logits/generation/determinism smoke |
-| W2 | BLOCKED | Replace the Transformers reference backend with a stable llama.cpp backend contract and local-GGUF CLI path. | `src/decisio/backends/**`, CLI, packaging/lock, backend tests | W1 | unit + package/install + 8-case matrix |
-| W3 | BLOCKED | Freeze scorer-gate v2 for GGUF/llama.cpp without post-result threshold tuning. | benchmark contract/evaluator/workflow metadata | W1, W2 | fixture SHA, artifact SHA, provenance contract, evaluator tests |
-| W4 | BLOCKED | Produce the full 64-case CPU evidence on pinned Q4_K_M + llama.cpp and decide semantic v2. | remote CPU workflow/artifacts, current-state result | W3 | normal/reversed matrix, 4 balanced perf rounds, gate PASS/FAIL |
-| W5 | BLOCKED | Stabilize the public local runtime only if the scorer survives the new gate. | public API/README/usage and removal of obsolete Transformers path | W4 PASS | STRONG preflight + exact-head CI |
-| W6 | BLOCKED | Investigate shared state/question reuse using llama.cpp sequence/cache primitives after fresh-path semantics are stable. | runtime optimization + equivalence benchmark | W4 | fresh-vs-shared changed-row report + performance evidence |
+| ID | State | Outcome | Owns / writes | Depends on |
+| --- | --- | --- | --- | --- |
+| W0 | DONE | Stop treating Transformers/BF16 as promotion authority; reshape product truth. | product/architecture/roadmap/current-state/gate status | — |
+| W1 | READY | Prove all four scorer paths on exact Q4_K_M through in-process llama.cpp. | llama.cpp spike + focused backend tests + 8-case smoke | W0 |
+| W2 | BLOCKED | Stable `LlamaCppBackend` + local-GGUF CLI; remove Transformers from reference path. | `src/decisio/backends/**`, CLI, packaging, tests | W1 |
+| W3 | BLOCKED | Freeze scorer-gate v2 runtime/artifact contract before representative results. | benchmark contract/evaluator/workflow metadata | W1, W2 |
+| W4 | BLOCKED | Full 64-case CPU evidence and semantic-v2 decision. | remote workflow/artifacts/current-state | W3 |
+| W5 | BLOCKED | Stabilize public local runtime only if scorer survives. | public API/README/usage | W4 PASS |
+| W6 | BLOCKED | Shared state/question reuse with fresh-path equivalence. | runtime optimization + equivalence benchmark | W4 |
 
-### W1 — compatibility spike
+## W1 compatibility spike
 
-The spike must use one exact local Qwen3.5-4B Q4_K_M GGUF and prove:
+Use one exact local Qwen3.5-4B Q4_K_M GGUF and prove:
 
-1. artifact SHA-256 can be captured and reported;
-2. tokenizer IDs come from the GGUF/runtime tokenizer rather than Transformers assets;
-3. semantic-v2 and semantic-v1 can read the required YES/NO next-token logits;
-4. letters can read candidate-slot logits;
-5. generated JSON baseline can use the same loaded model/runtime;
-6. repeated identical inputs are deterministic within the documented numerical tolerance;
-7. the 8-case scorer matrix can complete on CPU;
-8. process RSS and wall-clock timing can be collected without pretending they are portable
-   hardware claims.
+1. artifact SHA-256 and runtime/model metadata are captured;
+2. tokenizer IDs come from the GGUF/runtime tokenizer;
+3. semantic-v2/v1 read required YES/NO next-token logits;
+4. letters reads candidate-slot logits;
+5. generated JSON uses the same loaded model/runtime;
+6. repeated identical inputs are deterministic within documented tolerance;
+7. the 8-case CPU scorer matrix completes;
+8. wall-clock timing and process RSS can be recorded.
 
-If `llama-cpp-python` cannot satisfy these primitives cleanly, W1 chooses between narrowing the
-binding usage and a small direct libllama bridge. It does not change the llama.cpp product decision.
+If `llama-cpp-python` cannot provide these primitives cleanly, W1 may choose a small direct libllama bridge. The llama.cpp product decision remains unchanged.
 
-### W2 — backend contract and CLI
+## W2 backend contract
 
-Target shape:
+Target flow:
 
 ```text
 ChoiceRequest
-  -> deterministic compiler
-  -> scorer (semantic-v2 / semantic-v1 / letters / generated)
-  -> LlamaCppBackend
-  -> local GGUF
-  -> logits / generated baseline
-  -> DecisionResult
+ -> compiler
+ -> scorer
+ -> LlamaCppBackend
+ -> local GGUF
+ -> logits / generated baseline
+ -> DecisionResult
 ```
 
-The backend contract should expose only capabilities Decisio actually uses. Candidate batching,
-cache/sequence controls and generation are explicit capabilities; scorer code must not import
-llama.cpp directly.
+The backend exposes only required capabilities. Scorers never import llama.cpp directly. Runtime knobs use conservative defaults and are recorded in provenance.
 
-Expected CLI reference:
+Reference CLI shape:
 
 ```bash
 decisio compare \
@@ -171,109 +116,45 @@ decisio compare \
   --performance-rounds 4
 ```
 
-Runtime-specific knobs should have conservative defaults and be recorded in provenance. Do not
-surface speculative configuration merely because llama.cpp supports it.
+## W3/W4 scorer gate
 
-### W3 — scorer-gate v2
+Keep the frozen 64-case workload unless W1 finds a genuine fixture defect. Before the representative run, freeze:
 
-Keep the existing frozen 64-case workload unless W1 exposes a genuine fixture defect. A runtime
-migration is not a reason to change labeled cases.
-
-The new gate freezes before the representative run:
-
-- exact Qwen3.5-4B Q4_K_M GGUF SHA-256;
-- pinned llama.cpp/binding identity;
-- CPU-only execution;
-- exact Decisio commit;
-- normal and reversed candidate order;
+- exact GGUF SHA-256 and Q4_K_M identity;
+- pinned llama.cpp/binding build;
+- CPU-only execution and exact Decisio commit;
 - semantic-v2, semantic-v1, letters and generated JSON;
+- normal and reversed candidate order;
 - one warm-up plus four position-balanced measured rounds;
 - quality, family, order-robustness, zero-generation and generation-latency criteria.
 
-The current promotion thresholds remain the starting contract. Any change must be justified before
-the representative result exists and versioned explicitly. Never tune a threshold after observing
-the full gate.
+Existing promotion thresholds remain the starting contract. Any change requires pre-result justification and explicit gate versioning. Peak RSS is diagnostic only.
 
-Peak RSS remains diagnostic, not a scorer-promotion threshold.
-
-### W4 — representative evidence
-
-The remote workflow must retrieve or otherwise materialize the exact frozen GGUF, verify its SHA,
-record host/runtime identity and retain raw rows plus JSON/Markdown reports.
-
-A PASS may promote semantic-v2 only for the pinned Q4_K_M/llama.cpp reference configuration. It is
-not evidence of universal generalization, calibration or quantization equivalence.
-
-A FAIL keeps v2 experimental. Diagnose discordant rows and, if needed, compare a higher-fidelity
-GGUF quantization before changing scorer semantics or product claims.
+A PASS promotes v2 only for the pinned reference configuration. A FAIL keeps v2 experimental; inspect discordant rows and, if useful, compare a higher-fidelity GGUF before changing scorer semantics.
 
 ## Calibration compatibility
 
-GGUF/llama.cpp does not remove calibration. Decisio calibration remains a later, optional post-hoc
-layer over scorer outputs.
-
-Any future calibration artifact must bind at least:
-
-```text
-GGUF SHA-256
-quantization
-scorer identity
-compiler/prompt identity
-readout verbalizers
-llama.cpp runtime/build identity
-calibration method
-calibration dataset identity
-```
-
-Without a matching artifact, results remain `uncalibrated_conditional_scores`.
+GGUF/llama.cpp does not remove calibration. A future artifact must bind at least GGUF SHA, quantization, scorer/compiler/verbalizers, llama.cpp build, calibration method and calibration-dataset identity. Without that match, results stay uncalibrated.
 
 ## Success
 
-### Acceptance
+**Acceptance:** Q4_K_M loads through llama.cpp without Torch/Transformers; all four scorers share the backend; native paths generate zero tokens; full provenance is recorded; the 64-case gate evaluates automatically.
 
-- Decisio loads the frozen Qwen3.5-4B Q4_K_M GGUF through llama.cpp without Torch/Transformers;
-- all four scorer paths run through the same backend;
-- native scorers generate zero answer tokens;
-- local model path and complete runtime provenance are represented explicitly;
-- the repository-owned 64-case gate can run and evaluate automatically.
+**Outcome:** everyday local inference and scorer-selection evidence use the same runtime/artifact class.
 
-### Outcome
+**Product impact:** unknown until real workloads; success requires competitive decision quality/robustness with materially lower local deployment friction/resource cost.
 
-A developer can use the same local GGUF/runtime class for everyday Decisio inference and for the
-evidence used to select the default scorer.
+## Validation and handoff
 
-### Product impact
-
-The migration is valuable if the Q4_K_M reference path keeps decision quality/robustness competitive
-while materially reducing local deployment friction and resource requirements. Product success
-remains unknown until real workloads are evaluated.
-
-## Validation and convergence
-
-W1/W2 use the narrowest local tests plus the real 8-case model smoke. W3/W4 require STRONG
-validation because they change the reference runtime and scientific evidence contract.
-
-Before PR #1 returns to ready-for-review:
+Before PR #1 returns to ready:
 
 1. inspect the complete diff against live `main`;
-2. run repository-owned deterministic gates;
+2. run repository deterministic gates and package/install checks;
 3. run exact-head integration preflight;
-4. run the full pinned llama.cpp/GGUF scorer gate;
-5. interpret the committed evaluator without weakening failed criteria;
+4. run the full pinned llama.cpp/GGUF CPU scorer gate;
+5. apply the committed evaluator without weakening failures;
 6. update `docs/current-state.md` with exact evidence.
 
-The existing Transformers/BF16 CPU gate is historical/directional only after this workstream
-decision and must not authorize merge or scorer promotion.
+The existing Transformers/BF16 gate is historical/directional only after W0.
 
-## Durable handoff
-
-When complete, transfer durable truth to:
-
-- `docs/product.md` — local runtime/product promise;
-- `docs/architecture.md` — canonical llama.cpp component boundary;
-- `docs/roadmap.md` — completed reference-runtime milestone and remaining prefix/calibration work;
-- `benchmarks/` — gate v2 contract and result methodology;
-- README/USAGE — supported local workflow;
-- code/tests — runtime capabilities and provenance invariants.
-
-Then update `docs/current-state.md` and delete this workstream by default.
+At completion, transfer durable truth to product/architecture/roadmap, `benchmarks/`, README/USAGE and code/tests, then delete this workstream by default.
