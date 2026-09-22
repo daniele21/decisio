@@ -9,6 +9,7 @@ from decisio.backends.llama_cpp import (
     LlamaCppBackend,
     LlamaCppBackendConfig,
     _NativeLlamaCppRuntime,
+    _shared_prefix_plan,
 )
 
 
@@ -206,6 +207,33 @@ def test_close_is_idempotent_and_invalidates_runtime(tmp_path: Path):
     assert runtime.closed is True
     with pytest.raises(RuntimeError, match="closed"):
         backend.next_token_logits((1,), [2])
+
+
+def test_shared_prefix_plan_keeps_short_proven_path_without_repeated_cache():
+    assert _shared_prefix_plan(
+        common_prefix_len=152,
+        reusable_prefix_len=93,
+        max_input_len=188,
+        n_batch=512,
+    ) == (152, None)
+
+
+def test_shared_prefix_plan_aligns_long_reusable_state_to_native_batch_boundary():
+    assert _shared_prefix_plan(
+        common_prefix_len=1260,
+        reusable_prefix_len=1207,
+        max_input_len=1288,
+        n_batch=512,
+    ) == (1024, 1024)
+
+
+def test_shared_prefix_plan_uses_aligned_common_prefix_without_cache_hint():
+    assert _shared_prefix_plan(
+        common_prefix_len=1260,
+        reusable_prefix_len=None,
+        max_input_len=1288,
+        n_batch=512,
+    ) == (1024, None)
 
 
 class _FakeBatchData:
