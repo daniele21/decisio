@@ -123,7 +123,9 @@ def append_trace(path: Path, record: dict[str, Any]) -> None:
 
 
 def build_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(\n        description="Run a headless Snake episode controlled by Decisio"\n    )
+    parser = argparse.ArgumentParser(
+        description="Run a headless Snake episode controlled by Decisio"
+    )
     parser.add_argument("--model", type=Path, required=True)
     parser.add_argument("--n-ctx", type=int, default=8192)
     parser.add_argument("--n-batch", type=int, default=512)
