@@ -3,6 +3,9 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+import os
+import platform
+import sys
 from typing import Any
 
 DEFAULT_MODEL = "Qwen/Qwen3.5-4B"
@@ -108,6 +111,16 @@ class QwenTransformersBackend:
             "cuda_device_name": cuda_device_name,
             "cuda_device_capability": cuda_device_capability,
             "cuda_total_memory_bytes": cuda_total_memory_bytes,
+            "cpu_machine": platform.machine() if self.device == "cpu" else None,
+            "cpu_processor": platform.processor() if self.device == "cpu" else None,
+            "cpu_count": os.cpu_count() if self.device == "cpu" else None,
+            "torch_num_threads": self._torch.get_num_threads() if self.device == "cpu" else None,
+            "torch_num_interop_threads": (
+                self._torch.get_num_interop_threads() if self.device == "cpu" else None
+            ),
+            "memory_metric": (
+                "process_max_rss" if self.device == "cpu" else "cuda_max_memory_allocated"
+            ),
             "batched_candidate_scoring": True,
             "selected_vocab_projection": True,
         }
@@ -118,15 +131,23 @@ class QwenTransformersBackend:
             self._torch.cuda.synchronize()
 
     def reset_peak_memory(self) -> None:
-        """Reset CUDA peak-memory accounting for one measured trial."""
+        """Reset device peak-memory accounting when the backend supports it."""
         if self.device == "cuda":
             self._torch.cuda.reset_peak_memory_stats()
+        # Process max RSS is a lifetime high-water mark and cannot be reset portably.
 
     def peak_memory_bytes(self) -> int | None:
-        """Return CUDA peak allocated memory since the last reset."""
-        if self.device != "cuda":
-            return None
-        return int(self._torch.cuda.max_memory_allocated())
+        """Return the backend's declared peak-memory metric in bytes."""
+        if self.device == "cuda":
+            return int(self._torch.cuda.max_memory_allocated())
+        if self.device == "cpu":
+            try:
+                import resource
+            except ImportError:  # pragma: no cover - non-POSIX platform
+                return None
+            peak_rss = int(resource.getrusage(resource.RUSAGE_SELF).ru_maxrss)
+            return peak_rss if sys.platform == "darwin" else peak_rss * 1024
+        return None
 
     def _project_selected(
         self,
