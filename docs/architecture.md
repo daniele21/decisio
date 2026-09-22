@@ -82,12 +82,13 @@ Current code owners:
 | Request/result contracts | `src/decisio/schema.py` |
 | Prompt compilation | `src/decisio/compiler.py` |
 | Semantic and letter scoring | `src/decisio/scorers/` |
-| Current Qwen/Transformers loading, batching and selected-vocabulary projection (migration source) | `src/decisio/backends/qwen.py` |
+| Canonical local GGUF / llama.cpp runtime and shared-state execution | `src/decisio/backends/llama_cpp.py` |
+| Qwen/Transformers backend (migration source only) | `src/decisio/backends/qwen.py` |
 | Benchmark execution | `src/decisio/benchmark.py` |
 | Paired scorer comparison | `src/decisio/comparison.py` |
 | CLI | `src/decisio/cli.py` |
 
-Answerability, shared-prefix reuse and a stable high-level Python engine are **not implemented yet**.
+Answerability and a stable high-level Python engine are not implemented yet. Candidate-prefix reuse is implemented with full llama.cpp sequence-state snapshot/restore; bounded repeated-state reuse is implemented behind an exact compiler-marked token-prefix boundary and remains evidence-gated.
 
 ## Target decision flow (planned)
 
@@ -216,12 +217,15 @@ There are two required reuse levels:
 - across decisions, keep a bounded reusable state prefix so many questions over the same long state
   avoid repeating its prefill.
 
-The semantic scorer exposes an optional backend fast-path capability,
-`shared_prefix_batch_next_token_logits`. A backend that implements it owns exact-prefix detection,
-state branching and safe fallback.
+The semantic scorer exposes an optional backend fast path,
+`shared_prefix_batch_next_token_logits`. The compiler can also mark a token-safe reusable state
+prefix. The llama.cpp backend keeps one canonical sequence, snapshots complete sequence state,
+restores candidate branches from that state, and keeps repeated-state checkpoints in an LRU bounded
+by both entry count and serialized bytes. Keys are exact token prefixes within one loaded runtime;
+unsupported boundaries fall back to ordinary shared-prefix evaluation.
 
-Fresh evaluation remains the correctness oracle. Shared execution must continuously report changed
-choices and score/probability deltas. Reuse is disabled for a boundary the backend cannot prove safe.
+Fresh evaluation remains the correctness oracle. Shared execution reports changed choices,
+score/probability deltas, logical versus physical tokens, snapshot/restore bytes and cache hits.
 
 ## Target component map
 
@@ -335,6 +339,14 @@ These should be answered by evidence rather than preference:
 
 ## Current implementation boundary
 
-The current code path implements comparative semantic scoring and PyTorch/Transformers candidate batching, but it is no longer the target reference runtime. All candidate prompts are padded into one model batch, final hidden states are selected at each real sequence end, and only requested vocabulary rows are projected. This removes sequential full forwards and full-vocabulary projection without changing the zero-generation contract.
+The canonical implementation path is local GGUF through llama.cpp. Semantic candidate prompts
+share one exact common prefix on a single sequence; Decisio snapshots the complete llama.cpp
+sequence state and restores it before later candidate suffixes. This is fresh-equivalent on the
+pinned 0.8B Q4_K_M smoke fixture and avoids the hybrid-model numerical mismatch observed with
+multi-sequence sharing.
 
-The batch still duplicates the common state/question tokens across rows. Qwen3.5 uses a hybrid 3:1 Gated DeltaNet/full-attention text stack, so true shared-prefix/cache branching requires model-specific equivalence work rather than assuming a conventional KV-only decoder cache. Shared-prefix and multi-question reuse therefore remain pending.
+Across requests, semantic compilers expose a conservative token-safe boundary after the serialized
+state/evidence. The backend may cache that exact sequence state in a small byte-bounded LRU, so a
+later question with identical state can resume after the state prefix instead of prefilling it
+again. Cache reuse remains disabled when the compiler cannot prove the boundary, and representative
+4B latency evidence is still required before a product performance claim.
