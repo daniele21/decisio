@@ -1,7 +1,15 @@
 # Scorer gate v1
 
-Status: active methodology  
+Status: superseded for scorer promotion; retained as Transformers/BF16 historical methodology  
 Owner: Decisio
+
+> **Runtime migration note (2026-09-22):** Decisio v1 now targets a pinned Qwen3.5-4B Q4_K_M GGUF
+> through llama.cpp. This v1 gate remains useful as the frozen workload, evaluator-threshold and
+> historical Transformers/BF16 methodology source, but a PASS here can no longer promote the stable
+> scorer. The active migration plan is
+> [`docs/workstreams/llama-cpp-reference-runtime.md`](../docs/workstreams/llama-cpp-reference-runtime.md).
+> Scorer-gate v2 will freeze the exact GGUF SHA-256 and llama.cpp runtime/build identity before the
+> representative result is observed.
 
 ## Question
 
@@ -139,7 +147,9 @@ Comparative semantic v2 may become the Milestone-1 stable default only when all 
    position-balanced across all four scorers. If not, the zero-generation path is not promoted
    until the discrepancy is understood. Peak RSS is diagnostic and is not a promotion threshold.
 
-Passing this gate promotes v2 only as Decisio's current default scorer. It does not establish broad
+Under the original v1 contract, passing this gate would have promoted v2 as Decisio's current
+default scorer. After the llama.cpp/GGUF runtime decision, this gate is non-authoritative for
+promotion and must not be used to merge that conclusion into product truth. It does not establish broad
 task generalization, calibration, answerability quality, or representative deployment performance.
 
 If any condition fails, v2 remains experimental and the discordant rows become the next diagnostic
