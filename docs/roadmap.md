@@ -26,17 +26,20 @@ Features:
 - direct A/B/C answer-token scorer baseline;
 - comparative semantic candidate Yes/No log-odds scorer;
 - original independent semantic scorer retained as a baseline;
-- batched candidate execution with selected-vocabulary projection;
+- shared-context candidate branching with fresh-path equivalence;
+- bounded repeated-state context reuse for many questions over one state;
 - JSONL benchmark input/output;
 - provenance: model revision, tokenizer, prompt/compiler hash, scorer version, precision, backend;
 - frozen smoke/evaluation fixtures;
-- metrics for quality, latency and token generation.
+- metrics for quality, latency, logical/physically-evaluated tokens, context reuse and token generation.
 
 Exit evidence:
 
 - both scorers run end-to-end on the same fixtures;
 - generated answer tokens are zero;
 - results are reproducible within documented numerical tolerance;
+- shared execution matches fresh choices and reports score deltas;
+- repeated-state workloads show measurable prefill/token reduction;
 - first comparison report exists.
 
 ## Milestone 1 — Decide whether semantic scoring wins
@@ -87,24 +90,23 @@ Exit evidence:
 - answerability adds useful signal beyond top candidate probability;
 - false-confident decisions are measurable and documented.
 
-## Milestone 3 — Shared and parallel execution
+## Milestone 3 — Scale shared execution
 
-Goal: obtain the systems benefit without changing semantics materially.
+Core shared context-state reuse is now a Milestone-0 requirement. This milestone scales the proven
+mechanism rather than introducing it for the first time.
 
 Features:
 
-- candidate micro-batching (implemented early as the safe first optimization);
-- shared state/question prefill where supported;
-- cache branch/copy abstraction;
-- many questions over one state;
-- fresh-vs-shared equivalence diagnostics;
-- peak memory and throughput metrics;
-- bounded batch/context configuration.
+- larger multi-question batches over one state;
+- cache pressure/eviction and lifecycle tuning;
+- broader context-length/candidate-count scaling;
+- peak memory and throughput optimization;
+- bounded batch/context/cache configuration.
 
 Exit evidence:
 
-- measurable speedup on repeated-state workloads;
-- every changed argmax/probability movement against fresh execution is reported;
+- speedup persists at representative scale;
+- cache/resource bounds hold under pressure;
 - no silent correctness trade-off is hidden behind a performance headline.
 
 ## Milestone 4 — Stable developer API
