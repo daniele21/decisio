@@ -9,6 +9,7 @@ import platform
 import re
 import sys
 import threading
+from collections import OrderedDict
 from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass
 from pathlib import Path
@@ -33,6 +34,8 @@ class LlamaCppBackendConfig:
     use_mlock: bool = False
     seed: int = 0
     verbose: bool = False
+    repeated_state_cache_max_entries: int = 2
+    repeated_state_cache_max_bytes: int = 256 * 1024 * 1024
 
     def __post_init__(self) -> None:
         if self.device != "cpu":
@@ -44,6 +47,12 @@ class LlamaCppBackendConfig:
             value = getattr(self, name)
             if value is not None and int(value) < 1:
                 raise ValueError(f"{name} must be positive when set")
+        for name in (
+            "repeated_state_cache_max_entries",
+            "repeated_state_cache_max_bytes",
+        ):
+            if int(getattr(self, name)) < 0:
+                raise ValueError(f"{name} must not be negative")
 
 
 class _Runtime(Protocol):
@@ -75,7 +84,11 @@ class _Runtime(Protocol):
         self,
         input_ids_batch: list[tuple[int, ...]],
         token_ids_batch: list[list[int]],
+        *,
+        reusable_prefix_len: int | None = None,
     ) -> list[list[float]]: ...
+
+    def clear_repeated_state_cache(self) -> None: ...
 
     def generate(
         self, input_ids: tuple[int, ...], *, max_new_tokens: int
@@ -122,6 +135,12 @@ def _longest_common_prefix(rows: Sequence[tuple[int, ...]]) -> int:
     return limit
 
 
+@dataclass(slots=True)
+class _CachedSequenceState:
+    tokens: tuple[int, ...]
+    state: Any
+    size: int
+
 
 class _NativeLlamaCppRuntime:
     """Pinned adapter over llama-cpp-python plus one low-level scoring context."""
@@ -158,7 +177,18 @@ class _NativeLlamaCppRuntime:
             "prefix_state_snapshot_bytes": 0,
             "prefix_state_restore_bytes": 0,
             "prefix_state_restores": 0,
+            "repeated_state_cache_hits": 0,
+            "repeated_state_cache_misses": 0,
+            "repeated_state_cache_reused_tokens": 0,
+            "repeated_state_cache_evictions": 0,
+            "repeated_state_cache_store_skips": 0,
         }
+        self._repeated_state_cache_max_entries = config.repeated_state_cache_max_entries
+        self._repeated_state_cache_max_bytes = config.repeated_state_cache_max_bytes
+        self._repeated_state_cache: OrderedDict[
+            tuple[int, ...], _CachedSequenceState
+        ] = OrderedDict()
+        self._repeated_state_cache_bytes = 0
 
         self._llm = Llama(
             model_path=str(Path(config.model)),
@@ -334,6 +364,72 @@ class _NativeLlamaCppRuntime:
             )
         return restored
 
+    def _repeated_cache_enabled(self) -> bool:
+        return (
+            self._repeated_state_cache_max_entries > 0
+            and self._repeated_state_cache_max_bytes > 0
+        )
+
+    def _repeated_cache_key(
+        self,
+        prefix: tuple[int, ...],
+        reusable_prefix_len: int | None,
+    ) -> tuple[int, ...] | None:
+        if not self._repeated_cache_enabled():
+            return None
+        if reusable_prefix_len is None or not 0 < reusable_prefix_len <= len(prefix):
+            return None
+        return prefix[:reusable_prefix_len]
+
+    def _lookup_repeated_prefix_state(
+        self,
+        key: tuple[int, ...],
+    ) -> _CachedSequenceState | None:
+        entry = self._repeated_state_cache.get(key)
+        if entry is None:
+            self._metrics["repeated_state_cache_misses"] += 1
+            return None
+        self._repeated_state_cache.move_to_end(key)
+        self._metrics["repeated_state_cache_hits"] += 1
+        self._metrics["repeated_state_cache_reused_tokens"] += len(key)
+        return entry
+
+    def _store_repeated_prefix_state(
+        self,
+        key: tuple[int, ...],
+        state: Any,
+    ) -> None:
+        if key in self._repeated_state_cache:
+            self._repeated_state_cache.move_to_end(key)
+            return
+        size = len(state)
+        if not self._repeated_cache_enabled() or size > self._repeated_state_cache_max_bytes:
+            self._metrics["repeated_state_cache_store_skips"] += 1
+            return
+
+        while self._repeated_state_cache and (
+            len(self._repeated_state_cache) >= self._repeated_state_cache_max_entries
+            or self._repeated_state_cache_bytes + size
+            > self._repeated_state_cache_max_bytes
+        ):
+            _, evicted = self._repeated_state_cache.popitem(last=False)
+            self._repeated_state_cache_bytes -= evicted.size
+            self._metrics["repeated_state_cache_evictions"] += 1
+
+        if self._repeated_state_cache_bytes + size > self._repeated_state_cache_max_bytes:
+            self._metrics["repeated_state_cache_store_skips"] += 1
+            return
+        self._repeated_state_cache[key] = _CachedSequenceState(
+            tokens=key,
+            state=state,
+            size=size,
+        )
+        self._repeated_state_cache_bytes += size
+
+    def clear_repeated_state_cache(self) -> None:
+        self._repeated_state_cache.clear()
+        self._repeated_state_cache_bytes = 0
+
     def _validate(
         self,
         input_ids: tuple[int, ...],
@@ -368,6 +464,8 @@ class _NativeLlamaCppRuntime:
         self,
         input_ids_batch: list[tuple[int, ...]],
         token_ids_batch: list[list[int]],
+        *,
+        reusable_prefix_len: int | None = None,
     ) -> list[list[float]]:
         self._require_open()
         if not input_ids_batch:
@@ -396,18 +494,44 @@ class _NativeLlamaCppRuntime:
             ]
 
         prefix = input_ids_batch[0][:prefix_len]
-        physical = prefix_len + sum(
-            len(input_ids) - prefix_len for input_ids in input_ids_batch
-        )
+        cache_key = self._repeated_cache_key(prefix, reusable_prefix_len)
+        cache_entry = None
+        cache_reused_tokens = 0
 
-        # Multi-sequence prefix sharing is not fresh-equivalent for the pinned
-        # Qwen3.5 hybrid runtime. Keep one canonical sequence instead: prefill the
-        # common prefix once, snapshot llama.cpp's complete sequence memory, and
-        # restore that snapshot before each later candidate suffix.
+        # Keep one canonical sequence for Qwen3.5's hybrid state. A compiler-proven
+        # state prefix may be restored across requests; the remaining common prompt
+        # is evaluated once and snapshotted for candidate continuations.
         self._clear_scoring_state()
-        self._decode_tokens(prefix, seq_id=0, n_past=0)
-        result: list[list[float] | None] = [None] * len(input_ids_batch)
+        if cache_key is not None:
+            cache_entry = self._lookup_repeated_prefix_state(cache_key)
+            if cache_entry is not None:
+                restored = self._restore_sequence_state(cache_entry.state, 0)
+                self._metrics["prefix_state_restore_bytes"] += restored
+                self._metrics["prefix_state_restores"] += 1
+                cache_reused_tokens = len(cache_entry.tokens)
 
+        decode_start = cache_reused_tokens
+        if cache_key is not None and cache_entry is None:
+            checkpoint_len = len(cache_key)
+            if checkpoint_len > decode_start:
+                self._decode_tokens(
+                    prefix[decode_start:checkpoint_len],
+                    seq_id=0,
+                    n_past=decode_start,
+                )
+                decode_start = checkpoint_len
+                cached_state = self._capture_sequence_state(0)
+                self._metrics["prefix_state_snapshot_bytes"] += len(cached_state)
+                self._store_repeated_prefix_state(cache_key, cached_state)
+
+        if decode_start < prefix_len:
+            self._decode_tokens(
+                prefix[decode_start:prefix_len],
+                seq_id=0,
+                n_past=decode_start,
+            )
+
+        result: list[list[float] | None] = [None] * len(input_ids_batch)
         for candidate_index, input_ids in enumerate(input_ids_batch):
             if len(input_ids) == prefix_len:
                 result[candidate_index] = self._selected_logits(
@@ -415,8 +539,7 @@ class _NativeLlamaCppRuntime:
                 )
 
         prefix_state = self._capture_sequence_state(0)
-        snapshot_size = len(prefix_state)
-        restore_count = 0
+        self._metrics["prefix_state_snapshot_bytes"] += len(prefix_state)
         live_prefix_state = True
 
         for candidate_index, input_ids in enumerate(input_ids_batch):
@@ -425,8 +548,9 @@ class _NativeLlamaCppRuntime:
                 continue
             if not live_prefix_state:
                 self._clear_scoring_state()
-                self._restore_sequence_state(prefix_state, 0)
-                restore_count += 1
+                restored = self._restore_sequence_state(prefix_state, 0)
+                self._metrics["prefix_state_restore_bytes"] += restored
+                self._metrics["prefix_state_restores"] += 1
 
             self._decode_tokens(suffix, seq_id=0, n_past=prefix_len)
             result[candidate_index] = self._selected_logits(
@@ -440,13 +564,15 @@ class _NativeLlamaCppRuntime:
             )
 
         logical = sum(len(row) for row in input_ids_batch)
+        physical = (
+            prefix_len
+            - cache_reused_tokens
+            + sum(len(input_ids) - prefix_len for input_ids in input_ids_batch)
+        )
         self._metrics["logical_input_tokens"] += logical
         self._metrics["physically_evaluated_tokens"] += physical
         self._metrics["reused_prefix_tokens"] += logical - physical
         self._metrics["shared_prefix_calls"] += 1
-        self._metrics["prefix_state_snapshot_bytes"] += snapshot_size
-        self._metrics["prefix_state_restore_bytes"] += snapshot_size * restore_count
-        self._metrics["prefix_state_restores"] += restore_count
         return [row for row in result if row is not None]
 
     def generate(
@@ -492,9 +618,19 @@ class _NativeLlamaCppRuntime:
     def runtime_metrics(self) -> dict[str, int | float]:
         logical = int(self._metrics["logical_input_tokens"])
         physical = int(self._metrics["physically_evaluated_tokens"])
+        cache_lookups = int(self._metrics["repeated_state_cache_hits"]) + int(
+            self._metrics["repeated_state_cache_misses"]
+        )
         return {
             **self._metrics,
             "reuse_ratio": 0.0 if logical == 0 else (logical - physical) / logical,
+            "repeated_state_cache_hit_rate": (
+                0.0
+                if cache_lookups == 0
+                else int(self._metrics["repeated_state_cache_hits"]) / cache_lookups
+            ),
+            "repeated_state_cache_entries": len(self._repeated_state_cache),
+            "repeated_state_cache_bytes": self._repeated_state_cache_bytes,
         }
 
     def reset_runtime_metrics(self) -> None:
@@ -504,6 +640,7 @@ class _NativeLlamaCppRuntime:
     def close(self) -> None:
         if self._closed:
             return
+        self.clear_repeated_state_cache()
         self._batch.close()
         self._score_ctx.close()
         self._llm.close()
@@ -572,6 +709,8 @@ class FreshLlamaCppBackendView:
 class LlamaCppBackend:
     """Canonical v1 backend: local GGUF + pinned llama.cpp, CPU reference path."""
 
+    supports_reusable_prefix_hint = True
+
     def __init__(
         self,
         config: LlamaCppBackendConfig,
@@ -622,6 +761,9 @@ class LlamaCppBackend:
             "zero_generation_native_scoring": True,
             "shared_context_state": True,
             "shared_prefix_primitive": "single_sequence_state_snapshot_restore",
+            "repeated_state_cache": "exact_compiler_token_prefix_lru",
+            "repeated_state_cache_max_entries": config.repeated_state_cache_max_entries,
+            "repeated_state_cache_max_bytes": config.repeated_state_cache_max_bytes,
             "selected_vocab_projection": False,
             "logit_readout": "full_final_position_vocab_then_select",
         }
@@ -667,11 +809,19 @@ class LlamaCppBackend:
         self,
         input_ids_batch: list[tuple[int, ...]],
         token_ids_batch: list[list[int]],
+        *,
+        reusable_prefix_len: int | None = None,
     ) -> list[list[float]]:
         with self._lock:
             return self._runtime_or_raise().shared_prefix_batch_next_token_logits(
-                input_ids_batch, token_ids_batch
+                input_ids_batch,
+                token_ids_batch,
+                reusable_prefix_len=reusable_prefix_len,
             )
+
+    def clear_repeated_state_cache(self) -> None:
+        with self._lock:
+            self._runtime_or_raise().clear_repeated_state_cache()
 
     def generate(
         self,
