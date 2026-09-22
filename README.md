@@ -123,6 +123,11 @@ A native result contains a selected candidate plus raw/normalized model scores a
     "technical": 1.6,
     "sales": 0.3
   },
+  "binary_conditional_probability": {
+    "billing": 0.99,
+    "technical": 0.83,
+    "sales": 0.57
+  },
   "probability_status": "uncalibrated_conditional_scores",
   "generated_tokens": 0
 }
@@ -195,6 +200,10 @@ billing   = 2.4
 technical = 1.1
 sales     = -0.2
 ```
+
+The semantic scorers now preserve this quantity as `binary_conditional_probability`. It is the
+YES probability after renormalizing the model's YES/NO logits for that candidate; it is not a
+calibrated correctness probability.
 
 ### 2. Softmax turns scores into a relative distribution
 
@@ -335,6 +344,11 @@ layers visible rather than overwrite one with the other:
 ```json
 {
   "choice": "billing",
+  "binary_conditional_probability": {
+    "billing": 0.92,
+    "technical": 0.71,
+    "sales": 0.38
+  },
   "distribution": {
     "billing": 0.73,
     "technical": 0.20,
