@@ -9,221 +9,168 @@ Last shaped: 2026-09-22
 ## Axes
 
 - PRODUCT: `PRODUCT_STRATEGIC`
-- DELIVERY: `ITERATION` until the new gate is proven; then `INTEGRATION`
+- DELIVERY: `ITERATION` until the runtime gate is proven
 - VALIDATION: `STRONG`
-- EXECUTION: `AGENT_LOCAL` for deterministic work plus `REMOTE_AUTOMATED` for the pinned Linux CPU gate
+- EXECUTION: `AGENT_LOCAL` plus `REMOTE_AUTOMATED` for pinned CPU evidence
 
 ## Goal
 
-Make GGUF + llama.cpp the canonical Decisio v1 runtime so scorer selection is performed on the same runtime/artifact class users run locally.
+Make local GGUF + llama.cpp the canonical Decisio v1 runtime, then decide the scorer on the same
+artifact/runtime class users run.
 
-Reference target: Qwen3.5-4B Q4_K_M GGUF on CPU. Freeze the exact GGUF SHA-256 and llama.cpp/binding build identity before representative scorer evidence.
+Reference target: Qwen3.5-4B Q4_K_M on CPU. Exact GGUF SHA, runtime build and host identity are
+frozen before representative evidence.
 
 ## Product intent
 
-- **User:** engineers using local open-weight models for bounded semantic decisions.
-- **Problem:** current scorer evidence is BF16/Transformers while the intended product runtime is GGUF/llama.cpp.
-- **Outcome:** point Decisio at a local compatible GGUF and obtain typed zero-generation decisions with reproducible evidence.
-- **Decision:** `BUILD`; llama.cpp/GGUF becomes the v1 reference path, not an optional later adapter.
+- **User:** engineers building bounded local semantic decisions.
+- **Problem:** earlier scorer evidence used BF16/Transformers, not the intended GGUF runtime.
+- **Outcome:** point Decisio at a compatible local GGUF and obtain typed zero-generation decisions
+  with reproducible provenance and shared-state execution.
+- **Decision:** BUILD.
 
 ## Non-goals
 
-- no HTTP/server transport in this migration;
-- no broad model/backend/quantization matrix before the reference path is proven;
-- no claim that Q4_K_M is equivalent to BF16;
+- no HTTP/server transport here;
+- no broad backend/quantization matrix before the reference path is proven;
+- no Q4_K_M/BF16 equivalence claim;
 - no calibrated-probability claim without a matching calibration artifact;
-- no Metal/CUDA performance gate; representative scorer evidence remains CPU-only;
-- no shared fast path is trusted without fresh-path equivalence evidence; fresh evaluation remains the correctness oracle.
-
-## Risks and assumptions
-
-| Item | Level | Consequence / next evidence |
-| --- | --- | --- |
-| VALUE | LOW | Directly aligns with the local/open product promise. |
-| USABILITY | MEDIUM | Local paths/builds need explicit CLI and provenance. |
-| FEASIBILITY | HIGH | W1 must prove Qwen3.5 tokenizer, logits and generation through llama.cpp. |
-| VIABILITY | MEDIUM | Pin runtime/build identity; never depend on `latest`. |
-| A1 llama.cpp exposes required scorer primitives | HIGH | If not, use the smallest direct libllama bridge. |
-| A2 `llama-cpp-python` is sufficient in-process | HIGH | Prove in W1; do not fall back to HTTP merely for logits. |
-| A3 Q4_K_M preserves enough scorer quality | HIGH | Decide only with the frozen 64-case gate; never lower thresholds post-result. |
-| A4 calibration remains possible | MEDIUM | Preserve exact runtime identity; validate in a later milestone. |
+- no Metal/CUDA promotion gate;
+- no fast path without a fresh-path oracle.
 
 ## Technical invariants
 
 - native scorers generate zero answer tokens;
-- deterministic/domain constraints filter impossible candidates before scoring;
+- deterministic invalid candidates are removed before model scoring;
 - scorer/compiler semantics stay backend-independent;
-- backend exposes exact tokenizer IDs and required next-token logits;
-- no silent truncation; candidate IDs stay order-independent;
-- Q4_K_M is never described as BF16-equivalent;
-- semantic results keep candidate-local YES/NO `binary_conditional_probability` separate from cross-candidate `distribution`; both remain uncalibrated unless a matching calibration artifact is active;
-- evidence records GGUF SHA, quantization, llama.cpp/binding build, model metadata, CPU/threads and material context/batch settings;
-- performance claims stay bound to the recorded host/runtime;
-- shared execution reuses full model context state, not a KV-only assumption: Qwen3.5 hybrid recurrent state is part of the cache contract;
-- shared execution falls back to fresh evaluation when an exact safe reuse boundary cannot be proven;
-- reusable state is bounded and explicitly resettable; no unbounded cache growth;
-- every shared-path choice and score delta is compared against fresh evaluation before promotion.
+- no silent truncation; candidate IDs remain presentation-order independent;
+- semantic YES/NO support and cross-candidate distribution remain distinct and uncalibrated;
+- evidence records GGUF SHA, quantization, binding/runtime, model metadata and material CPU/context settings;
+- shared execution reuses complete model context state, not a KV-only assumption;
+- unsafe or unproven reuse falls back to fresh/shared-prefix evaluation;
+- repeated state is bounded by entries and serialized bytes and is explicitly clearable;
+- every optimized path is compared with fresh evaluation before promotion.
 
 ## Execution DAG
 
-| ID | State | Outcome | Owns / writes | Depends on |
-| --- | --- | --- | --- | --- |
-| W0 | DONE | Stop treating Transformers/BF16 as promotion authority; reshape product truth. | product/architecture/roadmap/current-state/gate status | — |
-| W1 | ACTIVE | Prove all four scorer paths on pinned Q4_K_M through in-process llama.cpp. | backend + real-model smoke | W0 |
-| W2 | ACTIVE | Stable `LlamaCppBackend` + local-GGUF CLI implemented; real-runtime validation pending. | `src/decisio/backends/**`, CLI, packaging, tests | W1 evidence |
-| W3 | ACTIVE | Candidate branching implemented; repeated-state cache + real fresh equivalence pending. | llama.cpp runtime, cache lifecycle, equivalence/perf tests | W2 |
-| W4 | BLOCKED | Freeze scorer-gate v2 runtime/artifact contract with shared execution as the production path. | benchmark contract/evaluator/workflow metadata | W3 |
-| W5 | BLOCKED | Full 64-case CPU evidence and semantic-v2 decision plus repeated-state speed evidence. | remote workflow/artifacts/current-state | W4 |
-| W6 | BLOCKED | Stabilize public local runtime only if scorer and fast path survive. | public API/README/usage | W5 PASS |
+| ID | State | Outcome |
+| --- | --- | --- |
+| W0 | DONE | Transformers/BF16 no longer controls promotion. |
+| W1 | ACTIVE | Prove scorer primitives on pinned Q4_K_M llama.cpp. |
+| W2 | ACTIVE | Stabilize local-GGUF backend/CLI and provenance. |
+| W3 | ACTIVE | Prove candidate branching + bounded repeated-state reuse. |
+| W4 | BLOCKED | Freeze scorer-gate v2 runtime/artifact/fast-path identity. |
+| W5 | BLOCKED | Run full 64-case CPU gate plus repeated-state performance evidence. |
+| W6 | BLOCKED | Stabilize public runtime only if the evidence survives. |
 
-## W1 compatibility spike
-
-Use one exact local Qwen3.5-4B Q4_K_M GGUF and prove:
-
-1. artifact SHA-256 and runtime/model metadata are captured;
-2. tokenizer IDs come from the GGUF/runtime tokenizer;
-3. semantic-v2/v1 read YES/NO logits and preserve their binary softmax as candidate-local support;
-4. letters reads candidate-slot logits;
-5. generated JSON uses the same loaded model/runtime;
-6. repeated identical inputs are deterministic within documented tolerance;
-7. the 8-case CPU scorer matrix completes;
-8. wall-clock timing and process RSS can be recorded.
-
-If `llama-cpp-python` cannot provide these primitives cleanly, W1 may choose a small direct libllama bridge. The llama.cpp product decision remains unchanged.
-
-## W2 backend contract
-
-Target flow:
+## W1/W2 runtime contract
 
 ```text
 ChoiceRequest
- -> compiler
+ -> deterministic compiler
  -> scorer
  -> LlamaCppBackend
  -> local GGUF
- -> logits / generated baseline
+ -> requested logits / generated baseline
  -> DecisionResult
 ```
 
-The backend exposes only required capabilities. Scorers never import llama.cpp directly. Runtime knobs use conservative defaults and are recorded in provenance.
+The backend owns llama.cpp details; scorers never import llama.cpp. W1/W2 must prove tokenizer/chat
+template, YES/NO and letter logits, generated JSON baseline, deterministic repeatability, timing/RSS
+and exact artifact/runtime provenance.
 
-Reference CLI shape:
-
-```bash
-decisio compare \
-  --input .artifacts/scorer-gate-v2.jsonl \
-  --output-dir .artifacts/scorer-gate-v2 \
-  --model /absolute/path/Qwen3.5-4B-Q4_K_M.gguf \
-  --device cpu \
-  --warmup-rounds 1 \
-  --performance-rounds 4
-```
+If `llama-cpp-python` cannot expose a required primitive cleanly, use the smallest direct libllama
+bridge rather than changing the product boundary.
 
 ## W3 shared context-state reuse
 
-This is a v1 requirement, not a post-gate optimization.
+Shared execution is a v1 requirement because repeated CPU prefill can dominate latency.
 
-### Korgis reference patterns
+Two levels are required:
 
-Korgis remains the control-plane/lifecycle reference: llama.cpp owns native model memory, while
-Decisio owns scorer-specific reuse semantics and equivalence evidence. Reuse Korgis' pinned runtime
-identity, explicit close/lease and fail-conservative ownership patterns; do not duplicate its
-residency, serving-concurrency, eviction or resource-manager policy here.
+1. **candidate branching:** common candidate prefix is evaluated once, then each candidate suffix
+   continues from the same complete sequence state;
+2. **repeated-state reuse:** later questions over identical serialized state restore a bounded cached
+   state prefix instead of repeating that prefill.
 
-For Decisio branching, use llama.cpp generic memory/sequence primitives in-process rather than an
-HTTP prompt-cache abstraction. Fresh evaluation remains the scorer oracle.
+Korgis remains a lifecycle reference only: reuse its explicit ownership/close and conservative
+resource patterns, but do not copy serving concurrency, residency or eviction responsibilities into
+Decisio.
 
-Two reuse levels are required:
+### Evidence so far
 
-1. **candidate branching:** evaluate the exact common token prefix of semantic candidate prompts once,
-   then branch model state for each candidate suffix;
-2. **repeated-state reuse:** retain a bounded reusable state prefix across calls so many questions over
-   the same long state do not re-prefill that state from scratch.
+The original multi-sequence approaches were rejected without loosening thresholds:
 
-For Qwen3.5, the cache contract is **model context state**, not merely KV tensors. llama.cpp sequence
-state/memory must preserve the hybrid attention + recurrent state required for exact continuation.
+- run `35715986281`: prefix attached to all sequences still produced score delta
+  `0.1005306244` despite 40.4% physical-token reuse;
+- run `35716601748`: upstream-shaped flat multiple-choice batching produced the same mismatch;
+- run `35716946549`: one sequence split at the same 152-token prefix matched fresh logits exactly
+  (max delta `0.0`).
 
-Acceptance:
+The replacement primitive uses `llama_state_seq_get_data` / `llama_state_seq_set_data` on one
+canonical sequence. Run `35717350247` passed the fresh oracle on pinned Qwen3.5-0.8B Q4_K_M:
 
-- shared path and fresh path produce the same choice on the equivalence fixture;
-- score and `binary_conditional_probability` deltas stay within a predeclared tolerance;
-- changed rows/argmaxes are reported, never hidden;
-- unsupported/unsafe prefix reuse falls back to fresh evaluation;
-- cache entries are bounded and can be cleared deterministically;
-- instrumentation reports logical input tokens, physically evaluated tokens, prefix reuse/hit rate
-  and wall-clock latency;
-- a long-state/many-question fixture demonstrates measurable physical-token and latency reduction.
+- same choice;
+- max score, binary-probability and distribution delta: `0.0`;
+- logical tokens: 376;
+- physical tokens: 224;
+- reuse: 152 tokens / 40.4%;
+- serialized prefix state: 22,072,908 bytes.
 
-The scorer prefers `shared_prefix_batch_next_token_logits(...)`. The llama.cpp backend now
-implements candidate branching with a dedicated multi-sequence scoring context that shares the
-loaded model weights with the generation context. It builds the same flat logical batch shape used
-by llama.cpp's multiple-choice/HellaSwag path: common-prefix token rows belong to every candidate
-sequence, followed by each candidate suffix on its own sequence. Decoding is split only at
-`n_batch` boundaries, so hybrid recurrent rollback/snapshot handling stays inside llama.cpp rather
-than being reconstructed by Decisio. No KV-only sequence copying is used.
+This proves the branching mechanism, not the representative 4B product result.
 
-Run `35715986281` proved that merely attaching the prefix to all sequences while decoding suffixes
-in separate calls still reproduced the old numerical mismatch, despite 40.4% physical-token reuse.
-Run `35716601748` then reproduced the exact same mismatch with the upstream-shaped flat batch:
-score delta `0.1005306244`, binary-probability delta `0.0170685730`, and final-distribution delta
-`0.0001724743`. The predeclared fresh-equivalence tolerances remain unchanged.
+### Repeated-state cache contract
 
-Run `35716946549` isolated the cause: a single sequence decoded fresh versus the same sequence
-split at common-prefix token 152 produced exactly identical YES/NO logits for both candidates
-(max absolute logit delta `0.0`). The mismatch therefore comes from multi-sequence sharing, not
-from the prefix/suffix decode boundary.
+Semantic compilers mark a conservative token-safe boundary after serialized state/evidence. The
+llama.cpp backend snapshots that exact prefix in an in-memory LRU keyed by exact tokens within the
+loaded runtime.
 
-The candidate primitive is now llama.cpp single-sequence state snapshot/restore. Decisio prefills
-the common prefix once on sequence 0, captures the complete sequence memory with
-`llama_state_seq_get_data`, then restores it with `llama_state_seq_set_data` before each later
-candidate suffix. This follows llama.cpp's own save/load-state test pattern while avoiding the
-multi-sequence hybrid path that failed the fresh oracle.
+The cache:
 
-The remaining W3 work is exact fresh-equivalence evidence for this sequence-state primitive plus a
-bounded checkpoint/cache boundary for reusing an unchanged long state across later questions.
+- is bounded by both entry count and serialized bytes;
+- never guesses a semantic boundary;
+- tracks hits, misses, reused tokens, bytes, evictions and state copies;
+- can be cleared independently of metrics;
+- does not affect the fresh reference view;
+- skips storage when one snapshot exceeds the byte budget.
+
+Current defaults are 2 entries and 256 MiB. The real-model gate must prove a same-state,
+different-question hit, fresh equivalence, physical-token reduction and deterministic clear
+behavior. Latency is recorded; representative 4B speed evidence remains W5.
 
 ## W4/W5 scorer gate
 
-Keep the frozen 64-case workload unless W1 finds a genuine fixture defect. Before the representative run, freeze:
+Keep the frozen 64-case workload unless a genuine fixture defect is found. Before the representative
+run, freeze:
 
-- exact GGUF SHA-256 and Q4_K_M identity;
-- pinned llama.cpp/binding build;
-- CPU-only execution and exact Decisio commit;
+- exact 4B Q4_K_M GGUF SHA and pinned llama.cpp/binding;
+- CPU-only execution and exact Decisio revision;
 - semantic-v2, semantic-v1, letters and generated JSON;
-- normal and reversed candidate order;
+- normal/reversed candidate order;
 - one warm-up plus four position-balanced measured rounds;
-- semantic scorer measurements use the production shared-context path after equivalence passes;
-- a fresh semantic reference run remains available for changed-row diagnostics;
-- quality, family, order-robustness, zero-generation and generation-latency criteria;
-- repeated-state evidence records physical-token reduction, cache hit/reuse rate and latency speedup.
+- production shared-context path plus fresh diagnostics;
+- quality, family, order, zero-generation and latency criteria;
+- repeated-state physical-token, hit-rate and latency evidence.
 
-Existing promotion thresholds remain the starting contract. Any change requires pre-result justification and explicit gate versioning. Peak RSS is diagnostic only.
-
-A PASS promotes v2 only for the pinned reference configuration. A FAIL keeps v2 experimental; inspect discordant rows and, if useful, compare a higher-fidelity GGUF before changing scorer semantics.
+Existing promotion thresholds stay fixed unless a pre-result gate version explicitly changes them.
+A PASS promotes only the pinned reference configuration. A FAIL keeps v2 experimental.
 
 ## Calibration compatibility
 
-GGUF/llama.cpp does not remove calibration. A future artifact must bind at least GGUF SHA, quantization, scorer/compiler/verbalizers, llama.cpp build, calibration method and calibration-dataset identity. Without that match, results stay uncalibrated.
+GGUF/llama.cpp does not remove calibration. A future calibration artifact must bind at least GGUF
+SHA, quantization, scorer/compiler/verbalizers, llama.cpp build, method and calibration dataset.
+Without that match, outputs remain uncalibrated.
 
-## Success
-
-**Acceptance:** Q4_K_M loads through llama.cpp without Torch/Transformers; all four scorers share the backend; native paths generate zero tokens; full provenance is recorded; the 64-case gate evaluates automatically.
-
-**Outcome:** everyday local inference and scorer-selection evidence use the same runtime/artifact class.
-
-**Product impact:** unknown until real workloads; success requires competitive decision quality/robustness with materially lower local deployment friction/resource cost.
-
-## Validation and handoff
+## Completion
 
 Before PR #1 returns to ready:
 
-1. inspect the complete diff against live `main`;
-2. run repository deterministic gates and package/install checks;
-3. run exact-head integration preflight;
-4. run the full pinned llama.cpp/GGUF CPU scorer gate;
-5. apply the committed evaluator without weakening failures;
-6. update `docs/current-state.md` with exact evidence.
+1. prove the repeated-state cache on the pinned real-model smoke;
+2. freeze the 4B artifact/runtime/fast-path identity;
+3. run the full 64-case CPU gate and repeated-state performance fixture;
+4. run repository deterministic gates and exact-head integration preflight;
+5. update durable docs with exact evidence;
+6. inspect the complete diff against live `main`.
 
-The existing Transformers/BF16 gate is historical/directional only after W0.
-
-At completion, transfer durable truth to product/architecture/roadmap, `benchmarks/`, README/USAGE and code/tests, then delete this workstream by default.
+Completion means product intent, implementation, tests, docs and evidence agree. Representative 4B
+hardware evidence, not code completion, decides release readiness.
