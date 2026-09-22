@@ -141,7 +141,17 @@ score_i = logit(YES | state, question, alternatives, candidate_i)
         - logit(NO  | state, question, alternatives, candidate_i)
 ```
 
-For mutually exclusive choice candidates, derive a conditional distribution:
+The semantic scorer also preserves the model's binary conditional support:
+
+```text
+binary_conditional_probability_i
+  = softmax([logit(YES), logit(NO)])[YES]
+```
+
+This answers “how strongly does the model prefer YES over NO for this candidate under this
+binary readout?” It is not calibrated probability of correctness.
+
+For mutually exclusive choice candidates, derive a separate relative distribution:
 
 ```text
 P_i = softmax(score_1 ... score_n)
@@ -236,6 +246,13 @@ Names are proposed. Implemented owners are listed in **Current implementation ar
 Do not implement every type by disguising it as choice unless the semantics and evaluation support that decision.
 
 ## Probability semantics
+
+Semantic results expose two distinct uncalibrated probability-like quantities:
+
+- `binary_conditional_probability` — candidate-local YES-vs-NO model support;
+- `distribution` — relative normalization across the supplied candidates.
+
+Neither is calibrated probability of correctness.
 
 Every result must carry a status such as:
 
