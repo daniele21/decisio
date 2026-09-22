@@ -127,6 +127,31 @@ The current artifact is deliberately a rendered evidence video, not a new browse
 An interactive Snake surface should wait until Decisio's scorer semantics and public runtime surface
 are stable enough to justify owning UI lifecycle and interaction code.
 
+## Visual and UX direction
+
+For Snake presentation, use the information hierarchy of [Rizzo Flow Snake](https://github.com/Rizzo-AI-Academy/rizzo-flow/blob/main/src/rizzo_flow/snake.html) as a reference, not as an implementation to copy.
+
+The useful pattern is:
+
+```text
+game board                         decision
+large, immediately readable       chosen move first
+score / length / step              probability bars
+                                  deterministic filters
+                                  latency / generated tokens
+                                  status + diagnostics
+```
+
+Decisio-specific differences are deliberate:
+
+- deterministic wall/body/reversal constraints are filtered **before** model scoring, rather than exposed as choices the model may override;
+- filtered actions stay visible in the presentation so the constraint boundary is obvious;
+- zero generated answer tokens and uncalibrated score semantics stay visible;
+- diagnostics are secondary to the board and current decision;
+- the current deliverable is the trace-backed MP4 artifact, not a new web product surface.
+
+An interactive Snake page can reuse this hierarchy after the scorer semantics gate is settled. The repository currently defers new UI surfaces until Milestone 0–1 establishes the scorer.
+
 ## CI video artifact
 
 The real-model GitHub Actions smoke runs a short Snake rollout with the official Qwen3.5-0.8B checkpoint, renders the actual decision trace to MP4, and uploads both:
