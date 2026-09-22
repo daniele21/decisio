@@ -56,7 +56,7 @@ Reference target: Qwen3.5-4B Q4_K_M GGUF on CPU. Freeze the exact GGUF SHA-256 a
 - backend exposes exact tokenizer IDs and required next-token logits;
 - no silent truncation; candidate IDs stay order-independent;
 - Q4_K_M is never described as BF16-equivalent;
-- scores remain `uncalibrated_conditional_scores` unless a matching calibration artifact is active;
+- semantic results keep candidate-local YES/NO `binary_conditional_probability` separate from cross-candidate `distribution`; both remain uncalibrated unless a matching calibration artifact is active;
 - evidence records GGUF SHA, quantization, llama.cpp/binding build, model metadata, CPU/threads and material context/batch settings;
 - performance claims stay bound to the recorded host/runtime;
 - future shared-prefix execution must be compared against the fresh reference path.
@@ -79,7 +79,7 @@ Use one exact local Qwen3.5-4B Q4_K_M GGUF and prove:
 
 1. artifact SHA-256 and runtime/model metadata are captured;
 2. tokenizer IDs come from the GGUF/runtime tokenizer;
-3. semantic-v2/v1 read required YES/NO next-token logits;
+3. semantic-v2/v1 read YES/NO logits and preserve their binary softmax as candidate-local support;
 4. letters reads candidate-slot logits;
 5. generated JSON uses the same loaded model/runtime;
 6. repeated identical inputs are deterministic within documented tolerance;
