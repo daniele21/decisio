@@ -55,6 +55,7 @@ class CompiledPrompt:
     readout: dict[str, int]
     sha256: str
     version: str
+    reusable_prefix_len: int | None = None
 
 
 def canonical_json(value: Any) -> str:
@@ -93,17 +94,54 @@ def _single_token_append(tokenizer: Tokenizer, prompt: str, text: str) -> int:
     return combined[-1]
 
 
+def _safe_reusable_prefix_len(
+    tokenizer: Tokenizer,
+    *,
+    prompt: str,
+    input_ids: tuple[int, ...],
+    user_content: str,
+    reusable_user_prefix: str | None,
+) -> int | None:
+    if reusable_user_prefix is None or not user_content.startswith(reusable_user_prefix):
+        return None
+    start = prompt.find(user_content)
+    if start < 0 or prompt.find(user_content, start + 1) >= 0:
+        return None
+
+    rendered_prefix = prompt[:start] + reusable_user_prefix
+    prefix_ids = tuple(tokenizer.encode(rendered_prefix, add_special_tokens=False))
+    matched = 0
+    for left, right in zip(prefix_ids, input_ids, strict=False):
+        if left != right:
+            break
+        matched += 1
+    return matched or None
+
+
 def _compile(
     tokenizer: Tokenizer,
     *,
     messages: list[dict[str, str]],
     readout_texts: dict[str, str],
     version: str,
+    reusable_user_prefix: str | None = None,
 ) -> CompiledPrompt:
     prompt = _chat_prompt(tokenizer, messages)
     input_ids = tuple(tokenizer.encode(prompt, add_special_tokens=False))
     if not input_ids:
         raise ValueError("compiled prompt is empty")
+    user_content = (
+        messages[-1]["content"]
+        if messages and messages[-1].get("role") == "user"
+        else ""
+    )
+    reusable_prefix_len = _safe_reusable_prefix_len(
+        tokenizer,
+        prompt=prompt,
+        input_ids=input_ids,
+        user_content=user_content,
+        reusable_user_prefix=reusable_user_prefix,
+    )
     readout = {
         name: _single_token_append(tokenizer, prompt, text)
         for name, text in readout_texts.items()
@@ -111,7 +149,14 @@ def _compile(
     if len(set(readout.values())) != len(readout):
         raise ValueError("readout tokens collide")
     digest = hashlib.sha256((version + "\n" + prompt).encode("utf-8")).hexdigest()
-    return CompiledPrompt(prompt, input_ids, readout, digest, version)
+    return CompiledPrompt(
+        prompt,
+        input_ids,
+        readout,
+        digest,
+        version,
+        reusable_prefix_len=reusable_prefix_len,
+    )
 
 
 def compile_semantic_candidate(
@@ -129,9 +174,10 @@ def compile_semantic_candidate(
     description = canonical_json(candidate.description)
     alternatives = sorted(canonical_json(item.description) for item in request.candidates)
     alternatives_text = "\n".join(f"- {item}" for item in alternatives)
+    reusable_user_prefix = f"EVIDENCE:\n{evidence}\n\nQUESTION:\n"
     user = (
-        f"EVIDENCE:\n{evidence}\n\n"
-        f"QUESTION:\n{question}\n\n"
+        reusable_user_prefix
+        + f"{question}\n\n"
         f"ALTERNATIVES (order is not a ranking):\n{alternatives_text}\n\n"
         f"CANDIDATE UNDER EVALUATION:\n{description}\n\n"
         "Is this candidate the best answer among the supplied alternatives based only on the "
@@ -145,6 +191,7 @@ def compile_semantic_candidate(
         ],
         readout_texts={"yes": "Yes", "no": "No"},
         version=SEMANTIC_PROMPT_VERSION,
+        reusable_user_prefix=reusable_user_prefix,
     )
 
 
@@ -157,9 +204,10 @@ def compile_independent_semantic_candidate(
     evidence = canonical_json(request.state)
     question = canonical_json(request.question)
     description = canonical_json(candidate.description)
+    reusable_user_prefix = f"EVIDENCE:\n{evidence}\n\nQUESTION:\n"
     user = (
-        f"EVIDENCE:\n{evidence}\n\n"
-        f"QUESTION:\n{question}\n\n"
+        reusable_user_prefix
+        + f"{question}\n\n"
         f"CANDIDATE:\n{description}\n\n"
         "Does this candidate correctly answer the question based only on the evidence?"
     )
@@ -171,6 +219,7 @@ def compile_independent_semantic_candidate(
         ],
         readout_texts={"yes": "Yes", "no": "No"},
         version=INDEPENDENT_SEMANTIC_PROMPT_VERSION,
+        reusable_user_prefix=reusable_user_prefix,
     )
 
 
