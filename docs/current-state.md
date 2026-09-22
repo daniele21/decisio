@@ -14,7 +14,8 @@ Active plan: [llama.cpp reference runtime migration](workstreams/llama-cpp-refer
 | Workstream | Current executable slice | State | Blocker |
 | --- | --- | --- | --- |
 | llama.cpp reference runtime | W1 Qwen3.5-4B Q4_K_M compatibility spike | ACTIVE | prove tokenizer/logit/generation primitives through the in-process bridge |
-| Scorer decision | Preserve frozen 64-case workload and promotion semantics | BLOCKED | llama.cpp backend + gate-v2 identity |
+| Shared context-state fast path | backend contract already wired; W3 real llama.cpp branching/cache pending | BLOCKED | W2 LlamaCppBackend |
+| Scorer decision | Preserve frozen 64-case workload and promotion semantics | BLOCKED | shared llama.cpp path + gate-v2 identity |
 | Product foundation | Consolidated candidate in PR #1 | ACTIVE | runtime migration and representative evidence |
 | Repository quality | Baseline/health/package gates | ACTIVE | final exact-head integration |
 | Examples | Snake, support routing, policy gate | ACTIVE | exploratory only, not scorer-quality evidence |
@@ -34,6 +35,7 @@ The existing PyTorch/Transformers backend remains migration-source code; it no l
 - semantic scorers preserve candidate-local YES/NO `binary_conditional_probability` separately from cross-candidate `distribution`;
 - zero generated answer tokens on native paths;
 - current Qwen3.5 Transformers backend with batching/selected-vocabulary projection;
+- semantic scorer dispatch prefers an optional `shared_prefix_batch_next_token_logits` backend capability before generic batching;
 - frozen 64-case workload, normal/reversed comparison and paired correctness evidence;
 - deterministic gate evaluator with quality, family, order, zero-generation and latency criteria;
 - CPU timing/p50/p95/throughput/RSS infrastructure;
@@ -60,26 +62,31 @@ Qwen3.5-4B BF16/Transformers CPU run `35680562215` is non-authoritative for scor
 - run generated JSON through the same model/runtime;
 - prove deterministic 8-case CPU smoke.
 
-### W2/W3 — runtime and gate
+### W2/W3 — runtime and shared fast path
 
 - stable llama.cpp backend contract and local-GGUF CLI;
-- remove Torch/Transformers from the reference path;
-- freeze exact Q4_K_M artifact/runtime identity;
-- version scorer-gate v2 without post-result threshold tuning;
-- keep probability status uncalibrated unless a matching calibration artifact exists.
+- candidate-prefix branching from one shared model context state;
+- bounded repeated-state cache for many questions over one long state;
+- fresh-vs-shared choice/score/probability equivalence;
+- logical vs physically evaluated token instrumentation;
+- remove Torch/Transformers from the reference path.
 
-### W4 — scorer decision
+### W4/W5 — scorer decision
 
-Run the full frozen 64-case CPU matrix and committed evaluator. Any failed criterion keeps v2 experimental.
+Freeze the exact Q4_K_M/runtime/shared-execution identity, then run the full 64-case CPU matrix and
+committed evaluator plus a long-state/many-question speed fixture. Any failed correctness criterion
+keeps v2 experimental; the fast path cannot become default without fresh equivalence.
 
 ### Later
 
-Answerability, shared state/question reuse, multi-question reuse, calibration and stable public API follow only after the reference scorer survives the new gate.
+Answerability, larger-scale multi-question scheduling, calibration and stable public API follow after
+the scorer and shared runtime path survive the new evidence gates.
 
 ## Next
 
 1. Execute W1 from the active workstream.
 2. Implement W2 if the in-process bridge is sufficient; otherwise use the smallest direct libllama bridge.
-3. Freeze gate-v2 artifact/runtime identity before representative results.
-4. Run the full CPU gate and decide semantic v2 from that evidence.
-5. Only then return PR #1 to ready and run exact-head integration preflight.
+3. Implement W3 shared context-state reuse and prove fresh equivalence plus repeated-state speedup.
+4. Freeze gate-v2 artifact/runtime/fast-path identity before representative results.
+5. Run the full CPU gate and repeated-state benchmark, then decide semantic v2.
+6. Only then return PR #1 to ready and run exact-head integration preflight.
