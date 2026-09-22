@@ -67,8 +67,10 @@ uv run decisio compare \
   --performance-rounds 4
 ```
 
-Outputs include the eight raw JSONL result files plus `comparison.json` and
-`comparison.md`.
+Outputs include the eight raw JSONL result files plus `comparison.json`,
+`comparison.md`, `gate-evaluation.json` and `gate-evaluation.md`. The last two are produced
+by `benchmarks/evaluate_scorer_gate.py`, which applies the precommitted criteria below without
+manual scorer selection.
 
 ## Primary evidence
 
@@ -127,7 +129,10 @@ Comparative semantic v2 may become the Milestone-1 stable default only when all 
 2. **Family guardrail:** in every 16-example family, v2 is no more than 2 examples worse than the
    strongest baseline for that family.
 3. **Order robustness:** v2 changes choice on at most 1 of 64 examples after reversal and is not
-   more order-sensitive than the strongest baseline.
+   more order-sensitive than the strongest baseline. "Strongest baseline" means highest normal-order
+   accuracy. If multiple baselines tie, the strict comparator is the tied baseline with the fewest
+   order changes; any remaining tie uses the fixed baseline order
+   `semantic-independent → letters → generated`.
 4. **Native invariant:** v2 reports zero generated answer tokens on every row.
 5. **Generation trade-off:** in the repeated CPU performance phase, v2 has lower p50 and p95
    full-workload latency than generated JSON on the same run. The measured round count must be
@@ -138,7 +143,9 @@ Passing this gate promotes v2 only as Decisio's current default scorer. It does 
 task generalization, calibration, answerability quality, or representative deployment performance.
 
 If any condition fails, v2 remains experimental and the discordant rows become the next diagnostic
-workload instead of weakening the gate after seeing the results.
+workload instead of weakening the gate after seeing the results. The CPU workflow runs the evaluator
+with `--require-pass`: a scientific gate failure therefore leaves the comparison artifacts available
+for diagnosis but blocks promotion of v2 on that candidate.
 
 ## CI subset
 
