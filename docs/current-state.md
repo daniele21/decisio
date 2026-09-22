@@ -5,89 +5,77 @@ Owner: repository
 
 ## Current milestone
 
-Migrate Decisio's reference runtime from PyTorch/Transformers BF16 to local GGUF inference through llama.cpp, then rerun the frozen scorer decision on the runtime/artifact class that defines the product.
+Make local GGUF + llama.cpp the Decisio v1 reference runtime, then decide the scorer on the same
+artifact/runtime class users run.
 
 Active plan: [llama.cpp reference runtime migration](workstreams/llama-cpp-reference-runtime.md).
 
 ## Active workstreams
 
-| Workstream | Current executable slice | State | Blocker |
-| --- | --- | --- | --- |
-| llama.cpp reference runtime | W1/W2 backend + local-GGUF CLI implemented | DONE | scorer primitives proven on pinned real GGUF smoke |
-| Shared context-state fast path | single-sequence branching + bounded repeated-state cache | DONE | pinned 0.8B smoke is exactly fresh-equivalent |
-| Scorer decision | Frozen 64-case gate-v2 on pinned 2B Q4_K_M llama.cpp | ACTIVE | representative 2B run pending |
-| Product foundation | Consolidated candidate in PR #1 | ACTIVE | runtime migration and representative evidence |
-| Repository quality | Baseline/health/package gates | ACTIVE | final exact-head integration |
-| Examples | Snake, support routing, policy gate | ACTIVE | exploratory only, not scorer-quality evidence |
+| Workstream | State | Blocker |
+| --- | --- | --- |
+| llama.cpp reference runtime | DONE | local-GGUF backend/CLI and scorer primitives implemented |
+| Shared context-state fast path | DONE | native-batch-safe branching + bounded repeated-state cache |
+| Scorer decision | ACTIVE | frozen 64-case gate-v2 on pinned 2B Q4_K_M pending |
+| Product foundation | ACTIVE | PR #1 remains draft until representative evidence |
+| Repository quality | ACTIVE | final exact-head integration evidence |
 
 ## Product/runtime decision
 
-The v1 canonical target is Qwen3.5-2B Q4_K_M GGUF through llama.cpp, with CPU-only representative scorer evidence and exact GGUF/runtime/host provenance.
+The v1 canonical evidence target is Qwen3.5-2B Q4_K_M GGUF through llama.cpp on CPU.
 
-Scorer-gate v2 is frozen on `unsloth/Qwen3.5-2B-GGUF` revision `1c466474d208da1a7c4b8cb87ebcdac78f160e34`, file `Qwen3.5-2B-Q4_K_M.gguf`, SHA-256 `aaf42c8b7c3cab2bf3d69c355048d4a0ee9973d48f16c731c0520ee914699223`, with `llama-cpp-python==0.3.35` on CPU. This is the reference evidence artifact, not a restriction on compatible user-selected GGUFs.
+Scorer-gate v2 is pinned to:
 
-The reference artifact changed from 4B to 2B on 2026-09-22 by product-owner decision so the
-canonical local CPU path is materially easier to run. The switch was made before accepting any 2B
-scorer-matrix result; the frozen workload, scorer semantics, tolerances and promotion criteria remain
-unchanged. Earlier 4B runtime experiments remain diagnostic history.
+- source: `unsloth/Qwen3.5-2B-GGUF`;
+- revision: `1c466474d208da1a7c4b8cb87ebcdac78f160e34`;
+- file: `Qwen3.5-2B-Q4_K_M.gguf`;
+- SHA-256: `aaf42c8b7c3cab2bf3d69c355048d4a0ee9973d48f16c731c0520ee914699223`;
+- size: `1280835840` bytes;
+- runtime: `llama-cpp-python==0.3.35`, CPU.
 
-The existing PyTorch/Transformers backend remains migration-source code; it no longer decides the stable scorer.
+The reference changed from 4B to 2B on 2026-09-22 so the canonical local CPU workflow is materially
+easier to run. The switch happened before accepting any 2B scorer-matrix result. Workload, scorer
+semantics, numerical tolerances and promotion criteria remain unchanged. Earlier 4B runtime
+experiments are diagnostic history, not promotion evidence.
 
 ## Implemented today
 
-- strict request/result contracts and deterministic compiler;
-- comparative semantic v2, semantic v1, letters and generated JSON;
-- semantic scorers preserve candidate-local YES/NO `binary_conditional_probability` separately from cross-candidate `distribution`;
-- zero generated answer tokens on native paths;
-- in-process `LlamaCppBackend` for local GGUF on CPU with exact artifact SHA/provenance;
-- GGUF chat-template/tokenizer readout, native logits and generated JSON through one loaded model;
-- semantic candidate branching via full single-sequence llama.cpp state snapshot/restore;
-- compiler-marked exact state-prefix reuse with a byte/entry-bounded LRU cache;
-- logical/physical token, snapshot/restore and cache hit/reuse metrics;
-- current Qwen3.5 Transformers backend retained only as migration-source code;
-- frozen 64-case workload, normal/reversed comparison and paired correctness evidence;
-- deterministic gate evaluator with quality, family, order, zero-generation and latency criteria;
-- CPU timing/p50/p95/throughput/RSS infrastructure;
-- 0.8B real-model matrix and Snake smoke;
-- repository health, package/install and integration-preflight workflows.
-
-The current runtime details are migration-source evidence, not the target v1 runtime contract.
+- strict typed request/result contracts and deterministic compiler;
+- semantic v2, semantic v1, letters and generated JSON comparison paths;
+- zero answer generation on native scoring paths with explicit uncalibrated probability semantics;
+- in-process local-GGUF `LlamaCppBackend` with exact artifact/runtime provenance;
+- native-batch-safe candidate branching with conservative fresh fallback;
+- byte/entry-bounded repeated-state LRU with physical-token and state-copy metrics;
+- frozen 64-case workload, normal/reversed comparison and deterministic gate evaluator;
+- CPU timing/p50/p95/throughput/RSS, real-model smoke and Snake evidence.
 
 ## Evidence status
 
-Support PRs #2–#4 were converged into PR #1 with exact-head integration evidence before the runtime decision changed.
+Pinned 0.8B llama.cpp smoke established the state-reuse mechanism before the reference-model switch.
+Run `35717350247` proved exact shared-vs-fresh scorer equivalence on its smoke fixture. Run
+`35726724805` proved a same-state/different-question cache hit with zero score/probability drift,
+526 physical tokens versus 2574 fresh, and deterministic cache clear.
 
-PR #1 is deliberately **draft** again.
-
-Qwen3.5-4B BF16/Transformers CPU run `35680562215` is non-authoritative for scorer promotion after this decision. It may remain historical/directional evidence.
-
-Run `35717350247` on pinned Qwen3.5-0.8B Q4_K_M proved the single-sequence state primitive exactly fresh-equivalent on the smoke fixture: score, binary-probability and distribution deltas were all `0.0`; physical input fell from 376 to 224 tokens (40.4% reuse). The captured sequence state was 22,072,908 bytes.
-
-Run `35726724805` then proved the bounded repeated-state cache on the same pinned 0.8B artifact after aligning reusable checkpoints to native `n_batch` boundaries. The same-state/different-question hit was exactly fresh-equivalent (`0.0` max score, binary-probability and distribution deltas), evaluated 526 physical tokens versus 2574 fresh, reused 1024 cached-state tokens, and reduced observed latency from 32.24 s to 7.05 s (~4.57x). Cache clear returned entries/bytes to zero. This is mechanism evidence, not the representative 2B performance claim.
+Those runs prove the mechanism, not the 2B scorer decision.
 
 ## Remaining gate
 
-### W5 — representative scorer decision
+W5 must run on the exact 2B artifact above with the frozen workload SHA
+`087ee8bbec3393609689046ea9c5d8219d0f39562e322180ca8f1e08eb368d3a`, unchanged runtime
+settings and unchanged criteria:
 
-The gate-v2 contract is now frozen before representative 2B results. The blocking run must use:
+- full-workload shared-vs-fresh equivalence;
+- long repeated-state cache oracle;
+- semantic v2, v1, letters and generated JSON in normal/reversed order;
+- quality, family, order, zero-generation and generated-latency checks;
+- one warm-up plus four position-balanced performance rounds.
 
-- the exact 2B Q4_K_M artifact/revision/SHA above;
-- `llama-cpp-python==0.3.35` on CPU with the frozen context/batch/thread/cache settings;
-- the full 64-case workload SHA `087ee8bbec3393609689046ea9c5d8219d0f39562e322180ca8f1e08eb368d3a`;
-- semantic v2, semantic v1, letters and generated JSON in normal and reversed order;
-- the unchanged quality/family/order/zero-generation/generation-latency criteria;
-- full-workload shared-vs-fresh equivalence plus a same-state/different-question repeated-cache oracle.
-
-A quality or equivalence failure keeps semantic v2 experimental. Cache latency is recorded, but no 2B cache-speed threshold was invented from the earlier 0.8B observation.
-
-### Later
-
-Answerability, larger-scale multi-question scheduling, calibration and stable public API follow after
-the scorer and shared runtime path survive the representative gate.
+A quality or equivalence failure keeps semantic v2 experimental. No cache-speed threshold is invented
+from earlier smaller-model observations.
 
 ## Next
 
-1. Run scorer-gate v2 on the frozen Qwen3.5-4B Q4_K_M reference artifact.
-2. Diagnose any failed scientific/runtime criterion without weakening the precommitted gate.
-3. Update durable evidence with the exact-head 2B result.
+1. Run scorer-gate v2 on the frozen Qwen3.5-2B Q4_K_M reference artifact.
+2. Diagnose any failed criterion without weakening the precommitted gate.
+3. Record exact-head 2B evidence.
 4. If the gate passes, return PR #1 to ready and run exact-head integration preflight.
