@@ -143,6 +143,16 @@ def test_semantic_scorer_batches_candidate_prompts():
     assert result.scorer == "semantic_comparative_logodds_v2"
     assert result.generated_tokens == 0
     assert result.probability_status == "uncalibrated_conditional_scores"
+    assert result.binary_conditional_probability.keys() == result.scores.keys()
+    assert math.isclose(
+        result.binary_conditional_probability["billing"],
+        softmax([5.0, 1.0])[0],
+    )
+    assert math.isclose(result.binary_conditional_probability["technical"], 0.5)
+    assert math.isclose(
+        result.binary_conditional_probability["sales"],
+        softmax([0.0, 3.0])[0],
+    )
     assert math.isclose(sum(result.distribution.values()), 1.0)
     assert len(backend.batch_calls) == 1
     assert backend.calls == []
@@ -160,6 +170,8 @@ def test_letter_scorer_is_a_single_forward_baseline():
     backend = QueueBackend([[1.0, 4.0, -1.0]])
     result = LetterTokenScorer(backend).score(request())
     assert result.choice == "technical"
+    assert result.binary_conditional_probability == {}
+    assert "binary_conditional_probability" not in result.to_dict()
     assert len(backend.calls) == 1
 
 
@@ -196,6 +208,7 @@ def test_benchmark_writes_auditable_jsonl(tmp_path: Path):
     record = json.loads(output_path.read_text(encoding="utf-8"))
     assert record["correct"] is True
     assert record["result"]["generated_tokens"] == 0
+    assert record["result"]["binary_conditional_probability"]["billing"] > 0.98
     assert record["result"]["model"]["model"] == "unit-test"
 
 
