@@ -76,6 +76,69 @@ jobs:
           assert identity["selected_vocab_projection"] is False, identity
           assert identity["shared_context_state"] is True, identity
           PY
+      - name: Compare shared-prefix path with fresh reference
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          from decisio.backends.llama_cpp import LlamaCppBackend, LlamaCppBackendConfig
+          from decisio.schema import ChoiceRequest
+          from decisio.scorers import SemanticBinaryScorer
+
+          request = ChoiceRequest.from_dict(
+              json.loads(Path("benchmarks/fixtures/ci-smoke.json").read_text())
+          )
+          backend = LlamaCppBackend(
+              LlamaCppBackendConfig(
+                  model=Path("/tmp/Qwen3.5-0.8B-Q4_K_M.gguf"),
+                  n_ctx=4096,
+                  n_threads=2,
+                  n_threads_batch=2,
+              )
+          )
+          try:
+              shared = SemanticBinaryScorer(backend).score(request)
+              backend.reset_runtime_metrics()
+              fresh = SemanticBinaryScorer(backend.fresh_view()).score(request)
+              shared_metrics = backend.runtime_metrics()
+
+              score_delta = max(
+                  abs(shared.scores[key] - fresh.scores[key])
+                  for key in shared.scores
+              )
+              binary_delta = max(
+                  abs(
+                      shared.binary_conditional_probability[key]
+                      - fresh.binary_conditional_probability[key]
+                  )
+                  for key in shared.binary_conditional_probability
+              )
+              distribution_delta = max(
+                  abs(shared.distribution[key] - fresh.distribution[key])
+                  for key in shared.distribution
+              )
+              evidence = {
+                  "same_choice": shared.choice == fresh.choice,
+                  "shared_choice": shared.choice,
+                  "fresh_choice": fresh.choice,
+                  "max_abs_score_delta": score_delta,
+                  "max_abs_binary_probability_delta": binary_delta,
+                  "max_abs_distribution_delta": distribution_delta,
+                  "fresh_runtime_metrics": shared_metrics,
+              }
+              Path("/tmp/decisio-shared-fresh-equivalence.json").write_text(
+                  json.dumps(evidence, indent=2, sort_keys=True) + "\n"
+              )
+
+              assert evidence["same_choice"], evidence
+              assert score_delta <= 1e-3, evidence
+              assert binary_delta <= 1e-4, evidence
+              assert distribution_delta <= 1e-4, evidence
+          finally:
+              backend.close()
+          PY
+
       - name: Run real-model Snake rollout
         run: |
           python -m examples.snake.play \
@@ -125,5 +188,6 @@ jobs:
             /tmp/decisio-snake.mp4
             /tmp/decisio-snake-smoke.jsonl
             /tmp/decisio-real-model-smoke.json
+            /tmp/decisio-shared-fresh-equivalence.json
           if-no-files-found: warn
           retention-days: 14

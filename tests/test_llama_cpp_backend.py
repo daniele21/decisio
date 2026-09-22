@@ -134,6 +134,20 @@ def test_tokenizer_uses_runtime_chat_template_and_no_implicit_bos(tmp_path: Path
     assert with_bos[1:] == plain
 
 
+def test_fresh_view_disables_shared_prefix_capability(tmp_path: Path):
+    backend, runtime = build_backend(tmp_path)
+    view = backend.fresh_view()
+    assert not hasattr(view, "shared_prefix_batch_next_token_logits")
+    assert view.identity["execution_path"] == "fresh"
+    rows = view.batch_next_token_logits(
+        [(1, 2, 3), (1, 2, 4)],
+        [[10, 11], [10, 11]],
+    )
+    assert rows == [[1.0, 1.1], [1.0, 1.1]]
+    assert len(runtime.logit_calls) == 2
+    assert runtime.shared_calls == []
+
+
 def test_backend_delegates_fresh_shared_and_generation(tmp_path: Path):
     backend, runtime = build_backend(tmp_path)
     assert backend.next_token_logits((1, 2), [10, 11]) == [1.0, 1.1]

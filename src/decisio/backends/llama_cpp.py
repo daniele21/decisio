@@ -476,6 +476,32 @@ class _TokenizerAdapter:
 RuntimeFactory = Callable[[LlamaCppBackendConfig], _Runtime]
 
 
+class FreshLlamaCppBackendView:
+    """Diagnostic view that disables shared-prefix scoring without reloading the model."""
+
+    def __init__(self, backend: "LlamaCppBackend"):
+        self._backend = backend
+        self.tokenizer = backend.tokenizer
+
+    @property
+    def identity(self) -> dict[str, Any]:
+        return {**self._backend.identity, "execution_path": "fresh"}
+
+    def next_token_logits(
+        self,
+        input_ids: tuple[int, ...],
+        token_ids: list[int],
+    ) -> list[float]:
+        return self._backend.next_token_logits(input_ids, token_ids)
+
+    def batch_next_token_logits(
+        self,
+        input_ids_batch: list[tuple[int, ...]],
+        token_ids_batch: list[list[int]],
+    ) -> list[list[float]]:
+        return self._backend.batch_next_token_logits(input_ids_batch, token_ids_batch)
+
+
 class LlamaCppBackend:
     """Canonical v1 backend: local GGUF + pinned llama.cpp, CPU reference path."""
 
@@ -540,6 +566,10 @@ class LlamaCppBackend:
     @property
     def identity(self) -> dict[str, Any]:
         return dict(self._identity)
+
+    def fresh_view(self) -> FreshLlamaCppBackendView:
+        """Return a scorer-compatible fresh-evaluation view for equivalence diagnostics."""
+        return FreshLlamaCppBackendView(self)
 
     def next_token_logits(
         self,

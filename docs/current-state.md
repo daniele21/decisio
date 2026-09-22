@@ -65,7 +65,7 @@ Qwen3.5-4B BF16/Transformers CPU run `35680562215` is non-authoritative for scor
 
 ### W3 — complete shared context-state reuse
 
-- prove candidate branching against fresh choice/score/probability outputs on a real hybrid model;
+- exact-head 0.8B smoke now compares candidate branching against fresh choice/score/probability output with precommitted numerical tolerances;
 - add a bounded repeated-state cache for many questions over one long state;
 - retain logical vs physically evaluated token/reuse instrumentation.
 
