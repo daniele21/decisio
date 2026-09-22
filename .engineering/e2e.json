@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "contract_version": "0.3.0",
+  "contract_version": "0.2.1",
   "applicability": {
     "status": "recommended",
     "reason": "Real-model workflows cross schema/compiler/scorer/backend boundaries; the scorer decision gate is pinned to Qwen3.5-4B BF16 on CPU."
