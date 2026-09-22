@@ -66,27 +66,12 @@ A separate answerability judgment estimates whether the state contains enough in
 
 ## Reference runtime
 
-Decisio v1 is local-first around **GGUF inference through llama.cpp**. The first reference artifact
-class is Qwen 3.5 4B Q4_K_M on CPU.
+Decisio v1 targets Qwen 3.5 4B Q4_K_M GGUF through llama.cpp on CPU. Representative evidence binds
+to the exact GGUF, runtime/build, host and scorer/compiler identity; BF16/Transformers evidence is
+not equivalent.
 
-This is a product/runtime choice rather than a claim that Q4_K_M is numerically equivalent to BF16.
-The exact GGUF SHA-256, quantization, llama.cpp runtime/build identity, binding identity, CPU/thread
-configuration and scorer/compiler identity must travel with benchmark evidence.
-
-The initial implementation used PyTorch/Transformers to establish scorer semantics. That path is now
-a migration source/research reference rather than the authority for choosing the stable Decisio
-scorer. Representative promotion evidence must use the llama.cpp/GGUF reference path.
-
-llama.cpp provides inference; Decisio owns deterministic compilation, scorer semantics, probability
-status, provenance and decision evidence. The first bridge is intended to be in-process rather than
-an HTTP/server dependency so Decisio can access the logits and runtime capabilities required by its
-scorers.
-
-GGUF does not remove post-hoc calibration. Until a validated calibration artifact matches the exact
-GGUF/scorer/compiler/runtime identity, normalized values remain
-`uncalibrated_conditional_scores` and must not be described as probability of correctness.
-
-A separate answerability judgment estimates whether the state contains enough information to answer at all.
+llama.cpp owns inference. Decisio owns scoring semantics, provenance and probability status.
+Normalized scores remain uncalibrated unless a calibration artifact matches that exact identity.
 
 ## Meaningful differentiation
 
