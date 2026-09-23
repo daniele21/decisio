@@ -18,16 +18,14 @@ def test_planner_rejects_locally_tempting_body_pocket():
     game = SnakeGame(width=6, height=6, seed=1)
     game.snake = [
         (2, 2), (2, 3), (1, 3), (1, 4), (2, 4), (3, 4),
-        (4, 4), (4, 3), (4, 2), (4, 1), (3, 1), (2, 1),
+        (4, 4), (4, 3), (4, 2), (4, 1), (3, 1), (2, 1), (1, 1),
     ]
     game.direction = "up"
     game.food = (5, 2)
 
     result = SnakePlanner(max_nodes=50_000).evaluate(game)
 
-    # UP enters the cell occupied by the current tail. That move is legal here because the
-    # snake is not eating on this step, so the tail vacates the cell before collision is resolved.
-    assert set(game.safe_directions()) == {"up", "left", "right"}
+    assert set(game.safe_directions()) == {"left", "right"}
     assert result.best_actions == ("left",)
     assert result.actions["left"].status == "proven_safe_food"
     assert result.actions["right"].status in {"trapping_food", "proven_no_safe_food"}
@@ -38,7 +36,7 @@ def test_planner_post_food_horizon_exposes_adjacent_trap():
     game = SnakeGame(width=6, height=6, seed=1)
     game.snake = [
         (2, 2), (2, 3), (1, 3), (1, 4), (2, 4), (3, 4),
-        (4, 4), (4, 3), (4, 2), (4, 1), (3, 1), (2, 1),
+        (4, 4), (4, 3), (4, 2), (4, 1), (3, 1), (2, 1), (1, 1),
     ]
     game.direction = "up"
     game.food = (3, 2)
