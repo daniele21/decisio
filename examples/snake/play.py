@@ -13,6 +13,8 @@ from decisio.schema import Candidate, ChoiceRequest, DecisionResult
 from decisio.scorers import IndependentSemanticScorer, LetterTokenScorer, SemanticBinaryScorer
 from examples.snake.game import DIRECTIONS, SnakeGame
 
+SCORER_CHOICES = ("direct", "semantic", "semantic-independent", "letters")
+
 QUESTION = (
     "Which single move should Snake take now? All supplied candidates are already known to avoid "
     "an immediate wall/body collision. Prefer progress toward the food while preserving future "
@@ -58,7 +60,9 @@ def build_scorer(args: argparse.Namespace) -> Any:
         return SemanticBinaryScorer(backend)
     if args.scorer == "semantic-independent":
         return IndependentSemanticScorer(backend)
-    return LetterTokenScorer(backend)
+    if args.scorer in {"direct", "letters"}:
+        return LetterTokenScorer(backend)
+    raise ValueError(f"unsupported Snake scorer: {args.scorer}")
 
 
 def _deterministic_decision(direction: str, scorer: str) -> DecisionResult:
@@ -137,8 +141,12 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--no-mmap", action="store_true")
     parser.add_argument(
         "--scorer",
-        choices=["semantic", "semantic-independent", "letters"],
-        default="semantic",
+        choices=SCORER_CHOICES,
+        default="direct",
+        help=(
+            "direct performs one A/B/C/... choice-logit forward pass; "
+            "semantic modes remain available for comparison"
+        ),
     )
     parser.add_argument("--seed", type=int, default=7)
     parser.add_argument("--width", type=int, default=8)

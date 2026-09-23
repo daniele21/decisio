@@ -53,6 +53,7 @@ uv sync --extra llama --extra dev
 
 uv run python -m examples.snake.web \
   --model /path/to/Qwen3.5-2B-Q4_K_M.gguf \
+  --scorer direct \
   --threads 5 \
   --threads-batch 11 \
   --trace .artifacts/snake-live.jsonl \
@@ -60,6 +61,11 @@ uv run python -m examples.snake.web \
 ```
 
 The UI opens at `http://127.0.0.1:8765/` by default.
+
+Snake defaults to `--scorer direct`. The safe moves are rendered once as A/B/C/... options, the
+model is evaluated once, and Decisio reads the corresponding option-token logits from that single
+forward pass. It does **not** run one YES/NO evaluation per candidate. Semantic v2 remains available
+with `--scorer semantic` for explicit comparison.
 
 Controls:
 
@@ -89,6 +95,7 @@ For a headless rollout:
 ```bash
 uv run python -m examples.snake.play \
   --model /path/to/Qwen3.5-2B-Q4_K_M.gguf \
+  --scorer direct \
   --threads 5 \
   --threads-batch 11 \
   --max-steps 100 \
@@ -133,9 +140,9 @@ direction and movement delta; the model is not given a handcrafted distance-to-f
 Run the same deterministic episode with the same model and seed:
 
 ```bash
+uv run python -m examples.snake.play --model /path/model.gguf --seed 42 --scorer direct --max-steps 50
 uv run python -m examples.snake.play --model /path/model.gguf --seed 42 --scorer semantic --max-steps 50
 uv run python -m examples.snake.play --model /path/model.gguf --seed 42 --scorer semantic-independent --max-steps 50
-uv run python -m examples.snake.play --model /path/model.gguf --seed 42 --scorer letters --max-steps 50
 ```
 
 Full rollouts can diverge after the first differing action, so Snake remains a behavioral probe rather

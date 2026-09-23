@@ -61,6 +61,13 @@ function modelLabel(model) {
   return `${name}${quant}`;
 }
 
+function scorerLabel(name) {
+  if (name === "letter_token_baseline_v1") return "DIRECT CHOICE · A/B/C logits · 1 forward";
+  if (name === "semantic_comparative_logodds_v2") return "SEMANTIC v2 · YES/NO per candidate";
+  if (name === "semantic_binary_logodds_v1") return "SEMANTIC v1 · YES/NO per candidate";
+  return name || "—";
+}
+
 function runtimeLabel(model) {
   if (!model) return "—";
   const device = model.device || "local";
@@ -94,7 +101,7 @@ function updateRuntime() {
   const model = status?.model || lastRecord?.decision?.model || {};
   ui.modelBadge.textContent = modelLabel(model);
   ui.modelLine.textContent = modelLabel(model);
-  ui.scorerLine.textContent = status?.scorer || lastRecord?.decision?.scorer || "—";
+  ui.scorerLine.textContent = scorerLabel(status?.scorer || lastRecord?.decision?.scorer);
   ui.executionLine.textContent = runtimeLabel(model);
 }
 
@@ -116,7 +123,10 @@ function renderMetrics() {
   ui.reuse.textContent = metrics.reuse_ratio == null ? "—" : formatPct(metrics.reuse_ratio);
 
   const mode = lastRecord?.constraints?.mode;
-  ui.modeBadge.textContent = mode === "model" ? "MODEL" : mode ? "RULE" : "LOCAL";
+  const scorer = status?.scorer || lastRecord?.decision?.scorer;
+  ui.modeBadge.textContent = mode === "model"
+    ? (scorer === "letter_token_baseline_v1" ? "DIRECT" : "MODEL")
+    : mode ? "RULE" : "LOCAL";
   ui.modeBadge.classList.toggle("subtle", mode !== "model");
 }
 

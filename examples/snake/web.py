@@ -13,7 +13,7 @@ from typing import Any
 from urllib.parse import urlparse
 
 from examples.snake.game import SnakeGame
-from examples.snake.play import append_trace, build_scorer, choose_move
+from examples.snake.play import SCORER_CHOICES, append_trace, build_scorer, choose_move
 
 STATIC_ROOT = Path(__file__).with_name("static")
 REPO_ROOT = Path(__file__).resolve().parents[2]
@@ -253,8 +253,12 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--no-mmap", action="store_true")
     parser.add_argument(
         "--scorer",
-        choices=["semantic", "semantic-independent", "letters"],
-        default="semantic",
+        choices=SCORER_CHOICES,
+        default="direct",
+        help=(
+            "direct performs one A/B/C/... choice-logit forward pass; "
+            "semantic modes remain available for comparison"
+        ),
     )
     parser.add_argument("--seed", type=int, default=7)
     parser.add_argument("--width", type=int, default=8)

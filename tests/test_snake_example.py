@@ -1,5 +1,5 @@
 from examples.snake.game import SnakeGame
-from examples.snake.play import build_request, choose_move
+from examples.snake.play import build_parser, build_request, choose_move
 
 
 class NeverCalledScorer:
@@ -63,3 +63,8 @@ def test_snake_eating_food_grows_and_scores():
     assert outcome.ate_food is True
     assert game.score == 1
     assert len(game.snake) == before + 1
+
+
+def test_snake_defaults_to_single_forward_direct_choice():
+    args = build_parser().parse_args(["--model", "model.gguf"])
+    assert args.scorer == "direct"
