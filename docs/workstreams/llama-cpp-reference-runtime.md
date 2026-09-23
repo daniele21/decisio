@@ -67,8 +67,9 @@ frozen before representative evidence.
 | W3 | DONE | Candidate branching + bounded repeated-state reuse proved fresh-equivalent on pinned 0.8B smoke. |
 | W4 | DONE | Scorer-gate v2 runtime/artifact/fast-path identity frozen before 2B results. |
 | W5 | FAILED | Gate #76 completed; runtime passed, but family and short-workload latency criteria failed. |
-| W5a | ACTIVE | Measure the intended repeated-state workload against generated JSON without a promotion threshold. |
-| W6 | BLOCKED | Decide scorer scope and freeze a new promotion experiment only if evidence justifies it. |
+| W5a | DONE | Diagnostic v2 replicated equal observed quality with ~4.57x remote p50 speedup. |
+| W5b | ACTIVE | Run frozen repeated-state gate v3 on 48 unique decisions / 8 shared states. |
+| W6 | BLOCKED | Decide supported scorer scope from W5b without rewriting the failed v2 gate. |
 
 ## W1/W2 runtime contract
 
@@ -178,24 +179,25 @@ diagnostic evidence rather than prompt-tuning targets. On the same run, the long
 oracle was exact and evaluated 526 physical tokens versus 2574 fresh, with 8.998 s versus 40.009 s
 observed latency.
 
-### W5a repeated-state diagnostic
+### W5a/W5b repeated-state scope decision
 
-Before changing scorer semantics, measure the product-relevant case of multiple questions over one
-long unchanged state. The diagnostic:
+Remote diagnostic v2 run `35840582210` matched the local signal: semantic and generated each scored
+6/7 unique cases, both missed the same performance-regression case, and semantic p50 was 14.98 s
+versus 68.40 s generated (~4.57x). Semantic generated zero answer tokens and evaluated 9,226
+physical versus 181,258 logical tokens. This justifies a scoped experiment, not promotion.
 
-- uses the same pinned 2B artifact/runtime identity;
-- compares semantic v2 with its bounded repeated-state cache against generated JSON;
-- uses four runtime-defined candidates and multiple questions over one shared long state;
-- rotates arm order across two rounds;
-- records quality, p50/p95 latency, semantic physical/logical tokens and cache hits;
-- is explicitly diagnostic-only: no pass threshold or promotion decision is invented after gate #76.
+Product intent for W5b: engineers making many bounded decisions over one persistent state need a
+materially cheaper path without a quality collapse. VALUE is `MEDIUM` until real demand is proven;
+USABILITY `LOW`; FEASIBILITY `MEDIUM` until the broader gate survives; VIABILITY `LOW`.
+The material assumption is that the diagnostic trade-off persists across families, candidate counts
+and state sizes. If wrong, semantic v2 is not promoted for this scope.
 
-Diagnostic v1 run `35829178231` showed ~4.75x lower semantic p50 (18.12 s versus
-86.00 s), 14/14 cache hits and 95.2% token reuse, but only 2/14 quality versus generated 14/14.
-Questions used opaque case IDs, so that run proves cache performance but not scorer quality.
-Diagnostic v2 fixes only that confound before observing a v2 result: the state/candidates stay
-unchanged while each question includes its case evidence. No promotion threshold is introduced.
-Its result may justify `NARROW_SCOPE`, a new experiment, or abandoning v2 as the default.
+Gate v3 is frozen in `benchmarks/repeated-state-gate-v3.md` before representative execution:
+48 unique decisions, eight states, four families, 2/4/8 candidates, three state tiers, normal/reversed
+order and exact 2B runtime identity. PASS requires comparable quality plus family/candidate guardrails,
+zero semantic order changes, zero generated answer tokens, exact cache hits/misses with <=50%
+physical/logical tokens, and at least 2x p50/p95 six-decision group speedup over generated JSON.
+A PASS supports only `NARROW_SCOPE`; scorer-gate v2 remains FAIL.
 
 ## Calibration compatibility
 
@@ -207,8 +209,8 @@ Without that match, outputs remain uncalibrated.
 
 Before PR #1 returns to ready:
 
-1. complete W5a and decide the supported scorer scope from evidence;
-2. freeze any replacement promotion experiment before observing its result;
+1. run the frozen W5b repeated-state gate v3;
+2. decide the supported scorer scope from its precommitted criteria;
 3. update durable docs and PR metadata to that decision;
 4. run repository deterministic gates and exact-head integration preflight;
 5. inspect the complete diff against live `main`.

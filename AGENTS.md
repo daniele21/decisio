@@ -42,9 +42,13 @@ Follow `docs/roadmap.md`.
 
 Do not add HTTP, MLX, additional runtime backends/quantizations, UI or broad model support before Milestones 0–1 establish the scorer on the llama.cpp/GGUF reference path.
 
-The first executable question is:
+Scorer-gate v2 answered the short/fresh general-purpose question negatively; do not weaken or
+reinterpret that failed gate. The active executable question is now:
 
-> On the same frozen workload and pinned Qwen 3.5 2B Q4_K_M GGUF + llama.cpp runtime, does semantic candidate log-odds provide a useful quality/robustness trade-off against direct answer-token scoring and generated structured output?
+> On the frozen repeated-state workload and pinned Qwen 3.5 2B Q4_K_M GGUF + llama.cpp runtime, can semantic v2 retain comparable decision quality while using exact shared-state reuse to deliver a material latency/token advantage over generated JSON?
+
+The precommitted contract is `benchmarks/repeated-state-gate-v3.md`. A PASS supports only a
+repeated-state `NARROW_SCOPE` decision.
 
 ## Validation priorities
 

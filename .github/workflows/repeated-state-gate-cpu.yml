@@ -1,0 +1,99 @@
+name: Repeated-state gate v3
+
+on:
+  workflow_dispatch:
+  pull_request:
+    types: [synchronize, reopened]
+    paths:
+      - ".github/workflows/repeated-state-gate-cpu.yml"
+      - "pyproject.toml"
+      - "uv.lock"
+      - "src/decisio/**"
+      - "benchmarks/build_repeated_state_gate_fixture.py"
+      - "benchmarks/run_repeated_state_gate.py"
+      - "benchmarks/evaluate_repeated_state_gate.py"
+      - "benchmarks/repeated-state-gate-v3.md"
+      - "tests/test_repeated_state_gate.py"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: repeated-state-gate-v3-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  repeated-state-gate-v3:
+    if: github.event_name == 'workflow_dispatch' || github.base_ref == 'main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 240
+    env:
+      MODEL: /tmp/Qwen3.5-2B-Q4_K_M.gguf
+      GATE_DIR: .artifacts/repeated-state-gate-v3
+      GATE_INPUT: .artifacts/repeated-state-gate-v3/fixture.json
+      GATE_REPORT: .artifacts/repeated-state-gate-v3/report.json
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install pinned CPU llama.cpp runtime
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install "diskcache>=5.6.1" "jinja2>=2.11.3" "numpy>=1.20" "typing-extensions>=4.5"
+          python -m pip install --index-url https://abetlen.github.io/llama-cpp-python/whl/cpu --no-deps "llama-cpp-python==0.3.35"
+          python -m pip install -e . --no-deps
+
+      - name: Download frozen Qwen3.5-2B Q4_K_M artifact
+        run: |
+          curl -L --fail --retry 3 \
+            "https://huggingface.co/unsloth/Qwen3.5-2B-GGUF/resolve/1c466474d208da1a7c4b8cb87ebcdac78f160e34/Qwen3.5-2B-Q4_K_M.gguf?download=true" \
+            -o "$MODEL"
+          echo "aaf42c8b7c3cab2bf3d69c355048d4a0ee9973d48f16c731c0520ee914699223  $MODEL" | sha256sum -c -
+          test "$(stat -c %s "$MODEL")" = "1280835840"
+
+      - name: Materialize frozen repeated-state workload
+        run: |
+          python benchmarks/build_repeated_state_gate_fixture.py \
+            --output "$GATE_INPUT"
+
+      - name: Run repeated-state comparison
+        run: |
+          python benchmarks/run_repeated_state_gate.py \
+            --fixture "$GATE_INPUT" \
+            --model "$MODEL" \
+            --output "$GATE_REPORT" \
+            --n-ctx 8192 \
+            --n-batch 512 \
+            --n-ubatch 512 \
+            --threads 2 \
+            --threads-batch 2
+
+      - name: Apply precommitted repeated-state gate v3
+        run: |
+          python benchmarks/evaluate_repeated_state_gate.py \
+            --report "$GATE_REPORT" \
+            --output-dir "$GATE_DIR" \
+            --require-pass
+
+      - name: Record host and source identity
+        if: always()
+        run: |
+          mkdir -p "$GATE_DIR"
+          {
+            echo "github_sha=$GITHUB_SHA"
+            echo "runner_os=$RUNNER_OS"
+            python --version
+            uname -a
+            lscpu
+          } > "$GATE_DIR/host.txt"
+
+      - name: Upload repeated-state gate evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: decisio-repeated-state-gate-v3-qwen35-2b-q4km
+          path: .artifacts/repeated-state-gate-v3/
+          if-no-files-found: warn
+          retention-days: 14

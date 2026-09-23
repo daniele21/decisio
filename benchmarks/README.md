@@ -79,6 +79,37 @@ fresh oracle over all 64 cases, then proves a bounded same-state/different-quest
 fresh evaluation. Output equality is blocking; cache latency is recorded but is not a precommitted
 2B speed threshold.
 
+## Repeated-state gate v3
+
+The scoped repeated-state contract is
+[`repeated-state-gate-v3.md`](repeated-state-gate-v3.md). It does not replace scorer-gate v2.
+
+Materialize and run the frozen 48-case / 8-state workload:
+
+```bash
+uv run python benchmarks/build_repeated_state_gate_fixture.py \
+  --output .artifacts/repeated-state-gate-v3/fixture.json
+
+uv run python benchmarks/run_repeated_state_gate.py \
+  --fixture .artifacts/repeated-state-gate-v3/fixture.json \
+  --model /path/to/Qwen3.5-2B-Q4_K_M.gguf \
+  --output .artifacts/repeated-state-gate-v3/report.json \
+  --n-ctx 8192 --n-batch 512 --n-ubatch 512 \
+  --threads 2 --threads-batch 2
+
+uv run python benchmarks/evaluate_repeated_state_gate.py \
+  --report .artifacts/repeated-state-gate-v3/report.json \
+  --output-dir .artifacts/repeated-state-gate-v3 \
+  --require-pass
+```
+
+Expected fixture SHA-256:
+`f9e5f56128f93efb952f1fc3f4f38441150cb0c29906f688977ffa69ea61338a`.
+
+The runner prints live progress/ETA. The evaluator includes the cold decision in each six-decision
+group and applies the quality, order, cache/token and >=2x p50/p95 latency criteria frozen in the
+methodology document.
+
 ## Run one scorer
 
 ```bash

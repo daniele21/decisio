@@ -17,7 +17,7 @@ Active plan: [llama.cpp reference runtime migration](workstreams/llama-cpp-refer
 | llama.cpp reference runtime | DONE | local-GGUF backend/CLI and scorer primitives implemented |
 | Shared context-state fast path | DONE | native-batch-safe branching + bounded repeated-state cache |
 | Scorer gate v2 | FAILED | short independent workload does not justify v2 promotion |
-| Repeated-state diagnostic | ACTIVE | compare cached v2 against generated JSON on one long shared state |
+| Repeated-state gate v3 | ACTIVE | frozen 48-case/8-state scoped promotion experiment |
 | Product foundation | ACTIVE | PR #1 remains draft until the scorer scope is decided |
 
 ## Reference identity
@@ -48,21 +48,25 @@ and processed 53,333 physical input tokens per measured round.
 
 ## Repeated-state evidence
 
-The same 2B run proved the long-state cache mechanism independently: cached scoring matched fresh
-exactly, evaluated 526 physical tokens versus 2574 fresh, and observed 8.998 s versus 40.009 s
-(~4.45x fresh-path speedup).
+The 2B runtime oracle proved exact cached-vs-fresh scoring with 526 physical tokens versus 2574 fresh
+and ~4.45x observed speedup.
 
-Diagnostic v1 confirmed the performance mechanism but exposed a workload confound: semantic v2 was
-~4.75x faster than generated JSON (18.12 s versus 86.00 s p50) with 95.2% token reuse, but scored
-2/14 because questions referenced opaque case IDs inside the long state. Generated JSON scored 14/14.
-That mixes decision quality with ID dereferencing, so it is not accepted as product evidence.
+Diagnostic v2 then replicated the product signal on remote run `35840582210`: semantic and generated
+both scored 12/14 across two rounds (6/7 unique cases), both missed only the same
+performance-regression case, semantic p50 was 14.98 s versus 68.40 s generated (~4.57x), semantic
+generated zero answer tokens, and the semantic path evaluated 9,226 physical versus 181,258 logical
+tokens. This is diagnostic evidence, not promotion evidence.
 
-Diagnostic v2 is predeclared to keep the same long shared state/cache while putting the relevant case
-evidence directly in each question. It remains diagnostic-only with no post-hoc promotion threshold.
+Repeated-state gate v3 is now frozen before representative execution. Fixture SHA
+`f9e5f56128f93efb952f1fc3f4f38441150cb0c29906f688977ffa69ea61338a` covers 48 unique decisions
+in eight shared-state groups, four families, 2/4/8 candidates, short/medium/long state tiers and
+normal/reversed candidate order. Its precommitted gate requires comparable quality, zero semantic
+order changes, exact cache behavior, <=50% physical/logical tokens, and at least 2x p50/p95 group
+latency advantage over generated JSON. See `benchmarks/repeated-state-gate-v3.md`.
 
 ## Next
 
-1. Run repeated-state diagnostic v2 on the pinned 2B runtime.
-2. Choose BUILD, NARROW_SCOPE, CHOOSE_ALTERNATIVE or DO_NOT_BUILD for v2 from that evidence.
-3. Freeze any replacement promotion experiment before observing its result.
-4. Keep PR #1 draft until scorer scope, durable docs and exact-head integration evidence agree.
+1. Run repeated-state gate v3 on the exact pinned 2B CPU runtime.
+2. If PASS, adopt `NARROW_SCOPE` for repeated-state decisions only; scorer-gate v2 remains FAIL.
+3. If FAIL, preserve the failed criterion and choose a narrower/new scorer experiment or alternative.
+4. Keep PR #1 draft until product scope, docs and exact-head integration evidence agree.
