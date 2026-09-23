@@ -56,3 +56,4 @@ def test_planner_reports_bounded_unknown_instead_of_false_optimality():
     result = SnakePlanner(max_nodes=1, max_depth=20).evaluate(game)
 
     assert any(action.status == "bounded_unknown" for action in result.actions.values())
+    assert result.complete is False
