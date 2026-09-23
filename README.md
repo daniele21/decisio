@@ -47,7 +47,7 @@ let developers bring a compatible quantized Qwen GGUF that fits their own hardwa
 quality trade-off.
 
 <p align="center">
-  <img src="brand/graphics/decisio-vs-generated-decisions.svg" alt="Decisio vs generated decisions: generated JSON and parse/repair compared with direct llama.cpp logit scoring into a typed decision" width="100%" />
+  <img src="brand/graphics/decisio-vs-generated-decisions.png" alt="Decisio vs generated decisions: generated JSON and parse/repair compared with direct llama.cpp logit scoring into a typed decision" width="100%" />
 </p>
 
 ## Why
@@ -199,16 +199,9 @@ optional calibration artifact fitted on labeled validation data
 calibrated probabilities
 ```
 
-> **IMAGE PLACEHOLDER — From logits to calibrated probabilities**  
-> Draw a clean left-to-right pipeline with these blocks:
-> `Qwen GGUF → llama.cpp → next-token logits → Decisio score → conditional distribution →
-> calibration layer → calibrated probability`.
-> Use a neutral background and one green accent for the calibration layer.
-> Under `conditional distribution`, add the note:
-> “relative preference among supplied candidates — not probability of correctness”.
-> Under the final block, add:
-> “validated on held-out labeled data”.
-> Keep the diagram technical and minimal; do not imply that calibration is already implemented.
+<p align="center">
+  <img src="brand/graphics/decisio-logits-to-calibrated-probabilities.png" alt="From logits to calibrated probabilities: pipeline from Qwen GGUF through llama.cpp next-token logits, Decisio scoring, uncalibrated conditional distribution, to optional calibration layer and calibrated probability" width="100%" />
+</p>
 
 ### 1. llama.cpp gives Decisio logits
 
@@ -265,17 +258,9 @@ That is why the result is labeled:
 }
 ```
 
-> **IMAGE PLACEHOLDER — Relative distribution vs calibrated probability**  
-> Create a two-panel graphic using the same example.
-> Left panel: `Uncalibrated conditional distribution`, with bars
-> `billing 0.73`, `technical 0.20`, `sales 0.07`.
-> Caption: “relative preference among these candidates”.
-> Right panel: `Calibrated probability`, with illustrative bars such as
-> `billing 0.61`, `technical 0.25`, `sales 0.14`.
-> Caption: “estimated correctness probability after held-out calibration”.
-> Between the panels write:
-> “Calibration changes the statistical interpretation, not just the displayed number.”
-> Mark the calibrated values as illustrative, not benchmark results.
+<p align="center">
+  <img src="brand/graphics/decisio-relative-distribution-vs-calibrated-probability.png" alt="Relative distribution vs calibrated probability: uncalibrated conditional distribution compared with calibrated probability after held-out calibration" width="100%" />
+</p>
 
 ### 3. Calibration learns the mapping from scores to observed correctness
 
@@ -317,16 +302,9 @@ Calibration quality should be measured with appropriate held-out metrics such as
 reliability/calibration error and task-appropriate accuracy/coverage diagnostics. Calibration must
 not be declared successful merely because probabilities look smoother.
 
-> **IMAGE PLACEHOLDER — Calibration fitting workflow**  
-> Draw a top-to-bottom workflow:
-> `Labeled validation set → run Decisio → collect scores + correctness →
-> compare predicted confidence with observed accuracy → fit calibration method →
-> validate on held-out data → save calibration artifact`.
-> Beside the saved artifact show a fingerprint card containing:
-> `GGUF SHA-256`, `quantization`, `scorer`, `compiler/prompt`,
-> `llama.cpp build`, `calibration method`, `calibration dataset identity`.
-> Add a warning badge:
-> “Do not reuse across a different artifact identity without validation.”
+<p align="center">
+  <img src="brand/graphics/decisio-calibration-fitting-workflow.png" alt="Calibration fitting workflow: step-by-step workflow from labeled validation set to saved calibration artifact with artifact fingerprint" width="100%" />
+</p>
 
 ### 4. Calibration belongs to the exact decision engine identity
 
@@ -449,13 +427,9 @@ long state + question + alternatives
 For repeated decisions, the target is also to retain a bounded prefix state so a long unchanged
 state is not recomputed for every new question.
 
-> **IMAGE PLACEHOLDER — Shared context-state reuse**  
-> Show two panels. Left: naive execution repeats the same long state separately for candidates A/B/C
-> and for later questions; visually repeat a large “STATE” block and label it “re-prefill”.
-> Right: Decisio + llama.cpp prefills STATE once, keeps a reusable model-context block, then branches
-> into questions and candidate suffixes. Label the cache “KV + hybrid/recurrent model state”, not
-> merely “KV cache”. Add metrics below: logical tokens, physically evaluated tokens, reuse rate,
-> fresh-vs-shared equivalence. Do not print speedup numbers until measured.
+<p align="center">
+  <img src="brand/graphics/decisio-shared-context-state-reuse.png" alt="Shared context-state reuse: naive re-prefill execution compared with Decisio and llama.cpp shared context-state reuse across candidates and questions" width="100%" />
+</p>
 
 Fresh evaluation remains the oracle: the shared fast path becomes default only after it preserves
 the same choice and keeps score/probability deltas within a declared tolerance.
