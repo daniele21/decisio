@@ -223,7 +223,7 @@ Both the web and headless commands accept these independently selectable experim
 
 - `--input-format compact`: omit the duplicate ASCII board from model input (the game still renders
   it) and encode candidate sensors in short fields. Full body coordinates remain available.
-- `--reuse-prefix`: direct/letters scoring only; place the question before changing state, mark its
+- `--reuse-prefix`: direct/letters scoring only; explicitly force the default stateful path. It places the fixed decision context before changing state, marks its
   exact token prefix, and use the existing bounded sequence-state cache. This has a distinct
   `letter_question_prefix_v1` scorer identity. It changes prompt order, so compare quality as well
   as latency. Fresh backends evaluate the same prompt without reuse.
@@ -231,9 +231,8 @@ Both the web and headless commands accept these independently selectable experim
   immediately safe next action. This is an application heuristic, not proof of long-term safety;
   traces identify it as `deterministic_adjacent_food_policy`. The default remains `model`.
 
-Default input remains verbose and prefix reuse remains off pending broader gameplay evidence.
-Reuse checkpoints must align with native batch boundaries. A short fixed prefix may not be reusable
-at `--n-batch 512`; smaller batches can enable reuse but also slow fresh processing. Do not assume
+Default input remains verbose. Direct/letters scoring now enables fixed-context prefix reuse by default; use `--fresh-prefix` to run the same stateful prompt without cache reuse. Semantic scorers stay fresh unless explicitly supported.
+Reuse checkpoints must align with native batch boundaries. Snake now defaults to `--n-batch 128` / `--n-ubatch 128` so the fixed controller context reaches a reusable checkpoint; callers can override both values. Do not assume
 that cache hits imply a net speedup. CPU thread/batch tuning remains explicit via `--threads`,
 `--threads-batch`, `--n-batch` and `--n-ubatch`.
 
