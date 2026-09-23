@@ -5,11 +5,11 @@
 <h1 align="center">Decisio</h1>
 
 <p align="center">
-  <strong>Turn a local open-weight LLM into a typed decision engine instead of making it generate an answer.</strong>
+  <strong>A stateful decision runtime for local LLMs: compile stable context once, then make fast typed decisions over changing state.</strong>
 </p>
 
 <p align="center">
-  Training-free · zero answer tokens on native scoring · local GGUF + llama.cpp
+  Training-free · stateful context reuse · zero answer tokens · local GGUF + llama.cpp
 </p>
 
 <p align="center">
@@ -37,14 +37,88 @@
   · <a href="CONTRIBUTING.md">Contributing</a>
 </p>
 
-Decisio takes application state, a question and runtime-defined candidates, then scores the candidates
-directly from model logits. Native scoring generates **zero answer tokens** and requires **no
+Decisio treats **stable decision context as a runtime resource**, not text to resend blindly on
+every request. The intended loop is: prefill the stable task/policy context once, keep a reusable
+llama.cpp model-context snapshot, then score only the changing application state, deterministic
+sensors and valid actions. Native scoring generates **zero answer tokens** and requires **no
 fine-tuning**.
 
-The v1 runtime direction is local **GGUF + llama.cpp**. Qwen3.5-2B Q4_K_M is the reference artifact
-for reproducible evidence, but it is not intended to be the only usable quantization: the goal is to
-let developers bring a compatible quantized Qwen GGUF that fits their own hardware, memory and
-quality trade-off.
+The v1 runtime is deliberately opinionated: local **GGUF + llama.cpp**. Qwen3.5-2B Q4_K_M is the
+reference evidence artifact, not a permanent model restriction.
+
+## The product idea
+
+```text
+stable decision context
+(task, policy, coordinate/sensor semantics)
+              |
+         prefill once
+              |
+     reusable model context
+        /       |       \
+       /        |        \
+state t      state t+1   state t+2
++ sensors    + sensors   + sensors
++ valid      + valid     + valid
+ actions      actions     actions
+   |            |           |
+direct logits direct logits direct logits
+   |            |           |
+typed action  typed action typed action
+```
+
+> **IMAGE PLACEHOLDER — Compile stable context once**
+> Two panels. Left: a stateless loop repeats a large TASK/POLICY block together with STATE 1, STATE 2,
+> STATE 3 and labels each pass “re-prefill”. Right: Decisio prefills TASK/POLICY once into “reusable
+> llama.cpp model context”, then appends only changing state + deterministic sensors + valid actions.
+> Show logical tokens vs physically evaluated tokens, cache hits and fresh-equivalence; do not print
+> a speedup number unless it comes from a measured run.
+
+Decisio separates three things that are often mixed together:
+
+```text
+deterministic facts        stable semantics             uncertain choice
+-------------------        ----------------             ----------------
+wall collision        ->   Snake decision policy   ->   RIGHT vs UP
+authorization rule         sensor meanings              route A vs B
+invalid transition         task objective               retry vs escalate
+```
+
+The application owns deterministic truth. Decisio only scores the remaining semantic trade-off.
+
+> **IMAGE PLACEHOLDER — Constraints before probabilities**
+> A funnel: application state -> deterministic constraints remove impossible actions -> stable
+> decision context (cached) -> current state + sensors -> direct option logits -> typed action.
+> Add a future side branch from confidence/answerability to ABSTAIN, clearly marked “planned”.
+
+## How this differs from SemIf
+
+[SemIf](https://github.com/TheoLeeCJ/SemIf) independently explores the same important low-level
+primitive: use an open model's option logits directly instead of generating prose/JSON. It also
+supports shared-state execution, several runtimes and workload calibration. **Decisio does not claim
+direct logits themselves as the differentiator.**
+
+The intended product boundary is different:
+
+| | SemIf emphasis | Decisio emphasis |
+| --- | --- | --- |
+| Core primitive | direct typed option scoring | direct typed option scoring is an internal primitive |
+| State | shared-state scoring/reuse | first-class persistent decision context + changing application state |
+| Runtime breadth | multiple backends/model paths | opinionated local GGUF + llama.cpp reference runtime |
+| Domain facts | supplied decision input | deterministic constraints are explicitly applied before scoring |
+| Reuse contract | performance execution mode | fresh-equivalent model-context reuse is a product invariant |
+| Output contract | option probabilities/scores | typed application action + provenance; answerability/abstention planned |
+
+The shorthand is:
+
+> **SemIf: score this decision efficiently.**  
+> **Decisio: keep my application's decision context warm and make many bounded decisions as state changes.**
+
+> **IMAGE PLACEHOLDER — Shared primitive, different boundary**
+> Venn-style architecture graphic. Shared center: “open LLM + direct option logits + zero answer
+> generation”. SemIf side: “multi-backend scoring / calibration / benchmarking”. Decisio side:
+> “persistent decision context / deterministic constraints / current-state suffix / typed action /
+> fresh-equivalence”. Avoid “better/worse” language.
 
 <p align="center">
   <img src="brand/graphics/decisio-vs-generated-decisions.png" alt="Decisio vs generated decisions: generated JSON and parse/repair compared with direct llama.cpp logit scoring into a typed decision" width="100%" />
@@ -510,6 +584,35 @@ peak-RSS reporting.
 The original [scorer gate v1](benchmarks/scorer-gate-v1.md) is retained as the frozen
 Transformers/BF16 methodology source, but it no longer authorizes scorer promotion. The llama.cpp
 migration will freeze a gate-v2 GGUF/runtime identity before representative results are observed.
+
+## Snake: the reference stateful loop
+
+Snake is now the concrete reference for the product contract. A fixed controller context explains the
+goal, coordinates, sensor semantics and decision priorities once. Every move supplies only the
+current board plus deterministic candidate features. Immediate wall/body collisions are filtered in
+code before Qwen sees the options. The direct scorer uses question-prefix context reuse by default;
+`--fresh-prefix` keeps the same decision path without cache reuse for diagnostics.
+
+```text
+STATIC FOR THE EPISODE                 CHANGES EVERY STEP
+----------------------                 ------------------
+Snake objective                        head/body/food
+coordinate convention        +         valid actions
+sensor definitions                      projected exits
+decision priorities                      reachable area
+                                        recent-visit sensor
+          |                                  |
+          +------ reusable context ----------+
+                          |
+                       A/B/C logits
+                          |
+                       typed move
+```
+
+> **IMAGE PLACEHOLDER — Snake static vs dynamic**
+> Show a cached left column named “Snake decision context” and a stream of Step 1 / Step 2 / Step 3
+> cards containing only current board, food, valid moves and deterministic sensors. Under each step
+> show one direct-logit readout. Highlight that full previous boards are not replayed.
 
 ## Examples
 
