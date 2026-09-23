@@ -8,6 +8,7 @@ from __future__ import annotations
 import argparse
 import json
 import statistics
+import sys
 import time
 from pathlib import Path
 from typing import Any
@@ -16,6 +17,70 @@ from decisio.backends.llama_cpp import LlamaCppBackend, LlamaCppBackendConfig
 from decisio.baselines.generation import GeneratedJsonScorer, compile_generated_choice
 from decisio.schema import Candidate, ChoiceRequest
 from decisio.scorers import SemanticBinaryScorer
+
+
+def _format_duration(seconds: float) -> str:
+    total_seconds = max(0, int(round(seconds)))
+    hours, remainder = divmod(total_seconds, 3600)
+    minutes, seconds = divmod(remainder, 60)
+    return f"{hours:02d}:{minutes:02d}:{seconds:02d}"
+
+
+def _progress_line(
+    *,
+    round_index: int,
+    rounds: int,
+    arm: str,
+    completed: int,
+    total: int,
+    label: str,
+    elapsed_seconds: float,
+) -> str:
+    if rounds < 1 or round_index < 1 or round_index > rounds:
+        raise ValueError("round index must be within configured rounds")
+    if total < 1:
+        raise ValueError("progress total must be positive")
+    if completed < 0 or completed > total:
+        raise ValueError("progress completed must be between zero and total")
+
+    percent = (completed / total) * 100.0
+    if completed == 0:
+        eta = "--:--:--"
+    elif completed == total:
+        eta = "00:00:00"
+    else:
+        seconds_per_item = elapsed_seconds / completed
+        eta = _format_duration(seconds_per_item * (total - completed))
+    return (
+        f"[round {round_index}/{rounds}] "
+        f"[{arm} {completed}/{total} | {percent:5.1f}%] "
+        f"{label} | elapsed {_format_duration(elapsed_seconds)} | ETA {eta}"
+    )
+
+
+def _report_progress(
+    *,
+    round_index: int,
+    rounds: int,
+    arm: str,
+    completed: int,
+    total: int,
+    label: str,
+    started_at: float,
+) -> None:
+    print(
+        _progress_line(
+            round_index=round_index,
+            rounds=rounds,
+            arm=arm,
+            completed=completed,
+            total=total,
+            label=label,
+            elapsed_seconds=time.perf_counter() - started_at,
+        ),
+        file=sys.stderr,
+        flush=True,
+    )
 
 
 def _requests() -> list[tuple[ChoiceRequest, str]]:
@@ -90,16 +155,51 @@ def _config(args: argparse.Namespace) -> LlamaCppBackendConfig:
     )
 
 
-def _semantic_arm(args: argparse.Namespace) -> dict[str, Any]:
+def _semantic_arm(
+    args: argparse.Namespace,
+    *,
+    round_index: int,
+    rounds: int,
+) -> dict[str, Any]:
+    requests = _requests()
+    total = len(requests) - 1
+    arm_started = time.perf_counter()
+    _report_progress(
+        round_index=round_index,
+        rounds=rounds,
+        arm="semantic",
+        completed=0,
+        total=total,
+        label="loading model/runtime",
+        started_at=arm_started,
+    )
     backend = LlamaCppBackend(_config(args))
     try:
-        requests = _requests()
         scorer = SemanticBinaryScorer(backend)
         backend.clear_repeated_state_cache()
+        _report_progress(
+            round_index=round_index,
+            rounds=rounds,
+            arm="semantic",
+            completed=0,
+            total=total,
+            label=f"warmup {requests[0][0].id}",
+            started_at=arm_started,
+        )
         scorer.score(requests[0][0])
 
         rows: list[dict[str, Any]] = []
-        for request, expected in requests[1:]:
+        measured_started = time.perf_counter()
+        for index, (request, expected) in enumerate(requests[1:], start=1):
+            _report_progress(
+                round_index=round_index,
+                rounds=rounds,
+                arm="semantic",
+                completed=index - 1,
+                total=total,
+                label=f"running {request.id}",
+                started_at=measured_started,
+            )
             backend.reset_runtime_metrics()
             started = time.perf_counter()
             result = scorer.score(request)
@@ -115,20 +215,67 @@ def _semantic_arm(args: argparse.Namespace) -> dict[str, Any]:
                     "runtime_metrics": backend.runtime_metrics(),
                 }
             )
+            _report_progress(
+                round_index=round_index,
+                rounds=rounds,
+                arm="semantic",
+                completed=index,
+                total=total,
+                label=(
+                    f"completed {request.id} in "
+                    f"{_format_duration(elapsed)}"
+                ),
+                started_at=measured_started,
+            )
         return {"identity": backend.identity, "rows": rows}
     finally:
         backend.close()
 
 
-def _generated_arm(args: argparse.Namespace) -> dict[str, Any]:
+def _generated_arm(
+    args: argparse.Namespace,
+    *,
+    round_index: int,
+    rounds: int,
+) -> dict[str, Any]:
+    requests = _requests()
+    total = len(requests) - 1
+    arm_started = time.perf_counter()
+    _report_progress(
+        round_index=round_index,
+        rounds=rounds,
+        arm="generated",
+        completed=0,
+        total=total,
+        label="loading model/runtime",
+        started_at=arm_started,
+    )
     backend = LlamaCppBackend(_config(args))
     try:
-        requests = _requests()
         scorer = GeneratedJsonScorer(backend)
+        _report_progress(
+            round_index=round_index,
+            rounds=rounds,
+            arm="generated",
+            completed=0,
+            total=total,
+            label=f"warmup {requests[0][0].id}",
+            started_at=arm_started,
+        )
         scorer.score(requests[0][0])
 
         rows: list[dict[str, Any]] = []
-        for request, expected in requests[1:]:
+        measured_started = time.perf_counter()
+        for index, (request, expected) in enumerate(requests[1:], start=1):
+            _report_progress(
+                round_index=round_index,
+                rounds=rounds,
+                arm="generated",
+                completed=index - 1,
+                total=total,
+                label=f"running {request.id}",
+                started_at=measured_started,
+            )
             _, input_ids, _ = compile_generated_choice(backend.tokenizer, request)
             started = time.perf_counter()
             result = scorer.score(request)
@@ -144,6 +291,18 @@ def _generated_arm(args: argparse.Namespace) -> dict[str, Any]:
                     "generated_tokens": result.generated_tokens,
                 }
             )
+            _report_progress(
+                round_index=round_index,
+                rounds=rounds,
+                arm="generated",
+                completed=index,
+                total=total,
+                label=(
+                    f"completed {request.id} in "
+                    f"{_format_duration(elapsed)}"
+                ),
+                started_at=measured_started,
+            )
         return {"identity": backend.identity, "rows": rows}
     finally:
         backend.close()
@@ -152,14 +311,39 @@ def _generated_arm(args: argparse.Namespace) -> dict[str, Any]:
 def evaluate(args: argparse.Namespace) -> dict[str, Any]:
     arm_results: dict[str, list[dict[str, Any]]] = {"semantic": [], "generated": []}
     execution_order: list[list[str]] = []
+    experiment_started = time.perf_counter()
     for round_index in range(args.rounds):
         order = ["semantic", "generated"]
         if round_index % 2:
             order.reverse()
         execution_order.append(order)
+        current_round = round_index + 1
+        print(
+            f"[experiment] round {current_round}/{args.rounds} "
+            f"order: {' -> '.join(order)}",
+            file=sys.stderr,
+            flush=True,
+        )
         for arm in order:
-            result = _semantic_arm(args) if arm == "semantic" else _generated_arm(args)
+            if arm == "semantic":
+                result = _semantic_arm(
+                    args,
+                    round_index=current_round,
+                    rounds=args.rounds,
+                )
+            else:
+                result = _generated_arm(
+                    args,
+                    round_index=current_round,
+                    rounds=args.rounds,
+                )
             arm_results[arm].append(result)
+    print(
+        f"[experiment] complete in "
+        f"{_format_duration(time.perf_counter() - experiment_started)}",
+        file=sys.stderr,
+        flush=True,
+    )
 
     report: dict[str, Any] = {
         "schema_version": 1,
