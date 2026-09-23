@@ -1,5 +1,12 @@
 from examples.snake.game import SnakeGame
-from examples.snake.play import build_parser, build_request, choose_move
+from examples.snake.play import (
+    DECISION_CONTEXT_ID,
+    STATIC_DECISION_CONTEXT,
+    build_parser,
+    build_request,
+    choose_move,
+    prefix_reuse_enabled,
+)
 
 
 class NeverCalledScorer:
@@ -23,6 +30,9 @@ def test_snake_request_contains_only_immediately_safe_actions():
     assert "Future mobility:" in descriptions["up"]
     assert "board_grid" in request.state
     assert len(request.state["board_grid"]) > 0
+    assert "decision_memory" not in request.state
+    assert "coordinates" not in request.state["board"]
+    assert STATIC_DECISION_CONTEXT in request.question
 
 
 def test_snake_filters_wall_collision_before_model():
@@ -53,6 +63,8 @@ def test_snake_single_safe_action_is_resolved_without_model():
     assert decision.choice == "up"
     assert latency == 0.0
     assert constraints["mode"] == "deterministic_single_safe_action"
+    assert constraints["decision_context"]["id"] == DECISION_CONTEXT_ID
+    assert constraints["decision_context"]["state_scope"] == "current_only"
 
 
 def test_snake_wall_collision_ends_game():
@@ -75,9 +87,18 @@ def test_snake_eating_food_grows_and_scores():
     assert len(game.snake) == before + 1
 
 
-def test_snake_defaults_to_single_forward_direct_choice():
+def test_snake_defaults_to_stateful_single_forward_direct_choice():
     args = build_parser().parse_args(["--model", "model.gguf"])
     assert args.scorer == "direct"
+    assert prefix_reuse_enabled(args) is True
+    assert args.n_batch == 128
+    assert args.n_ubatch == 128
+
+    semantic = build_parser().parse_args(["--model", "model.gguf", "--scorer", "semantic"])
+    assert prefix_reuse_enabled(semantic) is False
+
+    fresh = build_parser().parse_args(["--model", "model.gguf", "--fresh-prefix"])
+    assert prefix_reuse_enabled(fresh) is False
 
 
 def test_snake_action_features_expose_progress_and_future_mobility():
