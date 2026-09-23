@@ -7,7 +7,7 @@ Owner: repository
 
 Build the smallest system that can test Decisio's central thesis:
 
-> A general-purpose open-weight LLM can act as a useful probabilistic decision engine without answer generation or mandatory training, and semantic candidate scoring can improve the decision-specific trade-off over arbitrary answer-token scoring.
+> A local open-weight LLM can act as a useful stateful decision runtime: stable task context can be compiled once and safely reused across changing application state, while bounded typed actions are read directly without answer generation or mandatory training.
 
 Implementation order must optimize for learning. Performance engineering that does not help answer this question should wait.
 
@@ -42,11 +42,11 @@ Exit evidence:
 - repeated-state workloads show measurable prefill/token reduction;
 - first comparison report exists.
 
-## Milestone 1 — Decide whether semantic scoring wins
+## Milestone 1 — Prove the stateful decision loop
 
 **Harness status:** generated JSON, direct A/B/C logits, candidate-order reversal, comparative semantic v2, independent semantic v1 and real-model llama.cpp execution are implemented. Scorer-gate v2 failed for semantic v2 as a short/fresh general default; repeated-state gate v3 is the active precommitted experiment.
 
-Goal: validate the core differentiator before investing in infrastructure.
+Goal: prove the core differentiator before expanding APIs: stable decision context is reusable, fresh-equivalent and materially reduces repeated prefill while decision quality is evaluated independently.
 
 Evaluation dimensions:
 
@@ -70,10 +70,9 @@ Required experiment variants:
 
 Decision gate:
 
-- scorer-gate v2 is already FAIL for semantic v2 as a short/fresh general-purpose default;
+- scorer-gate v2 remains FAIL for semantic v2 as a short/fresh general-purpose default and is not the product thesis;
 - repeated-state gate v3 may support only a narrower semantic-v2 scope if its frozen criteria pass;
-- direct A/B/C logits remain available as a measured zero-generation alternative, including for
-  latency-oriented examples such as Snake;
+- direct A/B/C logits are the reference control primitive for the stateful Snake loop; the differentiator is the surrounding context/session contract, not the logits themselves;
 - no scorer becomes a universal default without scope-specific evidence.
 
 ## Milestone 2 — Answerability
@@ -271,6 +270,6 @@ Systems measurements:
 
 The first public release should be able to make a narrow, defensible claim:
 
-> Decisio is a training-free, zero-generation decision layer for open causal LLMs. It scores runtime-defined semantic candidates directly, separates answerability from candidate preference, and reuses shared context for efficient typed decisions.
+> Decisio is a training-free, stateful decision runtime for local open causal LLMs. It keeps stable decision context reusable, applies deterministic constraints before scoring, and returns typed zero-generation decisions over changing application state.
 
 Any stronger claim must be supported by the committed benchmark evidence.
