@@ -15,25 +15,27 @@ Last shaped: 2026-09-22
 
 ## Goal
 
-Make local GGUF + llama.cpp the canonical Decisio v1 runtime, then decide the scorer on the same
-artifact/runtime class users run.
+Make local GGUF + llama.cpp the canonical Decisio v1 runtime and prove the new product boundary:
+stable decision context is reusable model state, changing application state stays in the dynamic
+suffix, and bounded actions can be read directly without generation.
 
-Reference target: Qwen3.5-2B Q4_K_M on CPU. Exact GGUF SHA, runtime build and host identity are
-frozen before representative evidence.
+Semantic-v2 remains a separate evidence track; its failed general-purpose gate is not reinterpreted.
+Reference evidence remains bound to exact GGUF/runtime identity.
 
 ## Product intent
 
-- **User:** engineers building bounded local semantic decisions.
-- **Problem:** earlier scorer evidence used BF16/Transformers, not the intended GGUF runtime.
-- **Outcome:** point Decisio at a compatible local GGUF and obtain typed zero-generation decisions
-  with reproducible provenance and shared-state execution.
+- **User:** engineers building repeated bounded decisions over evolving local application state.
+- **Problem:** direct logits alone are a shared primitive; repeatedly re-prefilling stable task context
+  leaves the application/runtime boundary and much of the local-CPU value unresolved.
+- **Outcome:** keep stable task/policy context warm, append only current state + deterministic sensors
+  + valid actions, and return a typed zero-generation decision with measurable reuse/provenance.
 - **Decision:** BUILD.
 - **Reference-model decision:** use Qwen3.5-2B Q4_K_M as the canonical CPU evidence artifact so
   the local-first workflow is materially easier to run; larger compatible GGUFs remain supported as
   separate evidence identities.
-- **Risks:** VALUE `LOW`; USABILITY `LOW`; FEASIBILITY `MEDIUM` because the smaller model may change
-  scorer quality and therefore still must pass the unchanged frozen gate; VIABILITY `LOW` because
-  the smaller artifact lowers the hardware/memory burden.
+- **Risks:** VALUE `MEDIUM` until repeated-decision workloads show enough benefit; USABILITY `LOW`;
+  FEASIBILITY `MEDIUM` because reuse must preserve fresh outputs and native batch boundaries;
+  VIABILITY `LOW` because the runtime remains local and bounded.
 
 ## Non-goals
 
@@ -68,8 +70,9 @@ frozen before representative evidence.
 | W4 | DONE | Scorer-gate v2 runtime/artifact/fast-path identity frozen before 2B results. |
 | W5 | FAILED | Gate #76 completed; runtime passed, but family and short-workload latency criteria failed. |
 | W5a | DONE | Diagnostic v2 replicated equal observed quality with ~4.57x remote p50 speedup. |
-| W5b | ACTIVE | Run frozen repeated-state gate v3 on 48 unique decisions / 8 shared states. |
-| W6 | BLOCKED | Decide supported scorer scope from W5b without rewriting the failed v2 gate. |
+| W5b | ACTIVE | Run frozen repeated-state gate v3; this decides only semantic-v2 repeated-state scope. |
+| W6 | BLOCKED | Record the semantic-v2 scope decision from W5b without rewriting failed v2 evidence. |
+| W7 | ACTIVE | Prove Snake stateful direct loop: fixed context + current-only suffix + fresh/cache oracle. |
 
 ## W1/W2 runtime contract
 
@@ -199,6 +202,35 @@ zero semantic order changes, zero generated answer tokens, exact cache hits/miss
 physical/logical tokens, and at least 2x p50/p95 six-decision group speedup over generated JSON.
 A PASS supports only `NARROW_SCOPE`; scorer-gate v2 remains FAIL.
 
+## W7 stateful direct reference loop
+
+Snake is the first product-shaped reference for the new boundary:
+
+```text
+fixed decision contract -> reusable llama.cpp model context
+                                  |
+current board + deterministic sensors + valid actions
+                                  |
+                         direct A/B/C logits
+                                  |
+                              typed move
+```
+
+The application filters reverse/wall/body failures and computes local sensors before scoring. The
+model request does not replay prior boards. Direct scoring enables exact fixed-context reuse by
+default in Snake; `--fresh-prefix` runs the same stateful prompt without reuse.
+
+Promotion conditions for this reference loop are deliberately split:
+
+- **runtime correctness:** cached and fresh same-prompt scoring must produce the same choice and
+  scores on the real-model smoke, with observed cache hits and fewer physical than logical tokens;
+- **controller quality:** gameplay/optimality is evaluated separately and must not be inferred from
+  cache efficiency;
+- **resource honesty:** model-context snapshots remain bounded and explicitly instrumented.
+
+This is not a claim that direct option logits are novel; the product claim is the stateful
+application/runtime contract around them.
+
 ## Calibration compatibility
 
 GGUF/llama.cpp does not remove calibration. A future calibration artifact must bind at least GGUF
@@ -209,11 +241,10 @@ Without that match, outputs remain uncalibrated.
 
 Before PR #1 returns to ready:
 
-1. run the frozen W5b repeated-state gate v3;
-2. decide the supported scorer scope from its precommitted criteria;
-3. update durable docs and PR metadata to that decision;
-4. run repository deterministic gates and exact-head integration preflight;
-5. inspect the complete diff against live `main`.
+1. record W5b from its unchanged frozen criteria as the semantic-v2 scope decision;
+2. prove W7 fresh/cache equivalence plus physical-token reduction on the exact stateful Snake prompt;
+3. keep controller-quality evidence distinct from runtime-reuse evidence;
+4. update durable docs/PR metadata, run required exact-head gates and inspect the complete diff.
 
-Completion means product intent, implementation, tests, docs and evidence agree. Gate #76 cannot be
-relabelled as a pass.
+Completion means product intent, implementation, tests, docs and evidence agree. Failed historical
+gates remain failed; the new stateful product direction does not rewrite them.
