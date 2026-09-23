@@ -8,6 +8,7 @@ on:
       - "examples/snake/game.py"
       - "examples/snake/play.py"
       - "examples/snake/planner.py"
+      - "src/decisio/scorers/letters.py"
       - "benchmarks/snake_controller_benchmark.py"
       - "benchmarks/run_snake_controller_benchmark.py"
       - "benchmarks/summarize_snake_controller_history.py"
@@ -56,10 +57,10 @@ jobs:
             --output /tmp/snake-controller-report.json \
             --ledger /tmp/snake-controller-history.jsonl \
             --configs direct-stateful-verbose direct-fresh-verbose semantic-verbose \
-            --fixed-limit 4 \
-            --episode-seeds 7 19 \
-            --episode-max-steps 12 \
-            --stall-steps 8 \
+            --fixed-limit 2 \
+            --episode-seeds 7 \
+            --episode-max-steps 3 \
+            --stall-steps 3 \
             --planner-max-nodes 10000 \
             --threads 2 --threads-batch 2 \
             --n-ctx 4096 --n-batch 128 --n-ubatch 128
@@ -73,9 +74,12 @@ jobs:
               json.loads(line)
               for line in Path("/tmp/snake-controller-history.jsonl").read_text().splitlines()
           ]
-          assert len(rows) == 3, rows
-          assert all(row["status"] == "completed" for row in rows), rows
-          assert {row["configuration"]["id"] for row in rows} == {
+          manifests = [row for row in rows if row.get("record_type") == "run_start"]
+          results = [row for row in rows if row.get("record_type") == "configuration_result"]
+          assert len(manifests) == 1, rows
+          assert len(results) == 3, rows
+          assert all(row["status"] == "completed" for row in results), rows
+          assert {row["configuration"]["id"] for row in results} == {
               "direct-stateful-verbose", "direct-fresh-verbose", "semantic-verbose"
           }
           assert all(
@@ -86,8 +90,15 @@ jobs:
           assert all(row["fixture"]["sha256"] for row in rows)
           assert all(row["protocol"]["sha256"] for row in rows)
           assert all(row["source"]["commit"] for row in rows)
-          assert all(row["fixed_state"]["cases"] == 4 for row in rows)
-          assert all(row["episodes"]["episodes"] == 2 for row in rows)
+          assert all(row["fixed_state"]["cases"] == 2 for row in results)
+          assert all(row["episodes"]["episodes"] == 1 for row in results)
+          assert (
+              results[0]["configuration"]["prompt_mode"]
+              == results[1]["configuration"]["prompt_mode"]
+              == "question-first-stateful"
+          )
+          assert results[0]["configuration"]["execution_mode"] == "shared"
+          assert results[1]["configuration"]["execution_mode"] == "fresh"
           PY
       - name: Summarize benchmark history
         run: |

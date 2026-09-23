@@ -59,23 +59,31 @@ food_eaten / (board_cells - initial_snake_length)
 
 The initial matrix isolates controller/readout choices before broad model tuning:
 
-| ID | Scorer | Input | Prefix reuse | Controller |
-| --- | --- | --- | --- | --- |
-| `direct-stateful-verbose` | direct A/B/C logits | verbose | on | model |
-| `direct-fresh-verbose` | direct A/B/C logits | verbose | off | model |
-| `direct-stateful-compact` | direct A/B/C logits | compact | on | model |
-| `semantic-verbose` | semantic v2 | verbose | n/a | model |
-| `semantic-independent-verbose` | semantic v1 | verbose | n/a | model |
-| `direct-adjacent-food` | direct A/B/C logits | verbose | on | adjacent-food |
-| `generated-verbose` | generated JSON baseline | verbose | n/a | model (optional) |
+| ID | Scorer | Input | Prompt mode | Execution | Controller |
+| --- | --- | --- | --- | --- | --- |
+| `direct-stateful-verbose` | direct A/B/C logits | verbose | question-first stateful | shared | model |
+| `direct-fresh-verbose` | direct A/B/C logits | verbose | question-first stateful | fresh | model |
+| `direct-stateful-compact` | direct A/B/C logits | compact | question-first stateful | shared | model |
+| `semantic-verbose` | semantic v2 | verbose | semantic comparative v2 | scorer default | model |
+| `semantic-independent-verbose` | semantic v1 | verbose | semantic independent v1 | scorer default | model |
+| `direct-adjacent-food` | direct A/B/C logits | verbose | question-first stateful | shared | adjacent-food |
+| `generated-verbose` | generated JSON baseline | verbose | generated JSON v1 | generated | model (optional) |
+
+The stateful-vs-fresh direct comparison is deliberately controlled: both variants compile the exact
+same question-first stateful prompt and therefore the same prompt hash. Only execution changes:
+`shared` may restore the reusable prefix; `fresh` evaluates the same compiled prompt without
+shared-prefix execution. A prompt-order change is a different experiment and must not be attributed
+to caching.
 
 Do not expand into a model/quantization Cartesian product until this first matrix identifies useful
 controller families. Different model artifacts are separate evidence identities.
 
 ## Append-only result ledger
 
-Every configuration attempt appends exactly one JSON object to the ledger, including failed attempts.
-Rows are never overwritten by the benchmark runner.
+Every run first appends a `run_start` manifest before model evaluation. It then appends exactly one
+terminal `configuration_result` object for every configuration that completes or raises a handled
+failure. Rows are never overwritten by the benchmark runner. The early manifest means an externally
+cancelled run still preserves source/model/protocol identity when the ledger artifact is retained.
 
 Each row records at least:
 
@@ -83,7 +91,7 @@ Each row records at least:
 - source commit/branch/dirty state when available;
 - fixture path + SHA-256;
 - planner version and search/survival bounds;
-- configuration ID, scorer, input format, prefix reuse and controller;
+- configuration ID, scorer, input format, prompt mode, execution mode, effective prefix reuse and controller;
 - GGUF filename/SHA/size/quantization, llama.cpp binding/runtime, CPU/context/batch/thread settings;
 - selected fixed cases plus episode seeds/board/horizon/stall threshold, hashed as a protocol fingerprint;
 - fixed-state metrics and detailed per-case planner evidence;

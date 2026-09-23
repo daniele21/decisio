@@ -11,9 +11,16 @@ from decisio.schema import ChoiceRequest, DecisionResult
 class LetterTokenScorer:
     name = "letter_token_baseline_v1"
 
-    def __init__(self, backend: LogitBackend, *, reuse_prefix: bool = False):
+    def __init__(
+        self,
+        backend: LogitBackend,
+        *,
+        reuse_prefix: bool = False,
+        shared_prefix_execution: bool = True,
+    ):
         self.backend = backend
         self.reuse_prefix = reuse_prefix
+        self.shared_prefix_execution = shared_prefix_execution
         if reuse_prefix:
             self.name = "letter_question_prefix_v1"
 
@@ -24,7 +31,9 @@ class LetterTokenScorer:
         token_ids = [compiled.readout[candidate.id] for candidate in request.candidates]
         shared = getattr(self.backend, "shared_prefix_batch_next_token_logits", None)
         if (
-            self.reuse_prefix and compiled.reusable_prefix_len is not None
+            self.reuse_prefix
+            and self.shared_prefix_execution
+            and compiled.reusable_prefix_len is not None
             and getattr(self.backend, "supports_reusable_prefix_hint", False)
             and callable(shared)
         ):

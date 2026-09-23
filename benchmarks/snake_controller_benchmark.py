@@ -31,31 +31,81 @@ class ControllerConfig:
     id: str
     scorer: str
     input_format: str
-    reuse_prefix: bool
     controller: str
+    prompt_mode: str
+    execution_mode: str
 
     def to_dict(self) -> dict[str, Any]:
         return {
             "id": self.id,
             "scorer": self.scorer,
             "input_format": self.input_format,
-            "reuse_prefix": self.reuse_prefix,
             "controller": self.controller,
+            "prompt_mode": self.prompt_mode,
+            "execution_mode": self.execution_mode,
+            "reuse_prefix": self.execution_mode == "shared",
         }
 
 
 CONFIGS = {
     config.id: config
     for config in (
-        ControllerConfig("direct-stateful-verbose", "direct", "verbose", True, "model"),
-        ControllerConfig("direct-fresh-verbose", "direct", "verbose", False, "model"),
-        ControllerConfig("direct-stateful-compact", "direct", "compact", True, "model"),
-        ControllerConfig("semantic-verbose", "semantic", "verbose", False, "model"),
         ControllerConfig(
-            "semantic-independent-verbose", "semantic-independent", "verbose", False, "model"
+            "direct-stateful-verbose",
+            "direct",
+            "verbose",
+            "model",
+            "question-first-stateful",
+            "shared",
         ),
-        ControllerConfig("direct-adjacent-food", "direct", "verbose", True, "adjacent-food"),
-        ControllerConfig("generated-verbose", "generated", "verbose", False, "model"),
+        ControllerConfig(
+            "direct-fresh-verbose",
+            "direct",
+            "verbose",
+            "model",
+            "question-first-stateful",
+            "fresh",
+        ),
+        ControllerConfig(
+            "direct-stateful-compact",
+            "direct",
+            "compact",
+            "model",
+            "question-first-stateful",
+            "shared",
+        ),
+        ControllerConfig(
+            "semantic-verbose",
+            "semantic",
+            "verbose",
+            "model",
+            "semantic-comparative-v2",
+            "scorer-default",
+        ),
+        ControllerConfig(
+            "semantic-independent-verbose",
+            "semantic-independent",
+            "verbose",
+            "model",
+            "semantic-independent-v1",
+            "scorer-default",
+        ),
+        ControllerConfig(
+            "direct-adjacent-food",
+            "direct",
+            "verbose",
+            "adjacent-food",
+            "question-first-stateful",
+            "shared",
+        ),
+        ControllerConfig(
+            "generated-verbose",
+            "generated",
+            "verbose",
+            "model",
+            "generated-json-v1",
+            "generated",
+        ),
     )
 }
 DEFAULT_CONFIGS = tuple(key for key in CONFIGS if key != "generated-verbose")
@@ -122,7 +172,11 @@ def game_from_case(case: dict[str, Any]) -> SnakeGame:
 
 def build_scorer(config: ControllerConfig, backend: Any) -> Any:
     if config.scorer == "direct":
-        return LetterTokenScorer(backend, reuse_prefix=config.reuse_prefix)
+        return LetterTokenScorer(
+            backend,
+            reuse_prefix=True,
+            shared_prefix_execution=config.execution_mode == "shared",
+        )
     if config.scorer == "semantic":
         return SemanticBinaryScorer(backend)
     if config.scorer == "semantic-independent":

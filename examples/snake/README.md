@@ -155,6 +155,21 @@ The live UI keeps every move in the decision log. Selecting a move shows a struc
 (selected option, raw logit, relative preference, latency and generated-token count). The common
 path does not expose raw JSON.
 
+## Measure controller quality
+
+Visual gameplay is useful for debugging but is not the quality verdict. The versioned
+[Snake controller benchmark v1](../../benchmarks/snake-controller-benchmark-v1.md) evaluates the
+same configurations with two complementary signals:
+
+- fixed states against a bounded dynamic-body planner: best-action agreement, rank regret,
+  catastrophic misses and option-order changes;
+- full deterministic episodes: food eaten, completion ratio, survival, stalls/revisits and strict
+  `board_filled` completion.
+
+The benchmark records exact model/runtime/configuration identity in an append-only JSONL ledger.
+The direct shared-vs-fresh pair uses the same question-first stateful prompt; only execution reuse
+changes. This keeps cache effects separate from prompt-order effects.
+
 ## Compare scoring strategies
 
 Run the same deterministic episode with the same model and seed:

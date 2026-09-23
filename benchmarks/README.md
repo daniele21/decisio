@@ -110,6 +110,34 @@ The runner prints live progress/ETA. The evaluator includes the cold decision in
 group and applies the quality, order, cache/token and >=2x p50/p95 latency criteria frozen in the
 methodology document.
 
+## Snake controller benchmark v1
+
+[Snake controller benchmark v1](snake-controller-benchmark-v1.md) evaluates the Snake application
+at two levels: fixed-state decisions against a bounded dynamic-body planner, and deterministic
+seeded episodes. It is the controller-quality benchmark; it is separate from scorer promotion gates
+and from the smaller input/cache diagnostic.
+
+The initial matrix compares the same stateful direct prompt under shared versus fresh execution,
+compact input, semantic v2/v1 and the adjacent-food application policy. Every run appends a
+`run_start` manifest plus terminal configuration results to a JSONL ledger. Evidence binds source
+commit, fixture/protocol hashes, exact GGUF/runtime identity, prompt/execution mode, controller
+parameters, decision-quality metrics, episode outcomes and runtime/token/cache metrics.
+
+```bash
+uv run python -m benchmarks.run_snake_controller_benchmark \
+  --model /path/to/Qwen3.5-2B-Q4_K_M.gguf \
+  --output .artifacts/snake-controller/latest.json \
+  --ledger .artifacts/snake-controller/history.jsonl \
+  --threads 2 --threads-batch 2
+
+uv run python -m benchmarks.summarize_snake_controller_history \
+  --ledger .artifacts/snake-controller/history.jsonl \
+  --output .artifacts/snake-controller/history.md
+```
+
+Reduced 0.8B CI runs are mechanism/directional smokes only. Do not mix them with a full 2B matrix:
+the history groups by model SHA, fixture SHA and protocol SHA.
+
 ## Run one scorer
 
 ```bash

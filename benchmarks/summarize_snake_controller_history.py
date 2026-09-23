@@ -31,8 +31,14 @@ def _median(values: list[float]) -> float | None:
 
 def summarize(records: list[dict[str, Any]]) -> dict[str, Any]:
     groups: dict[tuple[str, str, str, str], list[dict[str, Any]]] = defaultdict(list)
-    for record in records:
-        config = record.get("configuration") or {}
+    configuration_records = [
+        record
+        for record in records
+        if record.get("configuration")
+        and record.get("record_type", "configuration_result") == "configuration_result"
+    ]
+    for record in configuration_records:
+        config = record["configuration"]
         model = record.get("model_runtime") or {}
         key = (
             str(config.get("id", "unknown")),
@@ -81,14 +87,24 @@ def summarize(records: list[dict[str, Any]]) -> dict[str, Any]:
                 "latest_finished_at": max(str(item.get("finished_at", "")) for item in group),
             }
         )
-    return {"schema_version": 1, "records": len(records), "groups": rows}
+    return {
+        "schema_version": 1,
+        "records": len(records),
+        "run_manifests": sum(record.get("record_type") == "run_start" for record in records),
+        "configuration_records": len(configuration_records),
+        "groups": rows,
+    }
 
 
 def markdown(summary: dict[str, Any]) -> str:
     lines = [
         "# Snake controller benchmark history",
         "",
-        f"Ledger records: {summary['records']}",
+        (
+            f"Ledger records: {summary['records']} "
+            f"({summary.get('run_manifests', 0)} run manifests, "
+            f"{summary.get('configuration_records', summary['records'])} configuration results)"
+        ),
         "",
         "| Configuration | Runs | Agreement | Catastrophic | Median food | Fixed p50 (s) | Model SHA | Fixture SHA | Protocol SHA |",
         "| --- | ---: | ---: | ---: | ---: | ---: | --- | --- | --- |",

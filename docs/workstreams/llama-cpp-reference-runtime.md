@@ -142,7 +142,8 @@ Required evidence is split deliberately:
 
 - **runtime correctness:** cached and fresh same-prompt scoring return identical choice/scores;
 - **reuse:** cache hits occur and physical input work is below logical input work;
-- **controller quality:** gameplay/optimality is measured separately from cache efficiency;
+- **controller quality:** gameplay/optimality is measured separately from cache efficiency through
+  `benchmarks/snake-controller-benchmark-v1.md`, with append-only model/config/result evidence;
 - **resource honesty:** context snapshots remain bounded and instrumented.
 
 Direct option logits are not claimed as novel. The product claim is the stateful application/runtime

@@ -265,6 +265,28 @@ def test_letter_prefix_reuse_matches_compiler_hint_and_falls_back_fresh():
     assert fresh.calls[0][0] == compiled.input_ids
 
 
+def test_letter_stateful_prompt_can_force_fresh_execution_without_prompt_change():
+    shared_backend = ReusablePrefixQueueBackend([[1.0, 4.0, -1.0]])
+    shared = LetterTokenScorer(
+        shared_backend,
+        reuse_prefix=True,
+        shared_prefix_execution=True,
+    ).score(request())
+
+    fresh_backend = ReusablePrefixQueueBackend([[1.0, 4.0, -1.0]])
+    fresh = LetterTokenScorer(
+        fresh_backend,
+        reuse_prefix=True,
+        shared_prefix_execution=False,
+    ).score(request())
+
+    assert shared.prompt_sha256 == fresh.prompt_sha256
+    assert shared.scores == fresh.scores
+    assert len(shared_backend.shared_prefix_calls) == 1
+    assert fresh_backend.shared_prefix_calls == []
+    assert len(fresh_backend.calls) == 1
+
+
 def test_letter_prefix_excludes_changing_state():
     first = request()
     second = ChoiceRequest(state={"different": "state"}, question=first.question,

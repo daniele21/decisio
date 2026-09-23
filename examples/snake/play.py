@@ -141,7 +141,11 @@ def build_scorer(args: argparse.Namespace) -> Any:
     if args.scorer == "semantic-independent":
         return IndependentSemanticScorer(backend)
     if args.scorer in {"direct", "letters"}:
-        return LetterTokenScorer(backend, reuse_prefix=reuse_prefix)
+        return LetterTokenScorer(
+            backend,
+            reuse_prefix=True,
+            shared_prefix_execution=reuse_prefix,
+        )
     raise ValueError(f"unsupported Snake scorer: {args.scorer}")
 
 

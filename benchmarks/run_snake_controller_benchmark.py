@@ -53,6 +53,7 @@ def _ledger_record(
     return {
         "schema_version": SCHEMA_VERSION,
         "benchmark": BENCHMARK_ID,
+        "record_type": "configuration_result",
         "run_id": run_id,
         "started_at": started_at,
         "finished_at": _now(),
@@ -128,6 +129,21 @@ def run(args: argparse.Namespace) -> dict[str, Any]:
         "model_runtime": backend.identity,
         "configurations": {},
     }
+    append_ledger(
+        args.ledger,
+        {
+            "schema_version": SCHEMA_VERSION,
+            "benchmark": BENCHMARK_ID,
+            "record_type": "run_start",
+            "run_id": run_id,
+            "started_at": _now(),
+            "source": source,
+            "fixture": fixture,
+            "protocol": protocol,
+            "requested_configurations": list(args.configs),
+            "model_runtime": backend.identity,
+        },
+    )
     try:
         for config_id in args.configs:
             config = CONFIGS[config_id]
