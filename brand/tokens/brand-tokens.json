@@ -1,0 +1,29 @@
+{
+  "$schema": "https://design-tokens.github.io/community-group/format/",
+  "color": {
+    "navy": "#112543",
+    "emerald": "#03C27E",
+    "teal": "#02C9C1",
+    "azure": "#01C8F6",
+    "mint": "#65DFD5",
+    "ice": "#D2F2F1",
+    "off_white": "#F7FAFC",
+    "white": "#FFFFFF"
+  },
+  "gradient": {
+    "primary": "linear-gradient(120deg, #03C27E 0%, #02C9C1 52%, #01C8F6 100%)"
+  },
+  "typography": {
+    "primary": "Inter, ui-sans-serif, system-ui, sans-serif",
+    "mono": "JetBrains Mono, ui-monospace, monospace"
+  },
+  "radius": {
+    "sm": "8px",
+    "md": "16px",
+    "lg": "24px"
+  },
+  "usage": {
+    "minimum_mark_px": 32,
+    "recommended_clear_space": "0.25 \u00d7 mark width"
+  }
+}
