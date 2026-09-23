@@ -7,8 +7,8 @@ import os
 import resource
 import time
 import uuid
-from datetime import datetime, timezone
 from dataclasses import replace
+from datetime import UTC, datetime
 from pathlib import Path
 
 from decisio.backends.llama_cpp import LlamaCppBackend, LlamaCppBackendConfig
@@ -40,7 +40,7 @@ def main() -> None:
     )
     backend = LlamaCppBackend(config)
     run_id = uuid.uuid4().hex
-    recorded_at_utc = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
+    recorded_at_utc = datetime.now(UTC).isoformat().replace("+00:00", "Z")
     variants = {
         "verbose": ("verbose", LetterTokenScorer(backend)),
         "compact": ("compact", LetterTokenScorer(backend)),
