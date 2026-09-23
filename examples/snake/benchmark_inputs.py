@@ -23,8 +23,11 @@ def main() -> None:
     parser.add_argument("--threads-batch", type=int, default=11)
     parser.add_argument("--rounds", type=int, default=2)
     parser.add_argument("--variants", nargs="+",
-                        choices=("verbose", "compact", "prefix_fresh", "prefix_shared"),
-                        default=("verbose", "compact", "prefix_fresh", "prefix_shared"))
+                        choices=(
+                            "verbose", "compact", "prefix_fresh", "prefix_shared",
+                            "stateful_fresh", "stateful_shared",
+                        ),
+                        default=("verbose", "stateful_fresh", "stateful_shared"))
     args = parser.parse_args()
     if args.rounds < 1:
         parser.error("--rounds must be positive")
@@ -38,6 +41,14 @@ def main() -> None:
         "compact": ("compact", LetterTokenScorer(backend)),
         "prefix_fresh": ("compact", LetterTokenScorer(backend.fresh_view(), reuse_prefix=True)),
         "prefix_shared": ("compact", LetterTokenScorer(backend, reuse_prefix=True)),
+        "stateful_fresh": (
+            "verbose",
+            LetterTokenScorer(backend.fresh_view(), reuse_prefix=True),
+        ),
+        "stateful_shared": (
+            "verbose",
+            LetterTokenScorer(backend, reuse_prefix=True),
+        ),
     }
     variants = {name: variants[name] for name in args.variants}
     args.output.parent.mkdir(parents=True, exist_ok=True)
