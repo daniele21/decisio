@@ -72,7 +72,7 @@ Controls:
 - **Start / Pause** — continuously ask Decisio for the next move;
 - **1 move** — execute one complete observe → decide → act cycle;
 - **Reset** — restart the deterministic episode;
-- **Reveal hold** — UI-only pause after a decision is revealed and before Snake moves; it does not change inference latency or the selected action.
+- **Pause before move** — UI-only hold after the readout; it does not change inference or choice.
 
 The default visual hierarchy is intentionally narrow: the board and selected move are primary;
 candidate preferences and deterministic filters are contextual; model/runtime details, request JSON
@@ -127,15 +127,28 @@ Snake stresses properties that a static classification fixture does not:
 - error accumulation;
 - reproducible episodes through a fixed random seed.
 
-## Objective used by the controller
+## State, bounded memory and deterministic sensors
 
-The model is asked to prioritize:
+Snake sends the **current state**, not the full episode history. The state includes board, complete
+current body, direction, food, score and a tiny derived memory summary. A 12-head-position window is
+kept only inside the game and resets when food is eaten.
 
-1. progress toward food;
-2. preserving future mobility and avoiding obvious traps.
+Each safe candidate is enriched before scoring with deterministic sensors:
 
-Immediate wall/body validity is not delegated to the LLM. Candidate descriptions contain the
-direction and movement delta; the model is not given a handcrafted distance-to-food score.
+- next position and whether it eats food;
+- Manhattan distance before/after and `closer/same/farther`;
+- safe next moves and reachable free cells after the move;
+- recent visits to the candidate cell and `low/medium/high` loop risk.
+
+This keeps geometry/rule facts in code while leaving the trade-off to Decisio. Full history is not
+sent to the model.
+
+## Readable model I/O
+
+The live UI keeps every move in the decision log. Selecting a move shows a structured **Model input**
+(question, current state, body path and A/B/C option text with sensors) next to the **Model readout**
+(selected option, raw logit, relative preference, latency and generated-token count). The common
+path does not expose raw JSON.
 
 ## Compare scoring strategies
 

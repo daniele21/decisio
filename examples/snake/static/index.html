@@ -59,7 +59,7 @@
       </div>
 
       <div class="hold-control">
-        <label for="holdRange">Reveal hold <strong id="holdLabel">750 ms</strong></label>
+        <label for="holdRange">Pause before move <strong id="holdLabel">750 ms</strong></label>
         <input id="holdRange" type="range" min="0" max="2000" step="100" value="750">
       </div>
     </section>
@@ -109,23 +109,33 @@
         </div>
       </div>
 
-      <details>
-        <summary>Last request / response</summary>
-        <div class="json-grid">
-          <div>
-            <div class="subsection-title">REQUEST</div>
-            <pre id="requestJson">{}</pre>
-          </div>
-          <div>
-            <div class="subsection-title">RESPONSE</div>
-            <pre id="responseJson">{}</pre>
-          </div>
+      <div class="subsection io-section">
+        <div class="subsection-title row-between">
+          <span>MODEL I/O</span>
+          <span id="ioMoveLabel" class="muted">next move</span>
         </div>
-      </details>
+        <p class="io-help">
+          Structured view of the exact decision request and model readout. No JSON parsing is used.
+        </p>
+        <div class="io-grid">
+          <section class="io-card" aria-label="Model input">
+            <div class="io-card-title">INPUT TO MODEL</div>
+            <div id="modelInput" class="io-content">
+              <div class="empty">Waiting for the first state.</div>
+            </div>
+          </section>
+          <section class="io-card" aria-label="Model output">
+            <div class="io-card-title">MODEL READOUT</div>
+            <div id="modelOutput" class="io-content">
+              <div class="empty">No model readout yet.</div>
+            </div>
+          </section>
+        </div>
+      </div>
 
       <p class="note">
         Relative preferences are uncalibrated model scores, not probability of correctness.
-        Deterministically invalid moves are filtered before scoring.
+        Geometry, immediate collisions and sensor values are computed deterministically before scoring.
       </p>
     </section>
   </main>

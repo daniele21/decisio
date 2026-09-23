@@ -3,6 +3,7 @@
 const DIRECTIONS = ["up", "right", "down", "left"];
 const ARROWS = { up: "↑", right: "→", down: "↓", left: "←" };
 const DELTAS = { up: [0, -1], right: [1, 0], down: [0, 1], left: [-1, 0] };
+const LETTERS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
 
 const $ = (selector) => document.querySelector(selector);
 const ui = {
@@ -33,8 +34,9 @@ const ui = {
   executionLine: $("#executionLine"),
   log: $("#decisionLog"),
   logCount: $("#logCount"),
-  requestJson: $("#requestJson"),
-  responseJson: $("#responseJson"),
+  ioMoveLabel: $("#ioMoveLabel"),
+  modelInput: $("#modelInput"),
+  modelOutput: $("#modelOutput"),
   overlay: $("#gameOverlay"),
   overlayTitle: $("#overlayTitle"),
   overlayText: $("#overlayText"),
@@ -43,6 +45,8 @@ const ui = {
 let status = null;
 let displayState = null;
 let lastRecord = null;
+let selectedRecord = null;
+let activeRequest = null;
 let logRows = [];
 let phase = "observe";
 let running = false;
@@ -53,6 +57,13 @@ let decidingTicker = null;
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 const formatMs = (seconds) => seconds == null ? "—" : `${Math.round(seconds * 1000)} ms`;
 const formatPct = (value) => value == null ? "—" : `${(Number(value) * 100).toFixed(1)}%`;
+
+function make(tag, className = "", text = null) {
+  const node = document.createElement(tag);
+  if (className) node.className = className;
+  if (text != null) node.textContent = String(text);
+  return node;
+}
 
 function modelLabel(model) {
   if (!model) return "model";
@@ -65,6 +76,7 @@ function scorerLabel(name) {
   if (name === "letter_token_baseline_v1") return "DIRECT CHOICE · A/B/C logits · 1 forward";
   if (name === "semantic_comparative_logodds_v2") return "SEMANTIC v2 · YES/NO per candidate";
   if (name === "semantic_binary_logodds_v1") return "SEMANTIC v1 · YES/NO per candidate";
+  if (name?.startsWith("deterministic_")) return "DETERMINISTIC · model skipped";
   return name || "—";
 }
 
@@ -85,10 +97,14 @@ function setPhase(next) {
   ui.phase.textContent = next;
 }
 
-function constraintsForView() {
-  if (phase !== "observe" && lastRecord?.constraints) return lastRecord.constraints;
-  return status?.constraints || lastRecord?.constraints || {
+function currentConstraints() {
+  if (lastRecord && (phase === "act" || selectedRecord === lastRecord)) {
+    return lastRecord.constraints;
+  }
+  if (busy && status?.constraints) return status.constraints;
+  return lastRecord?.constraints || status?.constraints || {
     safe_actions: [],
+    candidate_features: {},
     filtered_actions: {},
   };
 }
@@ -132,8 +148,8 @@ function renderMetrics() {
 
 function renderVerdict() {
   const decision = decisionForView();
-
   ui.verdict.classList.remove("idle", "deciding", "selected", "rule");
+
   if (busy && phase === "decide") {
     ui.verdict.classList.add("deciding");
     ui.verdictArrow.textContent = "···";
@@ -167,41 +183,46 @@ function renderVerdict() {
   }
 }
 
+function featureSummary(features) {
+  if (!features) return "candidate";
+  const distance = features.food_distance_after == null
+    ? "food ?"
+    : `food ${features.food_progress} → d=${features.food_distance_after}`;
+  return `${distance} · ${features.safe_moves_after} next · loop ${features.loop_risk}`;
+}
+
 function renderChoices() {
   ui.choices.replaceChildren();
   const decision = decisionForView();
-  const constraints = constraintsForView();
+  const constraints = currentConstraints();
   const safe = new Set(constraints.safe_actions || []);
   const filtered = constraints.filtered_actions || {};
+  const features = constraints.candidate_features || {};
 
   DIRECTIONS.forEach((direction) => {
-    const row = document.createElement("div");
-    row.className = "choice";
+    const row = make("div", "choice");
     const selected = decision?.choice === direction;
     const isFiltered = Object.hasOwn(filtered, direction);
     if (selected) row.classList.add("selected");
     if (isFiltered) row.classList.add("filtered");
 
-    const name = document.createElement("div");
-    name.className = "choice-name";
+    const name = make("div", "choice-name");
     name.append(document.createTextNode(`${ARROWS[direction]} ${direction.toUpperCase()}`));
-    const reason = document.createElement("small");
+    const reason = make("small");
     if (isFiltered) reason.textContent = String(filtered[direction]).replaceAll("_", " ");
-    else if (safe.has(direction)) reason.textContent = "candidate";
+    else if (safe.has(direction)) reason.textContent = featureSummary(features[direction]);
     else reason.textContent = "not supplied";
     name.append(reason);
 
-    const track = document.createElement("div");
-    track.className = "track";
-    const fill = document.createElement("i");
+    const track = make("div", "track");
+    const fill = make("i");
     const probability = decision?.distribution?.[direction];
     fill.style.width = probability == null
       ? (safe.has(direction) ? "8%" : "0")
       : `${probability * 100}%`;
     track.append(fill);
 
-    const value = document.createElement("div");
-    value.className = "choice-value";
+    const value = make("div", "choice-value");
     if (isFiltered) value.textContent = "filtered";
     else if (busy && safe.has(direction) && phase === "decide") value.textContent = "…";
     else value.textContent = probability == null ? "—" : formatPct(probability);
@@ -213,60 +234,224 @@ function renderChoices() {
 
 function renderConstraints() {
   ui.constraints.replaceChildren();
-  const constraints = constraintsForView();
-  const filtered = Object.entries(constraints.filtered_actions || {});
+  const filtered = Object.entries(currentConstraints().filtered_actions || {});
   if (!filtered.length) {
-    const empty = document.createElement("span");
-    empty.className = "muted";
-    empty.textContent = "None — all legal directions remain candidates.";
-    ui.constraints.append(empty);
+    ui.constraints.append(make("span", "muted", "None — all legal directions remain candidates."));
     return;
   }
-
   filtered.forEach(([direction, reason]) => {
-    const pill = document.createElement("span");
-    pill.className = "constraint";
-    pill.textContent = `${direction.toUpperCase()} · ${String(reason).replaceAll("_", " ")}`;
-    ui.constraints.append(pill);
+    ui.constraints.append(
+      make("span", "constraint", `${direction.toUpperCase()} · ${String(reason).replaceAll("_", " ")}`),
+    );
   });
 }
 
+function recordKey(record) {
+  return record ? String(record.step) : "";
+}
+
 function renderLog() {
-  ui.logCount.textContent =
-    `${logRows.length} ${logRows.length === 1 ? "move" : "moves"}`;
+  ui.logCount.textContent = `${logRows.length} ${logRows.length === 1 ? "move" : "moves"}`;
   ui.log.replaceChildren();
   if (!logRows.length) {
-    const empty = document.createElement("div");
-    empty.className = "empty";
-    empty.textContent = "No decisions yet.";
-    ui.log.append(empty);
+    ui.log.append(make("div", "empty", "No decisions yet."));
     return;
   }
 
   logRows.slice(0, 60).forEach((record) => {
-    const row = document.createElement("div");
-    row.className = "log-row";
+    const row = make("button", "log-row");
+    row.type = "button";
+    if (recordKey(selectedRecord) === recordKey(record)) row.classList.add("selected-log");
 
-    const n = document.createElement("span");
-    n.className = "n";
-    n.textContent = `#${record.step}`;
-
-    const move = document.createElement("span");
-    move.className = "move";
-    move.textContent =
-      `${ARROWS[record.decision.choice] || "·"} ${record.decision.choice.toUpperCase()}`;
-
-    const mode = document.createElement("span");
-    mode.className = "mode";
-    mode.textContent = record.constraints.mode === "model" ? "MODEL" : "RULE";
-
-    const ms = document.createElement("span");
-    ms.className = "ms";
-    ms.textContent = formatMs(record.decision_latency_seconds);
-
-    row.append(n, move, mode, ms);
+    row.append(
+      make("span", "n", `#${record.step}`),
+      make("span", "move", `${ARROWS[record.decision.choice] || "·"} ${record.decision.choice.toUpperCase()}`),
+      make("span", "mode", record.constraints.mode === "model" ? "MODEL" : "RULE"),
+      make("span", "ms", formatMs(record.decision_latency_seconds)),
+    );
+    row.addEventListener("click", () => {
+      selectedRecord = record;
+      renderLog();
+      renderInspector();
+    });
     ui.log.append(row);
   });
+}
+
+function inspectorRequest() {
+  if (selectedRecord) return selectedRecord.request;
+  if (busy && activeRequest) return activeRequest;
+  if (lastRecord) return lastRecord.request;
+  return status?.next_request || null;
+}
+
+function inspectorRecord() {
+  return selectedRecord || lastRecord || null;
+}
+
+function appendField(container, label, value, className = "") {
+  const field = make("div", `io-field ${className}`.trim());
+  field.append(make("span", "io-label", label), make("b", "io-value", value));
+  container.append(field);
+}
+
+function positionText(value) {
+  if (!value) return "—";
+  return `(${value.x}, ${value.y})`;
+}
+
+function renderInputOption(candidate, index, features) {
+  const card = make("div", "input-option");
+  const heading = make("div", "input-option-head");
+  heading.append(
+    make("span", "option-slot", LETTERS[index] || "?"),
+    make("b", "", String(candidate.id).toUpperCase()),
+  );
+  card.append(heading);
+  card.append(make("p", "option-description", candidate.description));
+
+  if (features) {
+    const chips = make("div", "sensor-chips");
+    const distance = features.food_distance_after == null
+      ? "food distance ?"
+      : `food ${features.food_progress}: ${features.food_distance_before} → ${features.food_distance_after}`;
+    [
+      distance,
+      `${features.safe_moves_after} safe next`,
+      `${features.reachable_free_cells_after} reachable`,
+      `recent visits ${features.recent_visit_count}`,
+      `loop ${features.loop_risk}`,
+    ].forEach((value) => chips.append(make("span", `sensor ${features.loop_risk === "high" && value.startsWith("loop") ? "risk" : ""}`, value)));
+    card.append(chips);
+  }
+  return card;
+}
+
+function renderModelInput(request, record) {
+  ui.modelInput.replaceChildren();
+  if (!request) {
+    ui.modelInput.append(make("div", "empty", "No decision request available."));
+    return;
+  }
+
+  const state = request.state || {};
+  const snake = state.snake || {};
+  const body = snake.body_head_first || [];
+  const memory = state.decision_memory || {};
+  const features = record?.constraints?.candidate_features
+    || status?.constraints?.candidate_features
+    || {};
+
+  const question = make("div", "io-block");
+  question.append(make("span", "io-label", "QUESTION"));
+  question.append(make("p", "io-question", request.question || "—"));
+  ui.modelInput.append(question);
+
+  const stateGrid = make("div", "io-state-grid");
+  appendField(stateGrid, "head", positionText(body[0]));
+  appendField(stateGrid, "food", positionText(state.food));
+  appendField(stateGrid, "direction", snake.current_direction || "—");
+  appendField(stateGrid, "length", snake.length ?? body.length ?? "—");
+  appendField(stateGrid, "score", state.score ?? "—");
+  appendField(stateGrid, "steps since food", memory.steps_since_food ?? "—");
+  ui.modelInput.append(stateGrid);
+
+  if (body.length) {
+    const bodyBlock = make("div", "io-block");
+    bodyBlock.append(make("span", "io-label", "BODY · HEAD FIRST"));
+    bodyBlock.append(
+      make("p", "body-path", body.map((point) => positionText(point)).join(" → ")),
+    );
+    ui.modelInput.append(bodyBlock);
+  }
+
+  const options = make("div", "io-block");
+  options.append(make("span", "io-label", "OPTIONS SENT TO MODEL"));
+  const optionList = make("div", "input-options");
+  (request.candidates || []).forEach((candidate, index) => {
+    optionList.append(renderInputOption(candidate, index, features[candidate.id]));
+  });
+  options.append(optionList);
+  ui.modelInput.append(options);
+}
+
+function renderPreferenceRow(candidate, index, decision) {
+  const row = make("div", "readout-row");
+  const choice = candidate.id;
+  const probability = decision.distribution?.[choice];
+  const raw = decision.scores?.[choice];
+  if (decision.choice === choice) row.classList.add("selected-readout");
+
+  row.append(
+    make("span", "option-slot", LETTERS[index] || "?"),
+    make("b", "readout-name", String(choice).toUpperCase()),
+  );
+  const track = make("div", "mini-track");
+  const fill = make("i");
+  fill.style.width = probability == null ? "0" : `${probability * 100}%`;
+  track.append(fill);
+  row.append(track);
+  row.append(make("span", "readout-prob", formatPct(probability)));
+  row.append(make("span", "readout-logit", raw == null ? "logit —" : `logit ${Number(raw).toFixed(3)}`));
+  return row;
+}
+
+function renderModelOutput(request, record) {
+  ui.modelOutput.replaceChildren();
+  if (!record) {
+    const message = busy
+      ? "Inference in progress. The input on the left is what the model is evaluating now."
+      : "No model readout yet.";
+    ui.modelOutput.append(make("div", "empty", message));
+    return;
+  }
+
+  const decision = record.decision || {};
+  const mode = record.constraints?.mode;
+  if (mode !== "model") {
+    const hero = make("div", "readout-hero");
+    hero.append(make("span", "readout-kicker", "MODEL SKIPPED"));
+    hero.append(make("strong", "", `${ARROWS[decision.choice] || "·"} ${String(decision.choice).toUpperCase()}`));
+    hero.append(make("p", "", "Only one safe action remained, so the deterministic controller resolved the move."));
+    ui.modelOutput.append(hero);
+    return;
+  }
+
+  const candidates = request?.candidates || [];
+  const selectedIndex = candidates.findIndex((candidate) => candidate.id === decision.choice);
+  const selectedSlot = selectedIndex >= 0 ? LETTERS[selectedIndex] : "?";
+  const hero = make("div", "readout-hero selected-output");
+  hero.append(make("span", "readout-kicker", "SELECTED OPTION"));
+  hero.append(
+    make("strong", "", `${selectedSlot} · ${ARROWS[decision.choice] || "·"} ${String(decision.choice).toUpperCase()}`),
+  );
+  hero.append(
+    make("p", "", `${formatPct(decision.distribution?.[decision.choice])} relative preference · no answer text generated`),
+  );
+  ui.modelOutput.append(hero);
+
+  const rows = make("div", "readout-list");
+  candidates.forEach((candidate, index) => rows.append(renderPreferenceRow(candidate, index, decision)));
+  ui.modelOutput.append(rows);
+
+  const metadata = make("div", "io-state-grid output-meta");
+  appendField(metadata, "scorer", scorerLabel(decision.scorer));
+  appendField(metadata, "latency", formatMs(record.decision_latency_seconds));
+  appendField(metadata, "generated tokens", decision.generated_tokens ?? 0);
+  appendField(metadata, "text output", "none");
+  ui.modelOutput.append(metadata);
+}
+
+function renderInspector() {
+  const request = inspectorRequest();
+  const record = inspectorRecord();
+  if (selectedRecord) ui.ioMoveLabel.textContent = `move #${selectedRecord.step}`;
+  else if (busy) ui.ioMoveLabel.textContent = "deciding now";
+  else if (lastRecord) ui.ioMoveLabel.textContent = `move #${lastRecord.step}`;
+  else ui.ioMoveLabel.textContent = "next move";
+
+  renderModelInput(request, record);
+  renderModelOutput(request, record);
 }
 
 function renderOverlay() {
@@ -333,7 +518,7 @@ function drawBoard() {
 
   const body = state.snake.body_head_first || [];
   const head = body[0];
-  const constraints = constraintsForView();
+  const constraints = currentConstraints();
   const decision = decisionForView();
   const showCandidates = phase === "decide" || phase === "act";
 
@@ -348,18 +533,8 @@ function drawBoard() {
       ctx.strokeStyle = selected ? "#03c27e" : "#8bded7";
       ctx.lineWidth = selected ? 3 : 1.5;
       const inset = 4;
-      ctx.fillRect(
-        ox + tx * cell + inset,
-        oy + ty * cell + inset,
-        cell - inset * 2,
-        cell - inset * 2,
-      );
-      ctx.strokeRect(
-        ox + tx * cell + inset,
-        oy + ty * cell + inset,
-        cell - inset * 2,
-        cell - inset * 2,
-      );
+      ctx.fillRect(ox + tx * cell + inset, oy + ty * cell + inset, cell - inset * 2, cell - inset * 2);
+      ctx.strokeRect(ox + tx * cell + inset, oy + ty * cell + inset, cell - inset * 2, cell - inset * 2);
 
       const probability = decision?.distribution?.[direction];
       if (probability != null) {
@@ -367,11 +542,7 @@ function drawBoard() {
         ctx.font = `700 ${Math.max(10, cell * .18)}px ui-monospace, SFMono-Regular, monospace`;
         ctx.textAlign = "center";
         ctx.textBaseline = "middle";
-        ctx.fillText(
-          formatPct(probability),
-          ox + (tx + .5) * cell,
-          oy + (ty + .5) * cell,
-        );
+        ctx.fillText(formatPct(probability), ox + (tx + .5) * cell, oy + (ty + .5) * cell);
       }
     }
   }
@@ -393,13 +564,7 @@ function drawBoard() {
     const inset = Math.max(3, cell * .09);
     const radius = Math.max(4, cell * .18);
     ctx.beginPath();
-    ctx.roundRect(
-      x + inset,
-      y + inset,
-      cell - inset * 2,
-      cell - inset * 2,
-      radius,
-    );
+    ctx.roundRect(x + inset, y + inset, cell - inset * 2, cell - inset * 2, radius);
     ctx.fillStyle = index === 0 ? "#112543" : "#03c27e";
     ctx.fill();
   }
@@ -433,6 +598,7 @@ function render() {
   renderChoices();
   renderConstraints();
   renderLog();
+  renderInspector();
   renderOverlay();
   drawBoard();
 
@@ -468,6 +634,8 @@ async function api(path, options = {}) {
 async function oneMove() {
   if (busy || !status?.alive || status?.limit_reached) return;
   busy = true;
+  selectedRecord = null;
+  activeRequest = status?.next_request || null;
   setPhase("decide");
   lastRecord = null;
   decidingStarted = performance.now();
@@ -481,13 +649,8 @@ async function oneMove() {
     stopTicker();
     record.client_roundtrip_ms = roundtrip;
     lastRecord = record;
+    selectedRecord = record;
     displayState = record.before_state;
-    ui.requestJson.textContent = JSON.stringify(record.request, null, 2);
-    ui.responseJson.textContent = JSON.stringify({
-      decision: record.decision,
-      runtime_metrics: record.runtime_metrics,
-      outcome: record.outcome,
-    }, null, 2);
     render();
 
     await sleep(Number(ui.hold.value));
@@ -496,6 +659,7 @@ async function oneMove() {
     await sleep(260);
 
     status = record.status;
+    activeRequest = status.next_request;
     displayState = record.after_state;
     logRows.unshift(record);
     setPhase("observe");
@@ -529,10 +693,10 @@ async function reset() {
   running = false;
   status = await api("/api/reset", { method: "POST" });
   displayState = status.state;
+  activeRequest = status.next_request;
   lastRecord = null;
+  selectedRecord = null;
   logRows = [];
-  ui.requestJson.textContent = "{}";
-  ui.responseJson.textContent = "{}";
   setPhase("observe");
   render();
 }
@@ -555,6 +719,7 @@ window.addEventListener("resize", () => drawBoard());
   try {
     status = await api("/api/status");
     displayState = status.state;
+    activeRequest = status.next_request;
     render();
   } catch (error) {
     ui.verdictArrow.textContent = "!";

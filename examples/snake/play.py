@@ -16,18 +16,30 @@ from examples.snake.game import DIRECTIONS, SnakeGame
 SCORER_CHOICES = ("direct", "semantic", "semantic-independent", "letters")
 
 QUESTION = (
-    "Which single move should Snake take now? All supplied candidates are already known to avoid "
-    "an immediate wall/body collision. Prefer progress toward the food while preserving future "
-    "mobility and avoiding obvious traps."
+    "Which single move should Snake take now? All supplied candidates already avoid an immediate "
+    "wall/body collision. Use the deterministic sensors on each option. Prefer eating food or "
+    "getting closer when future mobility remains healthy; preserve reachable space; avoid repeated "
+    "cells and high loop risk unless needed for safety."
 )
 
 
-def _candidate(direction: str) -> Candidate:
+def _candidate(game: SnakeGame, direction: str) -> Candidate:
+    features = game.action_features(direction)
+    before = features["food_distance_before"]
+    after = features["food_distance_after"]
+    distance = "unknown" if before is None else f"{before} -> {after}"
+    safe_after = ", ".join(features["safe_directions_after"]) or "none"
     return Candidate(
         id=direction,
         description=(
-            f"Move {direction.upper()} by one grid cell with delta "
-            f"(dx={DIRECTIONS[direction][0]}, dy={DIRECTIONS[direction][1]})."
+            f"Move {direction.upper()} by one cell to "
+            f"({features['next_position']['x']},{features['next_position']['y']}). "
+            f"Food progress: {features['food_progress']}; Manhattan distance {distance}; "
+            f"eats food: {str(features['eats_food']).lower()}. "
+            f"Future mobility: {features['safe_moves_after']} safe next moves "
+            f"({safe_after}); {features['reachable_free_cells_after']} reachable free cells. "
+            f"Recent path: next cell visited {features['recent_visit_count']} times in the bounded "
+            f"window; loop risk {features['loop_risk']}."
         ),
     )
 
@@ -38,7 +50,7 @@ def build_request(game: SnakeGame, directions: tuple[str, ...] | None = None) ->
         id=f"snake-step-{game.steps}",
         state=game.state(),
         question=QUESTION,
-        candidates=tuple(_candidate(direction) for direction in directions),
+        candidates=tuple(_candidate(game, direction) for direction in directions),
     )
 
 
@@ -81,7 +93,7 @@ def _trace_request(game: SnakeGame, directions: tuple[str, ...]) -> dict[str, An
         "id": f"snake-step-{game.steps}",
         "state": game.state(),
         "question": QUESTION,
-        "candidates": [_candidate(direction).to_dict() for direction in directions],
+        "candidates": [_candidate(game, direction).to_dict() for direction in directions],
     }
 
 
@@ -112,6 +124,7 @@ def choose_move(game: SnakeGame, scorer: Any):
         "mode": mode,
         "legal_actions": list(legal),
         "safe_actions": list(safe),
+        "candidate_features": game.candidate_features(safe),
         "filtered_actions": {
             direction: reason
             for direction, reason in constraints.items()

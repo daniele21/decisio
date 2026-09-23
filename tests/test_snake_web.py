@@ -68,6 +68,9 @@ def test_snake_web_status_exposes_candidates_before_model():
 
     assert status["constraints"]["safe_actions"] == ["up", "right", "down"]
     assert status["constraints"]["filtered_actions"] == {"left": "reverse_direction"}
+    assert status["constraints"]["candidate_features"]["up"]["food_progress"]
+    assert status["next_request"]["question"]
+    assert status["next_request"]["candidates"][0]["description"]
     assert status["model"]["n_threads"] == 5
     assert status["model"]["n_threads_batch"] == 11
 

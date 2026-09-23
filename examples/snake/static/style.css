@@ -483,3 +483,256 @@ pre {
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { scroll-behavior: auto !important; transition: none !important; animation: none !important; }
 }
+
+
+/* Structured per-move model I/O inspector */
+.log-row {
+  width: 100%;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+}
+
+.log-row:hover { background: #f2f8f8; }
+.log-row.selected-log { background: var(--ice); }
+
+.io-help {
+  margin: 6px 0 10px;
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.io-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.08fr) minmax(0, .92fr);
+  gap: 10px;
+}
+
+.io-card {
+  min-width: 0;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: #fbfdfe;
+  overflow: hidden;
+}
+
+.io-card-title {
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--line);
+  background: #f4f9fa;
+  color: var(--navy);
+  font: 800 10px var(--mono);
+  letter-spacing: .08em;
+}
+
+.io-content {
+  display: grid;
+  gap: 10px;
+  padding: 10px;
+}
+
+.io-block {
+  display: grid;
+  gap: 5px;
+}
+
+.io-label {
+  color: var(--muted);
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: .09em;
+  text-transform: uppercase;
+}
+
+.io-question,
+.option-description,
+.body-path,
+.readout-hero p {
+  margin: 0;
+}
+
+.io-question {
+  color: var(--navy);
+  font-size: 12px;
+  font-weight: 650;
+}
+
+.io-state-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.io-field {
+  min-width: 0;
+  padding: 7px 8px;
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  background: var(--white);
+}
+
+.io-field .io-label { display: block; }
+.io-value {
+  display: block;
+  margin-top: 3px;
+  overflow: hidden;
+  color: var(--navy);
+  font: 650 11px var(--mono);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.body-path {
+  overflow-wrap: anywhere;
+  color: #41536a;
+  font: 10px/1.45 var(--mono);
+}
+
+.input-options,
+.readout-list {
+  display: grid;
+  gap: 7px;
+  margin-top: 2px;
+}
+
+.input-option {
+  padding: 9px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--white);
+}
+
+.input-option-head {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  color: var(--navy);
+  font: 700 11px var(--mono);
+}
+
+.option-slot {
+  width: 22px;
+  height: 22px;
+  display: inline-grid;
+  flex: 0 0 22px;
+  place-items: center;
+  border-radius: 6px;
+  background: var(--navy);
+  color: var(--white);
+  font: 800 10px var(--mono);
+}
+
+.option-description {
+  margin-top: 6px;
+  color: #41536a;
+  font-size: 10.5px;
+  line-height: 1.5;
+}
+
+.sensor-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  margin-top: 7px;
+}
+
+.sensor {
+  padding: 3px 6px;
+  border-radius: 999px;
+  background: var(--track);
+  color: #506579;
+  font: 600 9px var(--mono);
+}
+
+.sensor.risk {
+  background: var(--warn-soft);
+  color: var(--warn);
+}
+
+.readout-hero {
+  display: grid;
+  gap: 4px;
+  padding: 10px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--white);
+}
+
+.readout-hero.selected-output {
+  border-color: rgb(3 194 126 / .38);
+  background: rgb(210 242 241 / .38);
+}
+
+.readout-kicker {
+  color: var(--muted);
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: .09em;
+}
+
+.readout-hero strong {
+  color: var(--navy);
+  font: 800 18px var(--mono);
+}
+
+.readout-hero p {
+  color: var(--muted);
+  font-size: 10.5px;
+}
+
+.readout-row {
+  display: grid;
+  grid-template-columns: 22px 64px minmax(60px, 1fr) 48px 86px;
+  gap: 6px;
+  align-items: center;
+  padding: 6px;
+  border-radius: 8px;
+}
+
+.readout-row.selected-readout { background: var(--ice); }
+
+.readout-name {
+  color: var(--navy);
+  font: 700 10px var(--mono);
+}
+
+.mini-track {
+  height: 7px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: var(--track);
+}
+
+.mini-track i {
+  display: block;
+  width: 0;
+  height: 100%;
+  border-radius: inherit;
+  background: #9badb9;
+}
+
+.selected-readout .mini-track i {
+  background: linear-gradient(90deg, var(--emerald), var(--teal));
+}
+
+.readout-prob,
+.readout-logit {
+  color: var(--muted);
+  font: 600 9px var(--mono);
+  text-align: right;
+  white-space: nowrap;
+}
+
+.output-meta { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+
+@media (max-width: 1180px) {
+  .io-grid { grid-template-columns: 1fr; }
+}
+
+@media (max-width: 620px) {
+  .io-state-grid { grid-template-columns: repeat(2, 1fr); }
+  .readout-row { grid-template-columns: 22px 54px 1fr 46px; }
+  .readout-logit { grid-column: 2 / -1; text-align: left; }
+}

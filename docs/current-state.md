@@ -19,7 +19,7 @@ Active plan: [llama.cpp reference runtime migration](workstreams/llama-cpp-refer
 | Scorer gate v2 | FAILED | short independent workload does not justify v2 promotion |
 | Repeated-state gate v3 | ACTIVE | frozen 48-case/8-state scoped promotion experiment |
 | Product foundation | ACTIVE | PR #1 remains draft until the scorer scope is decided |
-| Snake live demo | DONE | direct one-forward choice logits by default; semantic v2 remains opt-in comparison |
+| Snake live demo | DONE | direct one-forward logits + bounded sensors/loop memory + readable per-move model I/O |
 
 ## Reference identity
 

@@ -13,7 +13,7 @@ from typing import Any
 from urllib.parse import urlparse
 
 from examples.snake.game import SnakeGame
-from examples.snake.play import SCORER_CHOICES, append_trace, build_scorer, choose_move
+from examples.snake.play import SCORER_CHOICES, append_trace, build_request, build_scorer, choose_move
 
 STATIC_ROOT = Path(__file__).with_name("static")
 REPO_ROOT = Path(__file__).resolve().parents[2]
@@ -54,15 +54,25 @@ class SnakeSession:
 
     def _constraints_unlocked(self) -> dict[str, Any]:
         raw = self.game.action_constraints()
+        safe = self.game.safe_directions()
         return {
             "legal_actions": list(self.game.candidate_directions()),
-            "safe_actions": list(self.game.safe_directions()),
+            "safe_actions": list(safe),
+            "candidate_features": self.game.candidate_features(safe),
             "filtered_actions": {
                 direction: reason
                 for direction, reason in raw.items()
                 if reason is not None
             },
         }
+
+    def _next_request_unlocked(self) -> dict[str, Any] | None:
+        if not self.game.alive or self.game.steps >= self.max_steps:
+            return None
+        safe = self.game.safe_directions()
+        if not safe:
+            return None
+        return build_request(self.game, safe).to_dict()
 
     def status(self) -> dict[str, Any]:
         with self._lock:
@@ -72,6 +82,7 @@ class SnakeSession:
         return {
             "state": self.game.state(),
             "constraints": self._constraints_unlocked(),
+            "next_request": self._next_request_unlocked(),
             "alive": self.game.alive,
             "steps": self.game.steps,
             "score": self.game.score,
