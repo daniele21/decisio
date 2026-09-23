@@ -36,11 +36,14 @@
     "training_free_v1": true,
     "zero_generated_answer_tokens_native_path": true,
     "reference_model": "Qwen/Qwen3.5-2B",
-    "primary_scorer_hypothesis": "semantic_comparative_logodds",
+    "primary_scorer_hypothesis": "stateful_direct_choice_with_fresh_equivalent_context_reuse",
     "answerability_first_class": true,
     "uncalibrated_scores_must_be_labeled": true,
     "deterministic_constraints_before_scoring": true,
-    "reference_runtime": "llama.cpp + GGUF Q4_K_M; CPU reference gate"
+    "reference_runtime": "llama.cpp + GGUF Q4_K_M; CPU reference gate",
+    "stateful_decision_context_first_class": true,
+    "static_context_dynamic_state_split": true,
+    "cache_reuse_requires_fresh_equivalence": true
   },
   "evidence": {
     "least_invasive_sufficient_evidence": true,
