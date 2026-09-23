@@ -1,0 +1,109 @@
+name: Snake controller benchmark smoke
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - ".github/workflows/snake-controller-benchmark.yml"
+      - "examples/snake/game.py"
+      - "examples/snake/play.py"
+      - "examples/snake/planner.py"
+      - "benchmarks/snake_controller_benchmark.py"
+      - "benchmarks/run_snake_controller_benchmark.py"
+      - "benchmarks/summarize_snake_controller_history.py"
+      - "benchmarks/fixtures/snake-controller-v1.jsonl"
+      - "tests/test_snake_planner.py"
+      - "tests/test_snake_controller_benchmark.py"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: snake-controller-benchmark-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  qwen-08b-controller-smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install pinned CPU runtime
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install "diskcache>=5.6.1" "jinja2>=2.11.3" "numpy>=1.20" "typing-extensions>=4.5"
+          python -m pip install --index-url https://abetlen.github.io/llama-cpp-python/whl/cpu --no-deps "llama-cpp-python==0.3.35"
+          python -m pip install -e . --no-deps
+      - name: Download pinned Qwen3.5-0.8B Q4_K_M smoke artifact
+        run: |
+          MODEL=/tmp/Qwen3.5-0.8B-Q4_K_M.gguf
+          curl -L --fail --retry 3 \
+            "https://huggingface.co/unsloth/Qwen3.5-0.8B-GGUF/resolve/91840701981c3152e23662fa4416d7a93cab90e2/Qwen3.5-0.8B-Q4_K_M.gguf?download=true" \
+            -o "$MODEL"
+          echo "bd258782e35f7f458f8aced1adc053e6e92e89bc735ba3be89d38a06121dc517  $MODEL" | sha256sum -c -
+          echo "DECISIO_SMOKE_MODEL=$MODEL" >> "$GITHUB_ENV"
+      - name: Run deterministic planner and ledger tests
+        run: |
+          python -m pip install "pytest>=8.3"
+          pytest -q tests/test_snake_planner.py tests/test_snake_controller_benchmark.py
+      - name: Run real-model controller matrix smoke
+        run: |
+          python -m benchmarks.run_snake_controller_benchmark \
+            --model "$DECISIO_SMOKE_MODEL" \
+            --output /tmp/snake-controller-report.json \
+            --ledger /tmp/snake-controller-history.jsonl \
+            --configs direct-stateful-verbose direct-fresh-verbose semantic-verbose \
+            --fixed-limit 4 \
+            --episode-seeds 7 19 \
+            --episode-max-steps 12 \
+            --stall-steps 8 \
+            --planner-max-nodes 10000 \
+            --threads 2 --threads-batch 2 \
+            --n-ctx 4096 --n-batch 128 --n-ubatch 128
+      - name: Verify append-only evidence identity
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          rows = [
+              json.loads(line)
+              for line in Path("/tmp/snake-controller-history.jsonl").read_text().splitlines()
+          ]
+          assert len(rows) == 3, rows
+          assert all(row["status"] == "completed" for row in rows), rows
+          assert {row["configuration"]["id"] for row in rows} == {
+              "direct-stateful-verbose", "direct-fresh-verbose", "semantic-verbose"
+          }
+          assert all(
+              row["model_runtime"]["artifact_sha256"]
+              == "bd258782e35f7f458f8aced1adc053e6e92e89bc735ba3be89d38a06121dc517"
+              for row in rows
+          )
+          assert all(row["fixture"]["sha256"] for row in rows)
+          assert all(row["protocol"]["sha256"] for row in rows)
+          assert all(row["source"]["commit"] for row in rows)
+          assert all(row["fixed_state"]["cases"] == 4 for row in rows)
+          assert all(row["episodes"]["episodes"] == 2 for row in rows)
+          PY
+      - name: Summarize benchmark history
+        run: |
+          python -m benchmarks.summarize_snake_controller_history \
+            --ledger /tmp/snake-controller-history.jsonl \
+            --output /tmp/snake-controller-history.md \
+            --json-output /tmp/snake-controller-history-summary.json
+      - name: Upload controller benchmark evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: decisio-snake-controller-qwen35-08b
+          path: |
+            /tmp/snake-controller-report.json
+            /tmp/snake-controller-history.jsonl
+            /tmp/snake-controller-history.md
+            /tmp/snake-controller-history-summary.json
+          if-no-files-found: warn
+          retention-days: 14
