@@ -152,9 +152,10 @@ direct option logits   semantic candidate scoring
           typed decision
 ```
 
-The product hypothesis is simple:
+The product hypothesis is:
 
-> For bounded semantic decisions, use the LLM as a scorer before using it as a writer.
+> For repeated bounded decisions, keep stable decision context resident, apply deterministic
+> constraints in software, and use the local LLM only for the changing semantic choice.
 
 ## Bring your own quantized Qwen
 
@@ -192,17 +193,19 @@ This makes model choice a deployment decision while keeping scorer semantics and
 
 ## Runtime status
 
-Decisio has an in-process local-GGUF llama.cpp backend. The pinned Qwen3.5-2B Q4_K_M
-reference gate has already produced a negative result for semantic v2 as a short/fresh
-general-purpose default: scorer-gate v2 remains **FAIL**. The active experiment is the separately
-frozen repeated-state gate v3.
+Decisio has an in-process local-GGUF llama.cpp backend. The active product reference is the
+**stateful direct loop** demonstrated by Snake: a stable controller context is reusable across
+changing current-state suffixes, while deterministic constraints/sensors stay application-owned.
 
-Two native zero-generation choice readouts are implemented:
+Two native zero-generation readouts remain available:
 
-- **direct choice logits** — one prompt, A/B/C/... option-token logits, one model evaluation; used by
-  the Snake demo as its default low-latency control path;
-- **semantic v2** — comparative YES/NO scoring per candidate; still experimental and evaluated
-  separately for repeated-state workloads.
+- **direct choice logits** — one A/B/C/... readout in one model evaluation; the internal action
+  primitive used by the stateful Snake reference;
+- **semantic v2** — comparative YES/NO scoring per candidate; a separate experimental lane.
+
+The pinned 2B scorer-gate v2 remains **FAIL** for semantic-v2 as a short/fresh general-purpose
+default. Repeated-state gate v3 remains frozen evidence for that scorer only; it no longer defines
+the overall product direction.
 
 The benchmark CLI remains experimental:
 
