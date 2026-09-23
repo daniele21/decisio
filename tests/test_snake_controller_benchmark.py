@@ -74,6 +74,36 @@ def test_fixed_state_benchmark_measures_oracle_and_order_sensitivity():
     assert summary["records"][0]["reversed_choice"] == "down"
 
 
+
+def test_incomplete_oracle_cases_are_excluded_from_optimal_accuracy():
+    case = _case()
+    case["food"] = [4, 0]
+    summary = fixed_state_benchmark(
+        [case],
+        FirstCandidateScorer(),
+        CONFIGS["direct-stateful-verbose"],
+        SnakePlanner(max_nodes=1, max_depth=20),
+    )
+
+    assert summary["oracle_coverage"] == 0.0
+    assert summary["oracle_complete_cases"] == 0
+    assert summary["optimal_set_agreement"] is None
+    assert summary["mean_rank_regret"] is None
+
+
+def test_fixed_state_records_raw_decision_evidence():
+    summary = fixed_state_benchmark(
+        [_case()],
+        FirstCandidateScorer(),
+        CONFIGS["direct-stateful-verbose"],
+        SnakePlanner(max_nodes=10_000),
+    )
+
+    record = summary["records"][0]
+    assert summary["oracle_coverage"] == 1.0
+    assert record["decision"]["choice"] == "up"
+    assert record["reverse_decision"]["choice"] == "down"
+
 def test_ledger_is_append_only_and_preserves_parameters(tmp_path: Path):
     ledger = tmp_path / "history.jsonl"
     first = {
