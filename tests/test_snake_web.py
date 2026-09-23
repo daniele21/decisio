@@ -42,7 +42,10 @@ class FakeScorer:
         choice = request.candidates[0].id
         probability = 1.0 / count
         distribution = {candidate.id: probability for candidate in request.candidates}
-        scores = {candidate.id: float(count - index) for index, candidate in enumerate(request.candidates)}
+        scores = {
+            candidate.id: float(count - index)
+            for index, candidate in enumerate(request.candidates)
+        }
         return DecisionResult(
             choice=choice,
             distribution=distribution,

@@ -156,7 +156,7 @@ def _json_bytes(value: Any) -> bytes:
 
 
 class SnakeDemoHandler(BaseHTTPRequestHandler):
-    server: "SnakeDemoServer"
+    server: SnakeDemoServer
 
     def log_message(self, format: str, *args: Any) -> None:
         del format, args
