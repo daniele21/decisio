@@ -21,6 +21,9 @@ export function renderLog(ui, logRows, selectedRecord, onSelectRecord, maxEntrie
   if (ui.logCount) {
     ui.logCount.textContent = `${logRows.length} ${logRows.length === 1 ? "move" : "moves"}`;
   }
+  if (ui.tabLogCount) {
+    ui.tabLogCount.textContent = String(logRows.length);
+  }
   if (!ui.log) return;
   ui.log.replaceChildren();
 

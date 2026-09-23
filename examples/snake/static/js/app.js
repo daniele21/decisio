@@ -64,6 +64,7 @@ const ui = {
   sysScorerChip: $("#sysScorerChip"),
   sysBoardChip: $("#sysBoardChip"),
   sysPyChip: $("#sysPyChip"),
+  tabLogCount: $("#tabLogCount"),
 };
 
 // Application State
@@ -262,11 +263,34 @@ window.addEventListener("themechanged", () => {
   render();
 });
 
+function initTabs() {
+  const tabButtons = document.querySelectorAll(".tab-btn");
+  const tabPanes = document.querySelectorAll(".tab-pane");
+
+  tabButtons.forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const targetId = btn.dataset.tab;
+      if (!targetId) return;
+
+      tabButtons.forEach((b) => {
+        const isActive = b === btn;
+        b.classList.toggle("active", isActive);
+        b.setAttribute("aria-selected", isActive ? "true" : "false");
+      });
+
+      tabPanes.forEach((pane) => {
+        pane.classList.toggle("active", pane.id === targetId);
+      });
+    });
+  });
+}
+
 // Bootstrap Application
 (async () => {
   const config = await loadConfig();
   const theme = getInitialTheme();
   applyTheme(theme);
+  initTabs();
 
   if (config.gameplay?.default_hold_ms && ui.hold) {
     ui.hold.value = config.gameplay.default_hold_ms;

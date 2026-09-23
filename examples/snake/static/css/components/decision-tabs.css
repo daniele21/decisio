@@ -1,0 +1,252 @@
+/* Mission Control Hero Command Center and Segmented Tab System */
+
+.decision-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  height: 100%;
+}
+
+.runtime-indicators {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.zero-badge {
+  color: var(--decisio-emerald) !important;
+}
+
+/* Level 1: Hero Command Center (Side-by-Side Verdict & Choices) */
+.hero-command-center {
+  display: grid;
+  grid-template-columns: minmax(0, 1.05fr) minmax(0, 1.2fr);
+  gap: 12px;
+  align-items: stretch;
+}
+
+.hero-command-center .verdict {
+  margin: 0;
+  height: 100%;
+  min-height: 110px;
+  padding: 12px 14px;
+}
+
+.choices-container {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 10px 12px;
+  background: var(--bg-card);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  justify-content: center;
+}
+
+.choices-header {
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  color: var(--decisio-teal);
+  text-transform: uppercase;
+}
+
+.choices-container .choices {
+  display: grid;
+  gap: 5px;
+}
+
+.choices-container .choice {
+  min-height: 28px;
+  padding: 3px 8px;
+  gap: 8px;
+  grid-template-columns: 82px 1fr 48px;
+}
+
+.choices-container .choice-name {
+  font-size: 11px;
+}
+
+.choices-container .choice-name small {
+  display: none; /* Keep candidate bar compact */
+}
+
+.choices-container .track {
+  height: 6px;
+}
+
+.choices-container .choice-value {
+  font-size: 10.5px;
+}
+
+/* Level 1.5: Telemetry Evidence Ribbon */
+.evidence-ribbon {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+  padding: 8px 12px;
+  background: var(--bg-card);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+}
+
+.ribbon-item {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.ribbon-label {
+  font-size: 8.5px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  color: var(--text-muted);
+  text-transform: uppercase;
+}
+
+.ribbon-item b {
+  font: 750 14px/1.2 var(--font-mono);
+  color: var(--text-heading);
+}
+
+/* Level 2: Segmented High-Tech Tab Rail */
+.tab-rail {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 4px;
+  padding: 4px;
+  background: var(--bg-card);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  margin-top: 2px;
+}
+
+.tab-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 7px 8px;
+  font-size: 11px;
+  font-weight: 650;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  border: 1px solid transparent;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  white-space: nowrap;
+}
+
+.tab-btn:hover {
+  color: var(--text-heading);
+  background: var(--bg-hover);
+  transform: none;
+}
+
+.tab-btn.active {
+  background: var(--bg-surface);
+  color: var(--decisio-emerald);
+  border-color: var(--border-subtle);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+}
+
+[data-theme="light"] .tab-btn.active {
+  background: #ffffff;
+  color: var(--decisio-navy);
+  border-color: var(--border-strong);
+  box-shadow: 0 2px 6px rgba(17, 37, 67, 0.08);
+}
+
+.tab-btn span {
+  font-size: 12px;
+}
+
+/* Tab Content Viewport (Unified fixed height matching game board) */
+.tab-content-container {
+  height: 390px;
+  max-height: 420px;
+  overflow-y: auto;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  background: var(--bg-card);
+  padding: 14px;
+}
+
+.tab-pane {
+  display: none;
+  animation: tabFadeIn 0.18s ease-out;
+}
+
+.tab-pane.active {
+  display: grid;
+  gap: 12px;
+}
+
+.pane-block {
+  display: grid;
+  gap: 6px;
+}
+
+.pane-title {
+  color: var(--text-muted);
+  font-size: 9.5px;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.log-pane-head {
+  margin-bottom: 4px;
+}
+
+.tab-pane .decision-log {
+  max-height: 330px;
+  margin-top: 0;
+}
+
+.sensor-radar-block {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.io-header-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.tab-pane .io-grid {
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.tab-pane .system-hud-card {
+  margin-top: 0;
+}
+
+@keyframes tabFadeIn {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@media (max-width: 900px) {
+  .hero-command-center {
+    grid-template-columns: 1fr;
+  }
+  .evidence-ribbon {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  .tab-rail {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  .tab-pane .io-grid {
+    grid-template-columns: 1fr;
+  }
+  .tab-content-container {
+    height: auto;
+    max-height: 500px;
+  }
+}
