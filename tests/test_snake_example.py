@@ -9,14 +9,20 @@ class NeverCalledScorer:
 
 def test_snake_request_contains_only_immediately_safe_actions():
     game = SnakeGame(seed=1)
+    game.food = (4, 2)
     request = build_request(game)
     ids = {candidate.id for candidate in request.candidates}
     assert ids == {"up", "right", "down"}
     assert "left" not in ids
     descriptions = {candidate.id: candidate.description for candidate in request.candidates}
-    assert "Food progress:" in descriptions["up"]
+    assert descriptions["up"].startswith("Move UP to (x=4, y=3).")
+    assert descriptions["right"].startswith("Move RIGHT to (x=5, y=4).")
+    assert descriptions["down"].startswith("Move DOWN to (x=4, y=5).")
+    assert "Food progress: closer; Manhattan distance 2 -> 1" in descriptions["up"]
+    assert "Food progress: farther; Manhattan distance 2 -> 3" in descriptions["down"]
     assert "Future mobility:" in descriptions["up"]
-    assert "loop risk" in descriptions["up"]
+    assert "board_grid" in request.state
+    assert len(request.state["board_grid"]) > 0
 
 
 def test_snake_filters_wall_collision_before_model():
@@ -100,6 +106,9 @@ def test_snake_bounded_memory_marks_revisited_cells_as_loop_risk():
     features = game.action_features("up")
     assert features["recent_visit_count"] >= 1
     assert features["loop_risk"] in {"medium", "high"}
+    candidate = next(c for c in build_request(game).candidates if c.id == "up")
+    assert "next cell visited 1 times" in candidate.description
+    assert "loop risk medium" in candidate.description
     assert game.state()["decision_memory"]["recent_window_size"] <= 12
 
 
@@ -114,3 +123,48 @@ def test_snake_bounded_memory_resets_when_food_is_eaten():
     assert game.steps_since_food == 0
     assert memory["recent_window_size"] == 1
     assert memory["recent_unique_head_cells"] == 1
+
+
+def test_compact_request_keeps_geometry_and_sensors_without_duplicate_grid():
+    game = SnakeGame(seed=7)
+    game.food = (4, 3)
+    request = build_request(game, input_format="compact")
+    assert request.state["snake"] == game.state()["snake"]
+    assert request.state["food"] == {"x": 4, "y": 3}
+    assert "board_grid" not in request.state
+    assert "board_grid" in game.state()
+    assert "food=1>0; eat=true" in request.candidates[0].description
+
+
+def test_adjacent_food_policy_is_explicit_and_skips_model():
+    game = SnakeGame(seed=7)
+    game.food = (5, 4)
+    request, decision, latency, constraints = choose_move(
+        game, NeverCalledScorer(), controller="adjacent-food", input_format="compact",
+    )
+    assert len(request["candidates"]) == 3
+    assert decision.choice == "right"
+    assert latency == 0
+    assert constraints["mode"] == "deterministic_adjacent_food_policy"
+    assert decision.probability_status == "deterministic_application_policy"
+
+
+def test_adjacent_food_policy_rejects_immediate_dead_end():
+    class RecordingScorer:
+        called = False
+
+        def score(self, request):
+            self.called = True
+            from decisio.schema import DecisionResult
+            return DecisionResult(choice="left", distribution={"left": 1.0},
+                                  scores={"left": 0.0}, scorer="test")
+
+    game = SnakeGame(width=5, height=5)
+    game.snake = [(3, 0), (3, 1), (4, 1), (4, 2)]
+    game.direction = "up"
+    game.food = (4, 0)
+    assert game.action_features("right")["safe_moves_after"] == 0
+    scorer = RecordingScorer()
+    _, _, _, constraints = choose_move(game, scorer, controller="adjacent-food")
+    assert scorer.called
+    assert constraints["mode"] == "model"

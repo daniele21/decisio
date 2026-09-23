@@ -249,6 +249,34 @@ def test_letter_scorer_is_a_single_forward_baseline():
     assert len(backend.calls) == 1
 
 
+def test_letter_prefix_reuse_matches_compiler_hint_and_falls_back_fresh():
+    backend = ReusablePrefixQueueBackend([[1.0, 4.0, -1.0]])
+    result = LetterTokenScorer(backend, reuse_prefix=True).score(request())
+    compiled = compile_letter_choice(backend.tokenizer, request(), reuse_prefix=True)
+    inputs, _, hint = backend.shared_prefix_calls[0]
+    assert inputs == [compiled.input_ids]
+    assert hint == compiled.reusable_prefix_len
+    assert hint > 0
+    assert compiled.prompt.index("QUESTION:") < compiled.prompt.index("EVIDENCE:")
+    fresh = QueueBackend([[1.0, 4.0, -1.0]])
+    oracle = LetterTokenScorer(fresh, reuse_prefix=True).score(request())
+    assert result.scores == oracle.scores
+    assert result.prompt_sha256 == oracle.prompt_sha256
+    assert fresh.calls[0][0] == compiled.input_ids
+
+
+def test_letter_prefix_excludes_changing_state():
+    first = request()
+    second = ChoiceRequest(state={"different": "state"}, question=first.question,
+                           candidates=first.candidates)
+    left = compile_letter_choice(FakeTokenizer(), first, reuse_prefix=True)
+    right = compile_letter_choice(FakeTokenizer(), second, reuse_prefix=True)
+    assert left.reusable_prefix_len == right.reusable_prefix_len
+    size = left.reusable_prefix_len
+    assert left.input_ids[:size] == right.input_ids[:size]
+    assert left.input_ids[size:] != right.input_ids[size:]
+
+
 
 
 def test_semantic_scorer_breaks_exact_ties_by_candidate_id():

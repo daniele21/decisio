@@ -145,6 +145,14 @@ answer tokens and avoids one YES/NO evaluation per candidate. It remains explici
 direct option-token scoring because candidate order/verbalizer sensitivity is a known evaluation
 dimension; its normalized values are not calibrated correctness probabilities.
 
+`LetterTokenScorer(..., reuse_prefix=True)` is an opt-in, separately identified
+`letter_question_prefix_v1` experiment. Its compiler places the question before changing evidence
+and marks the exact reusable token prefix. Capable backends use the existing bounded sequence-state
+cache with one request per batch; other backends evaluate the same compiled prompt fresh. Native
+batch-aligned checkpoint rules still apply. Prompt reordering can alter preferences independently
+of caching, so compare the original prompt, reordered fresh prompt and reordered cached prompt
+separately. This does not change the baseline compiler or frozen scorer-gate contracts.
+
 ## Comparative semantic scoring
 
 For each candidate `c_i`, compile a binary comparative judgment whose valid readout is `YES` versus `NO`. The prompt includes the complete alternative set and asks whether `c_i` is the best answer among those alternatives.

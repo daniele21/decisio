@@ -16,45 +16,69 @@ from examples.snake.game import SnakeGame
 SCORER_CHOICES = ("direct", "semantic", "semantic-independent", "letters")
 
 QUESTION = (
-    "Which single move should Snake take now? All supplied candidates already avoid an immediate "
-    "wall/body collision. Use the deterministic sensors on each option. Prefer eating food or "
-    "getting closer when future mobility remains healthy; preserve reachable space; avoid repeated "
-    "cells and high loop risk unless needed for safety."
+    "Which single move should Snake take now? All supplied moves avoid immediate collision. "
+    "Use the board and the sensors on each option. Prefer eating food or getting closer when "
+    "future mobility remains healthy. Avoid dead ends and repeated cells with high loop risk; "
+    "moving farther can be necessary to escape a trap. Reachable space treats the body as static, "
+    "and Manhattan distance ignores obstacles; neither guarantees a safe route."
+)
+COMPACT_QUESTION = (
+    "Choose a safe Snake move: eat food or get closer while preserving escape space. "
+    "Avoid dead ends and repeated visits. "
+    "food=Manhattan distance before>after (ignores obstacles); "
+    "exits=safe next directions; area=reachable cells with static body; "
+    "visits=recent visits to destination. Coordinates: x right, y down."
 )
 
 
-def _candidate(game: SnakeGame, direction: str) -> Candidate:
+def add_control_arguments(parser: argparse.ArgumentParser) -> None:
+    parser.add_argument("--input-format", choices=("verbose", "compact"), default="verbose")
+    parser.add_argument("--reuse-prefix", action="store_true",
+                        help="Experimental question-first direct scoring with exact prefix reuse")
+    parser.add_argument("--controller", choices=("model", "adjacent-food"), default="model",
+                        help="adjacent-food applies an explicit local food policy before scoring")
+
+
+def _candidate(game: SnakeGame, direction: str, input_format: str = "verbose") -> Candidate:
     features = game.action_features(direction)
-    before = features["food_distance_before"]
-    after = features["food_distance_after"]
-    distance = "unknown" if before is None else f"{before} -> {after}"
+    position = features["next_position"]
     safe_after = ", ".join(features["safe_directions_after"]) or "none"
+    if input_format == "compact":
+        return Candidate(id=direction, description=(
+            f"{direction.upper()} next=({position['x']},{position['y']}); "
+            f"food={features['food_distance_before']}>{features['food_distance_after']}; "
+            f"eat={str(features['eats_food']).lower()}; exits={safe_after}; "
+            f"area={features['reachable_free_cells_after']}; "
+            f"visits={features['recent_visit_count']}"
+        ))
     return Candidate(
         id=direction,
         description=(
-            f"Move {direction.upper()} by one cell to "
-            f"({features['next_position']['x']},{features['next_position']['y']}). "
-            f"Food progress: {features['food_progress']}; Manhattan distance {distance}; "
-            f"eats food: {str(features['eats_food']).lower()}. "
-            f"Future mobility: {features['safe_moves_after']} safe next moves "
-            f"({safe_after}); {features['reachable_free_cells_after']} reachable free cells. "
-            f"Recent path: next cell visited {features['recent_visit_count']} times in the bounded "
-            f"window; loop risk {features['loop_risk']}."
+            f"Move {direction.upper()} to (x={position['x']}, y={position['y']}). "
+            f"Food progress: {features['food_progress']}; "
+            f"Manhattan distance {features['food_distance_before']} -> "
+            f"{features['food_distance_after']}; eats food: "
+            f"{str(features['eats_food']).lower()}. "
+            f"Future mobility: {features['safe_moves_after']} safe next moves ({safe_after}); "
+            f"{features['reachable_free_cells_after']} reachable cells with static body. "
+            f"Recent path: next cell visited {features['recent_visit_count']} times "
+            f"in the bounded window; loop risk {features['loop_risk']}."
         ),
     )
 
 
-def build_request(game: SnakeGame, directions: tuple[str, ...] | None = None) -> ChoiceRequest:
-    directions = directions or game.safe_directions()
-    return ChoiceRequest(
-        id=f"snake-step-{game.steps}",
-        state=game.state(),
-        question=QUESTION,
-        candidates=tuple(_candidate(game, direction) for direction in directions),
+def build_request(
+    game: SnakeGame, directions: tuple[str, ...] | None = None, *, input_format: str = "verbose",
+) -> ChoiceRequest:
+    return ChoiceRequest.from_dict(
+        build_request_data(game, game.safe_directions() if directions is None else directions,
+                       input_format=input_format)
     )
 
 
 def build_scorer(args: argparse.Namespace) -> Any:
+    if args.reuse_prefix and args.scorer not in {"direct", "letters"}:
+        raise ValueError("--reuse-prefix requires --scorer direct or letters")
     backend = LlamaCppBackend(
         LlamaCppBackendConfig(
             model=args.model,
@@ -73,36 +97,62 @@ def build_scorer(args: argparse.Namespace) -> Any:
     if args.scorer == "semantic-independent":
         return IndependentSemanticScorer(backend)
     if args.scorer in {"direct", "letters"}:
-        return LetterTokenScorer(backend)
+        return LetterTokenScorer(backend, reuse_prefix=args.reuse_prefix)
     raise ValueError(f"unsupported Snake scorer: {args.scorer}")
 
 
-def _deterministic_decision(direction: str, scorer: str) -> DecisionResult:
+def _deterministic_decision(
+    direction: str, scorer: str, *, status: str = "deterministic_constraint_resolution",
+) -> DecisionResult:
     return DecisionResult(
         choice=direction,
         distribution={direction: 1.0},
         scores={direction: 0.0},
         scorer=scorer,
-        probability_status="deterministic_constraint_resolution",
+        probability_status=status,
         model={"backend": "deterministic"},
     )
 
 
-def _trace_request(game: SnakeGame, directions: tuple[str, ...]) -> dict[str, Any]:
+def build_request_data(
+    game: SnakeGame, directions: tuple[str, ...], *, input_format: str = "verbose",
+) -> dict[str, Any]:
+    if input_format not in {"verbose", "compact"}:
+        raise ValueError(f"unknown input format: {input_format}")
+    state = game.state()
+    if input_format == "compact":
+        state.pop("board_grid")
+        state.pop("legend")
     return {
         "id": f"snake-step-{game.steps}",
-        "state": game.state(),
-        "question": QUESTION,
-        "candidates": [_candidate(game, direction).to_dict() for direction in directions],
+        "state": state,
+        "question": COMPACT_QUESTION if input_format == "compact" else QUESTION,
+        "candidates": [_candidate(game, direction, input_format).to_dict()
+                       for direction in directions],
     }
 
 
-def choose_move(game: SnakeGame, scorer: Any):
+def choose_move(
+    game: SnakeGame, scorer: Any, *, input_format: str = "verbose", controller: str = "model",
+):
+    if controller not in {"model", "adjacent-food"}:
+        raise ValueError(f"unknown controller: {controller}")
     constraints = game.action_constraints()
     safe = game.safe_directions()
     legal = game.candidate_directions()
-    if len(safe) >= 2:
-        request = build_request(game, safe)
+    features = game.candidate_features(safe)
+    food_move = next((d for d in safe if features[d]["eats_food"]
+                     and features[d]["safe_moves_after"] > 0), None)
+    if len(safe) >= 2 and controller == "adjacent-food" and food_move is not None:
+        decision = _deterministic_decision(
+            food_move, "snake_adjacent_food_policy_v1",
+            status="deterministic_application_policy",
+        )
+        request_data = build_request_data(game, safe, input_format=input_format)
+        latency = 0.0
+        mode = "deterministic_adjacent_food_policy"
+    elif len(safe) >= 2:
+        request = build_request(game, safe, input_format=input_format)
         started = time.perf_counter()
         decision = scorer.score(request)
         latency = time.perf_counter() - started
@@ -112,19 +162,19 @@ def choose_move(game: SnakeGame, scorer: Any):
         direction = safe[0]
         decision = _deterministic_decision(direction, "deterministic_single_safe_action_v1")
         latency = 0.0
-        request_data = _trace_request(game, safe)
+        request_data = build_request_data(game, safe, input_format=input_format)
         mode = "deterministic_single_safe_action"
     else:
         direction = game.direction if game.direction in legal else legal[0]
         decision = _deterministic_decision(direction, "deterministic_no_safe_action_v1")
         latency = 0.0
-        request_data = _trace_request(game, ())
+        request_data = build_request_data(game, (), input_format=input_format)
         mode = "deterministic_no_safe_action"
     return request_data, decision, latency, {
         "mode": mode,
         "legal_actions": list(legal),
         "safe_actions": list(safe),
-        "candidate_features": game.candidate_features(safe),
+        "candidate_features": features,
         "filtered_actions": {
             direction: reason
             for direction, reason in constraints.items()
@@ -144,6 +194,7 @@ def build_parser() -> argparse.ArgumentParser:
         description="Run a headless Snake episode controlled by Decisio"
     )
     parser.add_argument("--model", type=Path, required=True)
+    add_control_arguments(parser)
     parser.add_argument("--n-ctx", type=int, default=8192)
     parser.add_argument("--n-batch", type=int, default=512)
     parser.add_argument("--n-ubatch", type=int, default=512)
@@ -186,7 +237,9 @@ def main(argv: list[str] | None = None) -> int:
             if args.render:
                 print(f"\nstep={game.steps} score={game.score} direction={game.direction}")
                 print(game.render())
-            request_data, decision, latency, constraints = choose_move(game, scorer)
+            request_data, decision, latency, constraints = choose_move(
+                game, scorer, input_format=args.input_format, controller=args.controller,
+            )
             total_model_latency += latency
             model_decisions += int(constraints["mode"] == "model")
             outcome = game.step(decision.choice)

@@ -73,11 +73,21 @@ function modelLabel(model) {
 }
 
 function scorerLabel(name) {
+  if (name === "letter_question_prefix_v1") return "DIRECT CHOICE · reusable question prefix";
+  if (name === "snake_adjacent_food_policy_v1") return "FOOD POLICY · model skipped";
   if (name === "letter_token_baseline_v1") return "DIRECT CHOICE · A/B/C logits · 1 forward";
   if (name === "semantic_comparative_logodds_v2") return "SEMANTIC v2 · YES/NO per candidate";
   if (name === "semantic_binary_logodds_v1") return "SEMANTIC v1 · YES/NO per candidate";
   if (name?.startsWith("deterministic_")) return "DETERMINISTIC · model skipped";
   return name || "—";
+}
+
+function skipReason(mode) {
+  if (mode === "deterministic_adjacent_food_policy") {
+    return "Adjacent-food policy: eat now with a safe next move available. Long-term safety is not guaranteed.";
+  }
+  if (mode === "deterministic_no_safe_action") return "No safe action remains.";
+  return "Only one safe action remained, so the deterministic controller resolved the move.";
 }
 
 function runtimeLabel(model) {
@@ -179,7 +189,7 @@ function renderVerdict() {
     ui.verdictSub.textContent =
       `${formatPct(preference)} relative preference · ${formatMs(lastRecord.decision_latency_seconds)}`;
   } else {
-    ui.verdictSub.textContent = "Resolved by deterministic constraints · model not called";
+    ui.verdictSub.textContent = skipReason(mode);
   }
 }
 
@@ -356,6 +366,14 @@ function renderModelInput(request, record) {
   appendField(stateGrid, "steps since food", memory.steps_since_food ?? "—");
   ui.modelInput.append(stateGrid);
 
+  if (Array.isArray(state.board_grid) && state.board_grid.length) {
+    const gridBlock = make("div", "io-block");
+    gridBlock.append(make("span", "io-label", "BOARD GRID · MODEL INPUT"));
+    const pre = make("pre", "board-grid-text", state.board_grid.join("\n"));
+    gridBlock.append(pre);
+    ui.modelInput.append(gridBlock);
+  }
+
   if (body.length) {
     const bodyBlock = make("div", "io-block");
     bodyBlock.append(make("span", "io-label", "BODY · HEAD FIRST"));
@@ -412,7 +430,7 @@ function renderModelOutput(request, record) {
     const hero = make("div", "readout-hero");
     hero.append(make("span", "readout-kicker", "MODEL SKIPPED"));
     hero.append(make("strong", "", `${ARROWS[decision.choice] || "·"} ${String(decision.choice).toUpperCase()}`));
-    hero.append(make("p", "", "Only one safe action remained, so the deterministic controller resolved the move."));
+    hero.append(make("p", "", skipReason(mode)));
     ui.modelOutput.append(hero);
     return;
   }

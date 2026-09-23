@@ -11,13 +11,29 @@ from decisio.schema import ChoiceRequest, DecisionResult
 class LetterTokenScorer:
     name = "letter_token_baseline_v1"
 
-    def __init__(self, backend: LogitBackend):
+    def __init__(self, backend: LogitBackend, *, reuse_prefix: bool = False):
         self.backend = backend
+        self.reuse_prefix = reuse_prefix
+        if reuse_prefix:
+            self.name = "letter_question_prefix_v1"
 
     def score(self, request: ChoiceRequest) -> DecisionResult:
-        compiled = compile_letter_choice(self.backend.tokenizer, request)
+        compiled = compile_letter_choice(
+            self.backend.tokenizer, request, reuse_prefix=self.reuse_prefix,
+        )
         token_ids = [compiled.readout[candidate.id] for candidate in request.candidates]
-        logits = self.backend.next_token_logits(compiled.input_ids, token_ids)
+        shared = getattr(self.backend, "shared_prefix_batch_next_token_logits", None)
+        if (
+            self.reuse_prefix and compiled.reusable_prefix_len is not None
+            and getattr(self.backend, "supports_reusable_prefix_hint", False)
+            and callable(shared)
+        ):
+            logits = shared(
+                [compiled.input_ids], [token_ids],
+                reusable_prefix_len=compiled.reusable_prefix_len,
+            )[0]
+        else:
+            logits = self.backend.next_token_logits(compiled.input_ids, token_ids)
         scores = {
             candidate.id: logit
             for candidate, logit in zip(request.candidates, logits, strict=True)

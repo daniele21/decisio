@@ -75,6 +75,18 @@ def test_snake_web_status_exposes_candidates_before_model():
     assert status["model"]["n_threads_batch"] == 11
 
 
+def test_single_safe_action_status_can_be_previewed_without_choice_request():
+    session = SnakeSession(scorer=FakeScorer(), seed=1, width=5, height=5,
+                           max_steps=10, input_format="compact")
+    session.game.snake = [(4, 1), (3, 1), (3, 2), (4, 2)]
+    session.game.direction = "up"
+    session.game.food = (0, 0)
+    status = session.status()
+    assert [c["id"] for c in status["next_request"]["candidates"]] == ["up"]
+    assert "board_grid" not in status["next_request"]["state"]
+    assert "board_grid" in status["state"]
+
+
 def test_snake_web_step_returns_before_decision_after_and_runtime_metrics():
     scorer = FakeScorer()
     session = SnakeSession(

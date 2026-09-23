@@ -230,6 +230,27 @@ class SnakeGame:
         ]
         return self._rng.choice(free) if free else None
 
+    def render_grid_lines(self) -> list[str]:
+        """Render ASCII board with coordinate rulers along X and Y axes."""
+        header = "     " + " ".join(str(x) for x in range(self.width))
+        border = "   +-" + "-" * (2 * self.width - 1) + "-+"
+        grid = [["." for _ in range(self.width)] for _ in range(self.height)]
+        if self.food is not None:
+            fx, fy = self.food
+            grid[fy][fx] = "*"
+        if len(self.snake) > 1:
+            tx, ty = self.snake[-1]
+            for x, y in self.snake[1:-1]:
+                grid[y][x] = "o"
+            grid[ty][tx] = "T"
+        hx, hy = self.head
+        grid[hy][hx] = "H"
+        lines = [header, border]
+        for y, row in enumerate(grid):
+            lines.append(f"{y:2d} | " + " ".join(row) + " |")
+        lines.append(border)
+        return lines
+
     def state(self) -> dict[str, Any]:
         return {
             "board": {
@@ -237,6 +258,8 @@ class SnakeGame:
                 "height": self.height,
                 "coordinates": "origin=(0,0) top-left; x increases right; y increases down",
             },
+            "board_grid": self.render_grid_lines(),
+            "legend": "H=head, o=body, T=tail, *=food, .=empty space, borders=+|-",
             "snake": {
                 "body_head_first": [{"x": x, "y": y} for x, y in self.snake],
                 "current_direction": self.direction,
@@ -249,12 +272,6 @@ class SnakeGame:
                 "recent_window_size": len(self._recent_heads),
                 "recent_unique_head_cells": len(set(self._recent_heads)),
             },
-            "rules": [
-                "A move into a wall ends the game.",
-                "A move into the snake body ends the game.",
-                "The snake cannot reverse directly into the opposite direction.",
-                "Eating food grows the snake by one cell and increases score.",
-            ],
         }
 
     def step(self, direction: str) -> StepResult:

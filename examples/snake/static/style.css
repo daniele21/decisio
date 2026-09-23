@@ -590,6 +590,17 @@ pre {
   font: 10px/1.45 var(--mono);
 }
 
+.board-grid-text {
+  margin: 0;
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: var(--navy);
+  color: #a5f3fc;
+  font: 11px/1.35 var(--mono);
+  overflow-x: auto;
+  white-space: pre;
+}
+
 .input-options,
 .readout-list {
   display: grid;

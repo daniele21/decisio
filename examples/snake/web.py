@@ -15,8 +15,9 @@ from urllib.parse import urlparse
 from examples.snake.game import SnakeGame
 from examples.snake.play import (
     SCORER_CHOICES,
+    add_control_arguments,
     append_trace,
-    build_request,
+    build_request_data,
     build_scorer,
     choose_move,
 )
@@ -38,6 +39,8 @@ class SnakeSession:
         height: int,
         max_steps: int,
         trace: Path | None = None,
+        input_format: str = "verbose",
+        controller: str = "model",
     ) -> None:
         self.scorer = scorer
         self.seed = seed
@@ -45,6 +48,8 @@ class SnakeSession:
         self.height = height
         self.max_steps = max_steps
         self.trace = trace
+        self.input_format = input_format
+        self.controller = controller
         self._lock = threading.Lock()
         self.game = SnakeGame(width=width, height=height, seed=seed)
         if self.trace is not None:
@@ -78,7 +83,7 @@ class SnakeSession:
         safe = self.game.safe_directions()
         if not safe:
             return None
-        return build_request(self.game, safe).to_dict()
+        return build_request_data(self.game, safe, input_format=self.input_format)
 
     def status(self) -> dict[str, Any]:
         with self._lock:
@@ -97,6 +102,8 @@ class SnakeSession:
             "max_steps": self.max_steps,
             "limit_reached": self.game.steps >= self.max_steps,
             "scorer": getattr(self.scorer, "name", type(self.scorer).__name__),
+            "input_format": self.input_format,
+            "controller": self.controller,
             "model": self._runtime_identity(),
         }
 
@@ -126,6 +133,8 @@ class SnakeSession:
             request, decision, latency, constraints = choose_move(
                 self.game,
                 self.scorer,
+                input_format=self.input_format,
+                controller=self.controller,
             )
             before_state = request["state"]
             outcome = self.game.step(decision.choice)
@@ -257,6 +266,7 @@ def build_parser() -> argparse.ArgumentParser:
         description="Run the local branded Decisio Snake decision-loop demo"
     )
     parser.add_argument("--model", type=Path, required=True)
+    add_control_arguments(parser)
     parser.add_argument("--host", default="127.0.0.1")
     parser.add_argument("--port", type=int, default=8765)
     parser.add_argument("--open", action="store_true", dest="open_browser")
@@ -300,6 +310,8 @@ def main(argv: list[str] | None = None) -> int:
         height=args.height,
         max_steps=args.max_steps,
         trace=args.trace,
+        input_format=args.input_format,
+        controller=args.controller,
     )
     server = SnakeDemoServer((args.host, args.port), session=session)
     url = f"http://{args.host}:{args.port}/"

@@ -223,7 +223,9 @@ def compile_independent_semantic_candidate(
     )
 
 
-def compile_letter_choice(tokenizer: Tokenizer, request: ChoiceRequest) -> CompiledPrompt:
+def compile_letter_choice(
+    tokenizer: Tokenizer, request: ChoiceRequest, *, reuse_prefix: bool = False,
+) -> CompiledPrompt:
     if len(request.candidates) > len(string.ascii_uppercase):
         raise ValueError("letter baseline supports at most 26 candidates")
     evidence = canonical_json(request.state)
@@ -241,6 +243,13 @@ def compile_letter_choice(tokenizer: Tokenizer, request: ChoiceRequest) -> Compi
         + "\n".join(lines)
         + "\n\nChoose the single best option."
     )
+    reusable_user_prefix = None
+    if reuse_prefix:
+        reusable_user_prefix = f"QUESTION:\n{question}\n\nEVIDENCE:\n"
+        user = (
+            reusable_user_prefix + evidence + "\n\nOPTIONS:\n"
+            + "\n".join(lines) + "\n\nChoose the single best option."
+        )
     readout_texts = {
         candidate.id: letter
         for candidate, letter in zip(
@@ -254,5 +263,6 @@ def compile_letter_choice(tokenizer: Tokenizer, request: ChoiceRequest) -> Compi
             {"role": "user", "content": user},
         ],
         readout_texts=readout_texts,
-        version=LETTER_PROMPT_VERSION,
+        version="letter-question-prefix-v1" if reuse_prefix else LETTER_PROMPT_VERSION,
+        reusable_user_prefix=reusable_user_prefix,
     )
