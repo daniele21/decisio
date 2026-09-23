@@ -5,9 +5,13 @@ Owner: repository
 
 ## System intent
 
-Decisio converts a compatible causal language model into a bounded semantic decision engine without running an autoregressive answer-generation loop.
+Decisio is a stateful local decision runtime. It separates a **stable decision context** from
+**changing application state**, restores an exact reusable llama.cpp model-context snapshot where
+safe, then reads a bounded typed action without an autoregressive answer loop.
 
-Qwen 3.5 2B remains the reference model and is treated as a semantic scorer. The v1 target runtime is now a pinned Q4_K_M GGUF executed through llama.cpp on CPU for representative scorer evidence. Applications provide only alternatives that remain valid after deterministic domain constraints. The runtime compiles state, question and candidates into comparative scoring prompts, reads the required next-token logits, and post-processes them into an explicitly typed result.
+The application removes deterministically invalid actions first. Decisio owns the remaining
+probabilistic choice, scorer semantics, reuse correctness, provenance and probability status.
+Qwen3.5-2B Q4_K_M is the pinned CPU evidence artifact, not a permanent model restriction.
 
 ## Constraint boundary
 
@@ -43,15 +47,15 @@ The target boundary is:
 
 ```mermaid
 flowchart LR
-    A[Application state] --> B[Deterministic constraints]
-    B --> C[ChoiceRequest]
-    C --> D[Prompt compiler]
-    D --> E[Semantic or letter scorer]
-    E --> F[LlamaCpp backend]
-    F --> G[Qwen3.5 GGUF]
-    G --> H[Requested next-token logits]
-    H --> I[Log-odds / softmax]
-    I --> J[DecisionResult]
+    A[Stable decision context] --> B[Prompt compiler]
+    B --> C[Reusable llama.cpp model context]
+    D[Current application state] --> E[Deterministic constraints + sensors]
+    E --> F[Valid actions]
+    C --> G[Dynamic decision suffix]
+    F --> G
+    G --> H[Qwen GGUF]
+    H --> I[Direct or semantic logits]
+    I --> J[Typed DecisionResult]
 ```
 
 llama.cpp owns model execution, quantized kernels, context/batch/sequence mechanics and device
@@ -76,50 +80,29 @@ Current code owners:
 | Paired scorer comparison | `src/decisio/comparison.py` |
 | CLI | `src/decisio/cli.py` |
 
-Answerability and a stable high-level Python engine are not implemented yet. Candidate-prefix reuse is implemented with full llama.cpp sequence-state snapshot/restore; bounded repeated-state reuse is implemented behind an exact compiler-marked token-prefix boundary and remains evidence-gated.
+Answerability and a stable high-level `DecisionSession` API are not implemented yet. The low-level
+runtime already supports exact compiler-marked prefix reuse through full llama.cpp sequence-state
+snapshot/restore. Snake is the first stateful application reference: its fixed controller contract
+is the reusable prefix; current board state and deterministic action sensors are the changing suffix.
 
-## Target decision flow (planned)
-
-The target shape below is conditional on benchmark evidence and includes planned answerability/shared execution.
+## Stateful decision flow
 
 ```text
-Request
-  |
-  +-- state/evidence
-  +-- question
-  +-- candidates
-          |
-          v
-   deterministic compiler
-          |
-          v
- shared state/question prefill
-          |
-          +------------------+------------------+
-          |                  |                  |
-          v                  v                  v
-     candidate A        candidate B        candidate C
-          |                  |                  |
-      YES / NO           YES / NO           YES / NO
-        logits             logits             logits
-          |                  |                  |
-       log-odds           log-odds           log-odds
-          +------------------+------------------+
-                             |
-                             v
-                      relative softmax
-                             |
-                             +--> choice distribution
-                             |
- separate answerability ----+
-                             |
-                             v
-                     typed decision result
+stable decision context
+        |
+    prefill once
+        |
+ reusable model context
+        |
+        +---- current state t   + valid actions + sensors -> logits -> typed action
+        +---- current state t+1 + valid actions + sensors -> logits -> typed action
+        +---- current state t+2 + valid actions + sensors -> logits -> typed action
 ```
 
-No answer token needs to be sampled or appended to the sequence.
+The optimized path is valid only when it remains equivalent to fresh evaluation under the declared
+runtime tolerance. A cache hit is an implementation event, not evidence of correctness.
 
-## Direct choice fast path
+## Direct choice readout
 
 For small bounded action sets, Decisio can compile all valid candidates once as A/B/C/... options and
 read the corresponding next-token logits from a single model evaluation:
@@ -140,18 +123,13 @@ state + question + options
     DecisionResult
 ```
 
-This is implemented by `LetterTokenScorer` and is the default Snake controller. It generates zero
-answer tokens and avoids one YES/NO evaluation per candidate. It remains explicitly identified as
-direct option-token scoring because candidate order/verbalizer sensitivity is a known evaluation
-dimension; its normalized values are not calibrated correctness probabilities.
+This is implemented by `LetterTokenScorer` and is the action readout used by the stateful Snake reference. It generates zero answer tokens and avoids one YES/NO evaluation per candidate. Direct logits are an internal primitive, not the product differentiator; option-order sensitivity and uncalibrated probability semantics remain explicit.
 
-`LetterTokenScorer(..., reuse_prefix=True)` is an opt-in, separately identified
-`letter_question_prefix_v1` experiment. Its compiler places the question before changing evidence
-and marks the exact reusable token prefix. Capable backends use the existing bounded sequence-state
-cache with one request per batch; other backends evaluate the same compiled prompt fresh. Native
-batch-aligned checkpoint rules still apply. Prompt reordering can alter preferences independently
-of caching, so compare the original prompt, reordered fresh prompt and reordered cached prompt
-separately. This does not change the baseline compiler or frozen scorer-gate contracts.
+`LetterTokenScorer(..., reuse_prefix=True)` marks an exact token prefix for model-context reuse.
+The generic scorer keeps this explicit; Snake selects it by default and offers `--fresh-prefix` as
+the same-prompt oracle. Native batch-aligned checkpoint rules still apply. Prompt shape and caching
+are evaluated separately: cached and fresh execution of the same stateful prompt must agree before
+reuse is accepted.
 
 ## Comparative semantic scoring
 
@@ -224,20 +202,13 @@ Shared execution is a v1 runtime requirement because repeated prefilling can dom
 latency. The runtime must reuse **model context state**, not assume a classic KV-only cache: Qwen3.5
 mixes attention with recurrent/DeltaNet-style state.
 
-The target reuse hierarchy is:
+The reuse hierarchy is:
 
 ```text
-state
-  -> reusable state cache/representation
-      -> question branch
-          -> candidate micro-batch
+stable decision context -> reusable model context -> changing state/question -> readout
 ```
 
-There are two required reuse levels:
-
-- within one decision, prefill the common candidate prefix once and branch state for candidate suffixes;
-- across decisions, keep a bounded reusable state prefix so many questions over the same long state
-  avoid repeating its prefill.
+Semantic candidate branching remains a second scoped use of the same exact snapshot/restore primitive.
 
 The semantic scorer exposes an optional backend fast path,
 `shared_prefix_batch_next_token_logits`. The compiler can also mark a token-safe reusable state
@@ -320,12 +291,11 @@ Qwen 3.5 2B is the reference implementation, not a permanent dependency boundary
 
 ## Runtime priorities
 
-1. correctness-stable comparative semantic scoring on the pinned Q4_K_M llama.cpp path;
-2. explicit GGUF/runtime provenance and local model loading;
-3. shared candidate-prefix branching with fresh-path equivalence;
-4. bounded repeated-state context reuse with physical-token instrumentation;
-5. scaled multi-question reuse;
-6. additional backend/quantization portability only after the reference path is proven.
+1. fresh-equivalent reuse of stable decision context on the pinned llama.cpp/GGUF path;
+2. direct typed action readout over current state plus deterministic sensors/valid actions;
+3. explicit physical-vs-logical token, latency, cache and provenance evidence;
+4. answerability/abstention after the stateful control loop is proven;
+5. semantic-v2 and additional runtime/quantization experiments only within evidence-supported scopes.
 
 ## Trust and data boundaries
 
@@ -361,13 +331,12 @@ These should be answered by evidence rather than preference:
 
 ## Current implementation boundary
 
-The canonical implementation path is local GGUF through llama.cpp. Semantic candidate prompts
-share one exact common prefix on a single sequence; Decisio snapshots the complete llama.cpp
-sequence state and restores it before later candidate suffixes. This avoids the hybrid-model numerical mismatch observed with multi-sequence sharing and is checked
-against fresh execution in real-model runtime evidence.
+The canonical path is local GGUF through llama.cpp. The backend snapshots/restores complete
+single-sequence model context state and keeps exact compiler-marked checkpoints in a byte-bounded
+LRU. This deliberately avoids a KV-only assumption for hybrid/recurrent Qwen3.5 state.
 
-Across requests, semantic compilers expose a conservative token-safe boundary after the serialized
-state/evidence. The backend may cache that exact sequence state in a small byte-bounded LRU, so a
-later question with identical state can resume after the state prefix instead of prefilling it
-again. Cache reuse remains disabled when the compiler cannot prove the boundary, and representative
-2B latency evidence is still required before a product performance claim.
+Snake now uses a fixed decision contract as the reusable direct-scoring prefix and sends only current
+world state plus deterministic candidate sensors on each model decision. The same prompt can be run
+fresh with `--fresh-prefix`; exact-head real-model evidence must prove output equivalence and physical
+token reduction before the stateful path supports a performance claim. Semantic candidate reuse
+remains a separate experimental scope.
