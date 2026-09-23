@@ -3,12 +3,12 @@
 Start here:
 
 - [Product](product.md) — why Decisio exists, who it serves, non-goals and success criteria.
-- [Architecture](architecture.md) — semantic candidate scoring, runtime boundaries and current system shape.
+- [Architecture](architecture.md) — zero-generation readout paths, runtime boundaries and current system shape.
 - [Current state](current-state.md) — what is integrated, blocked and next.
 - [Roadmap](roadmap.md) — evidence-driven implementation order.
 - [Repository quality](repository-quality.md) — usability, reproducibility, documentation and hardening plan.
 - [Benchmarks](../benchmarks/README.md) — frozen scorer comparisons, perturbations and evidence rules.
-- [Examples](../examples/README.md) — runnable Snake, support-routing and policy-gate scenarios.
+- [Examples](../examples/README.md) — live Snake decision UI plus support-routing and policy-gate scenarios.
 - [ADR 0001](adr/0001-training-free-semantic-scoring.md) — why v1 is training-free and semantic-scoring-first.
 - [ADR 0002](adr/0002-constrain-before-score.md) — why deterministic constraints precede semantic scoring and why v2 is comparative.
 

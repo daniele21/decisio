@@ -69,10 +69,13 @@ Decisio explores a different primitive:
 state + question + valid candidates
                 │
                 ▼
-        semantic candidate scoring
-                │
-                ▼
-       typed relative distribution
+      zero-generation scoring
+         /              \
+        /                \
+direct option logits   semantic candidate scoring
+        \                /
+         \              /
+          typed decision
 ```
 
 The product hypothesis is simple:
@@ -115,11 +118,19 @@ This makes model choice a deployment decision while keeping scorer semantics and
 
 ## Runtime status
 
-Decisio now has an in-process local-GGUF llama.cpp backend on the product branch. The original
-PyTorch/Transformers implementation remains migration-source code only; the representative 2B
-llama.cpp scorer gate is still pending.
+Decisio has an in-process local-GGUF llama.cpp backend. The pinned Qwen3.5-2B Q4_K_M
+reference gate has already produced a negative result for semantic v2 as a short/fresh
+general-purpose default: scorer-gate v2 remains **FAIL**. The active experiment is the separately
+frozen repeated-state gate v3.
 
-The local workflow is:
+Two native zero-generation choice readouts are implemented:
+
+- **direct choice logits** — one prompt, A/B/C/... option-token logits, one model evaluation; used by
+  the Snake demo as its default low-latency control path;
+- **semantic v2** — comparative YES/NO scoring per candidate; still experimental and evaluated
+  separately for repeated-state workloads.
+
+The benchmark CLI remains experimental:
 
 ```bash
 decisio compare \
@@ -131,8 +142,7 @@ decisio compare \
   --performance-rounds 4
 ```
 
-This CLI is implemented but remains experimental until the pinned 2B llama.cpp scorer gate and
-shared-context equivalence evidence pass.
+Benchmark claims remain bound to the exact artifact, scorer and runtime identity that produced them.
 
 See the active [llama.cpp runtime migration workstream](docs/workstreams/llama-cpp-reference-runtime.md)
 and [current state](docs/current-state.md).
@@ -381,9 +391,39 @@ Calibration also does not solve every uncertainty problem. In particular, “whi
 preferred?” and “is there enough evidence to answer?” remain separate questions; Decisio plans to
 treat answerability as its own signal rather than hide it inside candidate confidence.
 
-## How the scorer works
+## How scoring works
 
-The primary experimental scorer evaluates every valid candidate against the complete alternative set:
+Decisio currently has two native zero-generation choice paths.
+
+### Direct choice logits
+
+For a small bounded action set, Decisio can render the valid options once as A/B/C/... and read those
+option-token logits from a **single model evaluation**:
+
+```text
+state + question
+
+A. UP
+B. RIGHT
+C. DOWN
+      |
+      v
+one next-token logit readout
+      |
+      v
+logit(A), logit(B), logit(C)
+      |
+      v
+relative softmax + typed choice
+```
+
+This is the default Snake path. It is fast and generates zero answer tokens, but its scores remain
+uncalibrated and direct option-token scoring can be sensitive to presentation order/verbalizers.
+That is why it is still measured explicitly in benchmark comparisons.
+
+### Comparative semantic v2
+
+The primary semantic experiment evaluates every valid candidate against the complete alternative set:
 
 ```text
 candidate score = logit(Yes) - logit(No)
@@ -409,8 +449,9 @@ or an explicit authorization rule.
 ## Why shared context state matters
 
 Zero answer generation removes decoding work, but repeated **prefill** can still dominate CPU
-latency. Decisio therefore treats shared context-state reuse as part of the v1 runtime, not a later
-micro-optimization.
+latency. This is especially relevant to semantic v2, which evaluates candidate-specific suffixes,
+and to many questions over one long unchanged state. Direct choice scoring already evaluates one
+bounded choice prompt in one pass; it does not need candidate-by-candidate YES/NO branching.
 
 ```text
 long state + question + alternatives
@@ -459,7 +500,7 @@ Decisio compares four inference strategies on the same frozen workload:
 
 - **semantic v2** — comparative Yes/No log-odds;
 - **semantic v1** — candidate-independent Yes/No log-odds;
-- **letters** — direct A/B/C next-token scoring;
+- **letters** — direct A/B/C next-token scoring; benchmark baseline and the fast control path used by Snake;
 - **generated JSON** — minimal autoregressive baseline.
 
 The scorer gate measures quality, candidate-order sensitivity, invalid output and systems
@@ -474,9 +515,23 @@ migration will freeze a gate-v2 GGUF/runtime identity before representative resu
 
 - [Support routing](examples/support-routing/) — runtime-defined support queues.
 - [Policy gate](examples/policy-gate/) — bounded semantic interpretation without replacing deterministic policy.
-- [Snake](examples/snake/) — repeated action selection after deterministic unsafe moves are filtered.
+- [Snake](examples/snake/) — branded live OBSERVE → DECIDE → ACT demo; unsafe moves are filtered, then direct choice logits select among the remaining actions in one forward pass.
 
 Examples are behavioral probes, not benchmark claims.
+
+The quickest visual path is the local Snake demo:
+
+```bash
+uv sync --frozen --extra llama --extra dev
+uv run python -m examples.snake.web \
+  --model /path/to/model.gguf \
+  --scorer direct \
+  --open
+```
+
+Snake filters deterministic invalid moves first, then presents the remaining actions as A/B/C/...
+options and reads all option logits from one model evaluation. See
+[examples/snake](examples/snake/) for the live decision UI, model notes and scorer comparisons.
 
 ## Status
 
@@ -484,31 +539,32 @@ Decisio is **experimental**.
 
 Implemented now:
 
-- comparative semantic v2 and independent v1;
-- direct-letter and generated JSON baselines;
-- deterministic prompt/readout compilation;
-- frozen benchmark and paired-evidence tooling;
-- provenance and candidate-order perturbation;
-- current Transformers migration-source backend;
-- real-model CPU smoke and trace-backed Snake evidence.
+- in-process local GGUF + llama.cpp backend;
+- comparative semantic v2, independent semantic v1 and direct A/B/C choice logits;
+- zero-generation native scoring and generated-JSON comparison baseline;
+- deterministic prompt/readout compilation and exact provenance;
+- native-batch-safe shared candidate execution plus bounded repeated-state cache;
+- frozen benchmark/evaluation tooling with candidate-order perturbation;
+- branded live Snake demo with direct one-forward choice logits by default;
+- real-model CPU smoke and trace/video evidence.
 
-Active migration:
+Evidence status:
 
-- real-model validation of the in-process llama.cpp backend;
-- shared candidate-prefix branching (implemented) and bounded repeated-state cache (pending);
-- fresh-vs-shared equivalence plus physical-token/reuse metrics;
-- local-GGUF CLI path;
-- exact GGUF/runtime provenance;
-- scorer-gate v2 on CPU.
+- scorer-gate v2 is **FAIL** for semantic v2 as a short/fresh general-purpose default;
+- repeated-state diagnostic v2 showed a useful latency signal on the pinned 2B runtime;
+- repeated-state gate v3 is the active precommitted scope experiment;
+- direct choice logits are implemented and useful as an application fast path, but are not being
+  relabeled as the winner of the failed semantic scorer gate.
 
-Still pending after the reference runtime is established:
+Still pending:
 
+- repeated-state gate v3 decision and resulting scorer scope;
 - broader perturbation coverage;
 - answerability;
 - scaled multi-question scheduling;
 - calibration;
 - stable high-level Python API;
-- representative release/runtime evidence.
+- representative release evidence.
 
 ## What Decisio is not
 

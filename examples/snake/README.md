@@ -72,7 +72,7 @@ Controls:
 - **Start / Pause** — continuously ask Decisio for the next move;
 - **1 move** — execute one complete observe → decide → act cycle;
 - **Reset** — restart the deterministic episode;
-- **Reveal hold** — keep each decision visible before Snake moves.
+- **Reveal hold** — UI-only pause after a decision is revealed and before Snake moves; it does not change inference latency or the selected action.
 
 The default visual hierarchy is intentionally narrow: the board and selected move are primary;
 candidate preferences and deterministic filters are contextual; model/runtime details, request JSON
@@ -87,8 +87,10 @@ tokens/assets as the visual owner.
 
 ## Reference artifact
 
-The Decisio v1 reference path is CPU-only Qwen3.5-2B Q4_K_M GGUF through llama.cpp. The exact
-artifact/runtime identity belongs to the scorer gate, not to this example.
+The Decisio v1 evidence reference is CPU-only Qwen3.5-2B Q4_K_M GGUF through llama.cpp. The exact
+artifact/runtime identity belongs to the scorer gate, not to this example. Snake can also be pointed
+at another compatible GGUF, including a smaller Qwen3.5-0.8B for a faster local demo; that does not
+make its results equivalent to the pinned 2B evidence.
 
 For a headless rollout:
 
@@ -157,7 +159,7 @@ uv run python -m examples.snake.play \
   --model /path/model.gguf \
   --seed 42 \
   --max-steps 50 \
-  --trace .artifacts/snake-semantic.jsonl
+  --trace .artifacts/snake-direct.jsonl
 ```
 
 Each JSONL row stores the exact state, candidates, Decisio distribution, model provenance, runtime
@@ -192,7 +194,7 @@ uv sync --extra video
 # ffmpeg must also be available on PATH
 
 uv run python -m examples.snake.video \
-  --trace .artifacts/snake-semantic.jsonl \
-  --output .artifacts/snake-semantic.mp4 \
-  --frames-dir .artifacts/snake-frames
+  --trace .artifacts/snake-direct.jsonl \
+  --output .artifacts/snake-direct.mp4 \
+  --frames-dir .artifacts/snake-direct-frames
 ```

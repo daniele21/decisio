@@ -46,9 +46,16 @@ For decision-shaped workloads, Decisio aims to provide:
 
 A normal causal LLM already contains enough semantic information in its logits/hidden state to support useful bounded decisions without generating text.
 
-Decisio's primary hypothesis is that **comparative candidate-level binary semantic scoring** is a better general decision primitive than arbitrary answer-token scoring or candidate-independent binary scoring.
+The initial scorer hypothesis was that **comparative candidate-level binary semantic scoring**
+would be a better general decision primitive than arbitrary answer-token scoring or
+candidate-independent binary scoring.
 
-For candidate `c_i`:
+The first representative 2B short/fresh scorer gate did **not** support that as a general default.
+Semantic v2 therefore remains experimental, with the active question narrowed to repeated-state
+workloads. Direct A/B/C option-token scoring remains an explicit benchmark baseline and is also a
+legitimate low-latency application path for small bounded controls such as Snake.
+
+For semantic candidate `c_i`:
 
 ```text
 state + question + all alternatives + candidate_i
@@ -103,7 +110,7 @@ Decisio deliberately does not own:
 - **Decisions, not strings.** If the valid output space is bounded, do not generate prose to recover it.
 - **Training-free before trained.** Establish the inference-time ceiling before adding learned components.
 - **Constrain before score.** Deterministic validity/safety/business constraints stay with the owning domain and remove impossible candidates before probabilistic scoring.
-- **Semantic options over arbitrary verbalizers.** Candidate meaning should drive the score, not which letter represents it.
+- **Choose the readout deliberately.** Prefer semantic candidate readouts when evidence supports them; direct option-token logits are valid for latency-oriented bounded controls, but scorer identity and order/verbalizer sensitivity must stay explicit.
 - **Answerability is separate from preference.** "Which option?" and "Can this be answered?" are different questions.
 - **Scores are not confidence until calibrated.** API naming and metadata must preserve that distinction.
 - **Share expensive context.** Long state should be processed once wherever model/runtime semantics safely allow it.

@@ -13,7 +13,7 @@ Implementation order must optimize for learning. Performance engineering that do
 
 ## Milestone 0 — Reproducible decision laboratory
 
-**Implementation status:** scorer/compiler core exists, but the reference runtime is being migrated from PyTorch/Transformers BF16 to llama.cpp with a pinned Qwen3.5-2B Q4_K_M GGUF. Representative scorer evidence is pending on that path.
+**Implementation status:** the pinned Qwen3.5-2B Q4_K_M GGUF + llama.cpp reference runtime, scorer/compiler core, zero-generation readouts and runtime evidence tooling are implemented. The general short/fresh semantic-v2 gate has completed and failed; repeated-state scope is being tested separately.
 
 Goal: establish a trustworthy baseline before building a service.
 
@@ -44,7 +44,7 @@ Exit evidence:
 
 ## Milestone 1 — Decide whether semantic scoring wins
 
-**Harness status:** generated JSON baseline, candidate-order reversal, comparative semantic v2, original independent semantic v1, and batched candidate execution are implemented; representative model evidence and broader perturbations are pending.
+**Harness status:** generated JSON, direct A/B/C logits, candidate-order reversal, comparative semantic v2, independent semantic v1 and real-model llama.cpp execution are implemented. Scorer-gate v2 failed for semantic v2 as a short/fresh general default; repeated-state gate v3 is the active precommitted experiment.
 
 Goal: validate the core differentiator before investing in infrastructure.
 
@@ -70,8 +70,11 @@ Required experiment variants:
 
 Decision gate:
 
-- if semantic scoring is not competitive, diagnose why before building a large API/runtime surface;
-- if it is competitive and improves robustness or semantics materially, promote it as the default scorer.
+- scorer-gate v2 is already FAIL for semantic v2 as a short/fresh general-purpose default;
+- repeated-state gate v3 may support only a narrower semantic-v2 scope if its frozen criteria pass;
+- direct A/B/C logits remain available as a measured zero-generation alternative, including for
+  latency-oriented examples such as Snake;
+- no scorer becomes a universal default without scope-specific evidence.
 
 ## Milestone 2 — Answerability
 
@@ -229,7 +232,7 @@ Training should remain optional unless the project intentionally changes its mis
 
 - fine-tuning;
 - hosted SaaS;
-- UI/playground;
+- stable product UI/playground (the local Snake UI under `examples/` is an explanatory demo, not a product surface);
 - multimodal;
 - workflow engine;
 - arbitrary structured generation;

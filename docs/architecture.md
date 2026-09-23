@@ -33,11 +33,11 @@ Examples include geometry, schema validity, hard policy requirements, resource b
 
 This boundary avoids spending model compute on impossible options and prevents a probabilistic scorer from overruling facts such as "this move hits a wall."
 
-## Reference-runtime migration
+## Reference runtime
 
-The repository currently contains a PyTorch/Transformers reference backend. That implementation
-established scorer/compiler semantics but is being replaced as the product reference path by an
-in-process llama.cpp backend over local GGUF artifacts.
+The canonical implementation path is now an in-process llama.cpp backend over local GGUF artifacts.
+The older PyTorch/Transformers backend remains migration-source code only; representative evidence
+is tied to the pinned llama.cpp/GGUF identity.
 
 The target boundary is:
 
@@ -119,7 +119,33 @@ Request
 
 No answer token needs to be sampled or appended to the sequence.
 
-## Primary scoring method
+## Direct choice fast path
+
+For small bounded action sets, Decisio can compile all valid candidates once as A/B/C/... options and
+read the corresponding next-token logits from a single model evaluation:
+
+```text
+state + question + options
+          |
+          v
+   one model evaluation
+          |
+          v
+ logits(A/B/C/...)
+          |
+          v
+ relative softmax
+          |
+          v
+    DecisionResult
+```
+
+This is implemented by `LetterTokenScorer` and is the default Snake controller. It generates zero
+answer tokens and avoids one YES/NO evaluation per candidate. It remains explicitly identified as
+direct option-token scoring because candidate order/verbalizer sensitivity is a known evaluation
+dimension; its normalized values are not calibrated correctness probabilities.
+
+## Comparative semantic scoring
 
 For each candidate `c_i`, compile a binary comparative judgment whose valid readout is `YES` versus `NO`. The prompt includes the complete alternative set and asks whether `c_i` is the best answer among those alternatives.
 
@@ -176,13 +202,13 @@ The benchmark harness should implement at least two baselines:
 
 ### Direct answer-token scoring
 
-Map candidates to answer slots such as A/B/C and read their next-token logits. This establishes comparability with existing zero-generation approaches.
+Map candidates to answer slots such as A/B/C and read their next-token logits in one model evaluation. This is both a benchmark baseline and an available low-latency native path for bounded controls such as Snake.
 
 ### Autoregressive structured output
 
 Ask the same reference model to generate the smallest valid structured answer. This measures the systems cost and semantic differences introduced by generation.
 
-Baselines are evaluation paths first; Decisio's public runtime should default to the primary semantic scorer rather than expose every experimental method as permanent API surface.
+Benchmark baselines remain evidence tools first. The failed short/fresh semantic-v2 gate means the repository does not currently claim one universal public default scorer; applications should select a readout only within the scope supported by evidence.
 
 ## Shared context-state execution
 
@@ -329,9 +355,8 @@ These should be answered by evidence rather than preference:
 
 The canonical implementation path is local GGUF through llama.cpp. Semantic candidate prompts
 share one exact common prefix on a single sequence; Decisio snapshots the complete llama.cpp
-sequence state and restores it before later candidate suffixes. This is fresh-equivalent on the
-pinned 0.8B Q4_K_M smoke fixture and avoids the hybrid-model numerical mismatch observed with
-multi-sequence sharing.
+sequence state and restores it before later candidate suffixes. This avoids the hybrid-model numerical mismatch observed with multi-sequence sharing and is checked
+against fresh execution in real-model runtime evidence.
 
 Across requests, semantic compilers expose a conservative token-safe boundary after the serialized
 state/evidence. The backend may cache that exact sequence state in a small byte-bounded LRU, so a
