@@ -55,6 +55,8 @@ class PlannerResult:
     max_nodes: int
     max_depth: int
     post_food_escape_horizon: int
+    projected_survival_horizon: int
+    complete: bool
     best_actions: tuple[str, ...]
     ranks: dict[str, int]
     actions: dict[str, ActionPlan]
@@ -65,6 +67,8 @@ class PlannerResult:
             "max_nodes": self.max_nodes,
             "max_depth": self.max_depth,
             "post_food_escape_horizon": self.post_food_escape_horizon,
+            "projected_survival_horizon": self.projected_survival_horizon,
+            "complete": self.complete,
             "best_actions": list(self.best_actions),
             "ranks": dict(self.ranks),
             "actions": {key: value.to_dict() for key, value in self.actions.items()},
@@ -319,6 +323,8 @@ class SnakePlanner:
                 max_nodes=self.max_nodes,
                 max_depth=self.max_depth,
                 post_food_escape_horizon=self.post_food_escape_horizon,
+                projected_survival_horizon=self.projected_survival_horizon,
+                complete=True,
                 best_actions=(),
                 ranks={},
                 actions={},
@@ -335,6 +341,8 @@ class SnakePlanner:
             max_nodes=self.max_nodes,
             max_depth=self.max_depth,
             post_food_escape_horizon=self.post_food_escape_horizon,
+            projected_survival_horizon=self.projected_survival_horizon,
+            complete=all(plan.status != "bounded_unknown" for plan in actions.values()),
             best_actions=best_actions,
             ranks=ranks,
             actions=actions,
