@@ -12,7 +12,10 @@ def test_repeated_state_diagnostic_uses_one_shared_state_and_four_candidates():
     assert all(state == states[0] for state in states)
     assert len({request.id for request, _ in rows}) == 8
     assert all(len(request.candidates) == 4 for request, _ in rows)
-    assert all("Which queue best matches this situation:" in request.question for request, _ in rows)
+    assert all(
+        "Which queue best matches this situation:" in request.question
+        for request, _ in rows
+    )
     assert all(request.id not in request.question for request, _ in rows if request.id is not None)
     assert {expected for _, expected in rows} == {
         "billing",

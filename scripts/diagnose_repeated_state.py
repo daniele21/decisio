@@ -52,7 +52,7 @@ def _requests() -> list[tuple[ChoiceRequest, str]]:
             ),
             expected,
         )
-        for case_id, _, expected in cases
+        for case_id, evidence, expected in cases
     ]
 
 
