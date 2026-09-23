@@ -1,6 +1,41 @@
-# Decisio
+<p align="center">
+  <img src="assets/brand/decisio-app-icon.svg" alt="Decisio" width="120" />
+</p>
 
-**Turn a local open-weight LLM into a typed decision engine instead of making it generate an answer.**
+<h1 align="center">Decisio</h1>
+
+<p align="center">
+  <strong>Turn a local open-weight LLM into a typed decision engine instead of making it generate an answer.</strong>
+</p>
+
+<p align="center">
+  Training-free · zero answer tokens on native scoring · local GGUF + llama.cpp
+</p>
+
+<p align="center">
+  <a href="https://github.com/daniele21/decisio/actions/workflows/ci.yml">
+    <img alt="CI" src="https://github.com/daniele21/decisio/actions/workflows/ci.yml/badge.svg" />
+  </a>
+  <a href="https://github.com/daniele21/decisio/actions/workflows/repository-health.yml">
+    <img alt="Repository Health" src="https://github.com/daniele21/decisio/actions/workflows/repository-health.yml/badge.svg" />
+  </a>
+  <img alt="Python >= 3.11" src="https://img.shields.io/badge/Python-%E2%89%A53.11-112543?style=flat-square&logo=python&logoColor=white" />
+  <img alt="Runtime: llama.cpp" src="https://img.shields.io/badge/runtime-llama.cpp-03C27E?style=flat-square" />
+  <img alt="Model format: GGUF" src="https://img.shields.io/badge/models-GGUF-01C8F6?style=flat-square" />
+  <img alt="Status: experimental" src="https://img.shields.io/badge/status-experimental-F59E0B?style=flat-square" />
+  <a href="LICENSE">
+    <img alt="License: Apache-2.0" src="https://img.shields.io/badge/license-Apache--2.0-112543?style=flat-square" />
+  </a>
+</p>
+
+<p align="center">
+  <a href="docs/README.md">Docs</a>
+  · <a href="docs/architecture.md">Architecture</a>
+  · <a href="docs/current-state.md">Current state</a>
+  · <a href="benchmarks/README.md">Benchmarks</a>
+  · <a href="examples/README.md">Examples</a>
+  · <a href="CONTRIBUTING.md">Contributing</a>
+</p>
 
 Decisio takes application state, a question and runtime-defined candidates, then scores the candidates
 directly from model logits. Native scoring generates **zero answer tokens** and requires **no
