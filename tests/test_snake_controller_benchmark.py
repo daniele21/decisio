@@ -4,16 +4,18 @@ from pathlib import Path
 import pytest
 
 import benchmarks.snake_controller_benchmark as benchmark_module
+from benchmarks.run_snake_controller_benchmark import (
+    parser as controller_benchmark_parser,
+)
+from benchmarks.run_snake_controller_benchmark import (
+    run as run_controller_benchmark,
+)
 from benchmarks.snake_controller_benchmark import (
     CONFIGS,
     SnakePlanner,
     append_ledger,
     fixed_state_benchmark,
     game_from_case,
-)
-from benchmarks.run_snake_controller_benchmark import (
-    parser as controller_benchmark_parser,
-    run as run_controller_benchmark,
 )
 from benchmarks.summarize_snake_controller_history import summarize
 from decisio.schema import DecisionResult
