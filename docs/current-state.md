@@ -5,8 +5,7 @@ Owner: repository
 
 ## Current milestone
 
-Make local GGUF + llama.cpp the Decisio v1 reference runtime and decide where zero-generation
-semantic scoring is actually useful on the pinned Qwen3.5-2B Q4_K_M CPU path.
+Make Decisio a stateful local decision runtime: keep stable task context reusable, score changing application state with typed zero-generation choices, and prove cache reuse against fresh execution on the pinned llama.cpp/GGUF path.
 
 Active plan: [llama.cpp reference runtime migration](workstreams/llama-cpp-reference-runtime.md).
 
@@ -19,7 +18,7 @@ Active plan: [llama.cpp reference runtime migration](workstreams/llama-cpp-refer
 | Scorer gate v2 | FAILED | short independent workload does not justify v2 promotion |
 | Repeated-state gate v3 | ACTIVE | frozen 48-case/8-state scoped promotion experiment |
 | Product foundation | ACTIVE | PR #1 remains draft until the scorer scope is decided |
-| Snake live demo | DONE | direct one-forward logits + bounded sensors/loop memory + readable per-move model I/O |
+| Snake stateful reference loop | ACTIVE | fixed decision context + current-only dynamic state + direct logits + fresh/cache oracle |
 
 ## Reference identity
 
@@ -65,9 +64,16 @@ normal/reversed candidate order. Its precommitted gate requires comparable quali
 order changes, exact cache behavior, <=50% physical/logical tokens, and at least 2x p50/p95 group
 latency advantage over generated JSON. See `benchmarks/repeated-state-gate-v3.md`.
 
+## Product direction
+
+The general semantic-v2 gate remains valid evidence about that scorer, but it no longer defines the
+whole product thesis. The primary direction is the stateful runtime contract demonstrated by Snake:
+fixed decision context, current-only dynamic state, deterministic candidate sensors, direct
+zero-generation choice readout and observable context reuse.
+
 ## Next
 
-1. Run repeated-state gate v3 on the exact pinned 2B CPU runtime.
-2. If PASS, adopt `NARROW_SCOPE` for repeated-state decisions only; scorer-gate v2 remains FAIL.
-3. If FAIL, preserve the failed criterion and choose a narrower/new scorer experiment or alternative.
-4. Keep PR #1 draft until product scope, docs and exact-head integration evidence agree.
+1. Validate the new Snake stateful direct path on real-model smoke: cached and fresh stateful prompts must return identical choices/scores and cached execution must reduce physical token work.
+2. Measure gameplay quality/optimality separately; cache efficiency is not controller quality.
+3. Keep repeated-state gate v3 as scoped semantic-v2 evidence without treating it as the universal scorer.
+4. Shape the smallest stable DecisionSession API only after the runtime contract is proven.
