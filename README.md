@@ -46,11 +46,9 @@ for reproducible evidence, but it is not intended to be the only usable quantiza
 let developers bring a compatible quantized Qwen GGUF that fits their own hardware, memory and
 quality trade-off.
 
-> **IMAGE PLACEHOLDER — Decisio vs generated decisions**  
-> Create a clean two-column diagram. Left: `prompt → autoregressive JSON → parse/repair → application`.
-> Right: `state + question + candidates → llama.cpp logits → Decisio scoring → typed decision`.
-> Highlight “zero answer generation”, “runtime-defined candidates” and “bring your own compatible
-> GGUF”. Do not include performance claims until representative benchmark evidence exists.
+<p align="center">
+  <img src="brand/graphics/decisio-vs-generated-decisions.svg" alt="Decisio vs generated decisions: generated JSON and parse/repair compared with direct llama.cpp logit scoring into a typed decision" width="100%" />
+</p>
 
 ## Why
 
