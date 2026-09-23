@@ -30,17 +30,12 @@ artifact, not a permanent product restriction.
 
 ## Validation
 
-Measure task quality independently from runtime efficiency. For stateful paths record fresh/shared
-choice and score deltas, logical versus physically evaluated tokens, cache hits, latency and bounded
-memory. Performance changes that alter outputs must report the changed rows; never weaken a
-legitimate gate to obtain PASS. Use repository-owned validation selectors and exact-head evidence
-when required by stage.
+Measure quality separately from runtime efficiency. Stateful paths report fresh/shared output deltas,
+logical/physical tokens, cache hits, latency and bounded memory. Never weaken a valid gate for PASS.
+Use repository-owned selectors and exact-head evidence when stage requires it.
 
 ## Documentation ownership
 
-Public identity: `README.md`; product truth: `docs/product.md`; architecture: `docs/architecture.md`;
-milestones: `docs/roadmap.md`; integrated/blocked/next: `docs/current-state.md`; rationale:
-`docs/adr/`; evidence: `benchmarks/`; repository hardening: `docs/repository-quality.md`.
-
-Root `.engineering/`, local skills, scripts, workflows and repository docs are authoritative;
-`template/` is baseline source only.
+`README.md` public identity; `docs/product.md` product; `docs/architecture.md` architecture;
+`docs/current-state.md` integrated state; `benchmarks/` evidence. Root engineering files are
+authoritative; `template/` is baseline source only.
