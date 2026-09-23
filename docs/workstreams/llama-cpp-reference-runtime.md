@@ -66,8 +66,9 @@ frozen before representative evidence.
 | W2 | DONE | Local-GGUF backend/CLI and provenance stabilized. |
 | W3 | DONE | Candidate branching + bounded repeated-state reuse proved fresh-equivalent on pinned 0.8B smoke. |
 | W4 | DONE | Scorer-gate v2 runtime/artifact/fast-path identity frozen before 2B results. |
-| W5 | ACTIVE | Run full 64-case 2B CPU gate plus representative runtime-equivalence evidence. |
-| W6 | BLOCKED | Stabilize public runtime only if the evidence survives. |
+| W5 | FAILED | Gate #76 completed; runtime passed, but family and short-workload latency criteria failed. |
+| W5a | ACTIVE | Measure the intended repeated-state workload against generated JSON without a promotion threshold. |
+| W6 | BLOCKED | Decide scorer scope and freeze a new promotion experiment only if evidence justifies it. |
 
 ## W1/W2 runtime contract
 
@@ -166,7 +167,30 @@ unchanged:
 
 The reference artifact is evidence identity, not a product restriction: users may select another compatible Qwen GGUF, but its results are a different evidence/calibration identity.
 
-A PASS promotes only the pinned reference configuration. A FAIL keeps v2 experimental.
+Run `35788235063` is the representative v2 result and is **FAIL**. Runtime identity, fresh
+equivalence, overall quality, order robustness and zero generation passed. The family guardrail
+failed on `evidence_entailment` (12/16 versus 16/16), and the short-workload generation trade-off
+failed (semantic p50 829.39 s versus generated 199.38 s). The thresholds remain unchanged and v2
+stays experimental.
+
+The four v2 misses in that family are deterministic arithmetic/time conclusions. Treat them as
+diagnostic evidence rather than prompt-tuning targets. On the same run, the long repeated-state
+oracle was exact and evaluated 526 physical tokens versus 2574 fresh, with 8.998 s versus 40.009 s
+observed latency.
+
+### W5a repeated-state diagnostic
+
+Before changing scorer semantics, measure the product-relevant case of multiple questions over one
+long unchanged state. The diagnostic:
+
+- uses the same pinned 2B artifact/runtime identity;
+- compares semantic v2 with its bounded repeated-state cache against generated JSON;
+- uses four runtime-defined candidates and multiple questions over one shared long state;
+- rotates arm order across two rounds;
+- records quality, p50/p95 latency, semantic physical/logical tokens and cache hits;
+- is explicitly diagnostic-only: no pass threshold or promotion decision is invented after gate #76.
+
+The result may justify `NARROW_SCOPE`, a new scorer experiment, or abandoning v2 as the default.
 
 ## Calibration compatibility
 
@@ -178,11 +202,11 @@ Without that match, outputs remain uncalibrated.
 
 Before PR #1 returns to ready:
 
-1. run the frozen 2B scorer-gate v2 and representative shared/fresh + repeated-cache oracle;
-2. diagnose any failed criterion without weakening the precommitted contract;
-3. update durable docs with exact 2B evidence;
+1. complete W5a and decide the supported scorer scope from evidence;
+2. freeze any replacement promotion experiment before observing its result;
+3. update durable docs and PR metadata to that decision;
 4. run repository deterministic gates and exact-head integration preflight;
 5. inspect the complete diff against live `main`.
 
-Completion means product intent, implementation, tests, docs and evidence agree. Representative 2B
-hardware evidence, not code completion, decides release readiness.
+Completion means product intent, implementation, tests, docs and evidence agree. Gate #76 cannot be
+relabelled as a pass.

@@ -5,8 +5,8 @@ Owner: repository
 
 ## Current milestone
 
-Make local GGUF + llama.cpp the Decisio v1 reference runtime, then decide the scorer on the same
-artifact/runtime class users run.
+Make local GGUF + llama.cpp the Decisio v1 reference runtime and decide where zero-generation
+semantic scoring is actually useful on the pinned Qwen3.5-2B Q4_K_M CPU path.
 
 Active plan: [llama.cpp reference runtime migration](workstreams/llama-cpp-reference-runtime.md).
 
@@ -16,66 +16,49 @@ Active plan: [llama.cpp reference runtime migration](workstreams/llama-cpp-refer
 | --- | --- | --- |
 | llama.cpp reference runtime | DONE | local-GGUF backend/CLI and scorer primitives implemented |
 | Shared context-state fast path | DONE | native-batch-safe branching + bounded repeated-state cache |
-| Scorer decision | ACTIVE | frozen 64-case gate-v2 on pinned 2B Q4_K_M pending |
-| Product foundation | ACTIVE | PR #1 remains draft until representative evidence |
-| Repository quality | ACTIVE | final exact-head integration evidence |
+| Scorer gate v2 | FAILED | short independent workload does not justify v2 promotion |
+| Repeated-state diagnostic | ACTIVE | compare cached v2 against generated JSON on one long shared state |
+| Product foundation | ACTIVE | PR #1 remains draft until the scorer scope is decided |
 
-## Product/runtime decision
+## Reference identity
 
-The v1 canonical evidence target is Qwen3.5-2B Q4_K_M GGUF through llama.cpp on CPU.
+The canonical evidence artifact remains Qwen3.5-2B Q4_K_M from
+`unsloth/Qwen3.5-2B-GGUF` revision
+`1c466474d208da1a7c4b8cb87ebcdac78f160e34`, SHA-256
+`aaf42c8b7c3cab2bf3d69c355048d4a0ee9973d48f16c731c0520ee914699223`,
+with `llama-cpp-python==0.3.35` on CPU.
 
-Scorer-gate v2 is pinned to:
+## Scorer-gate v2 result
 
-- source: `unsloth/Qwen3.5-2B-GGUF`;
-- revision: `1c466474d208da1a7c4b8cb87ebcdac78f160e34`;
-- file: `Qwen3.5-2B-Q4_K_M.gguf`;
-- SHA-256: `aaf42c8b7c3cab2bf3d69c355048d4a0ee9973d48f16c731c0520ee914699223`;
-- size: `1280835840` bytes;
-- runtime: `llama-cpp-python==0.3.35`, CPU.
+Exact-head run `35788235063` completed the full 64-case matrix and **FAILED** without weakening any
+precommitted criterion.
 
-The reference changed from 4B to 2B on 2026-09-22 so the canonical local CPU workflow is materially
-easier to run. The switch happened before accepting any 2B scorer-matrix result. Workload, scorer
-semantics, numerical tolerances and promotion criteria remain unchanged. Earlier 4B runtime
-experiments are diagnostic history, not promotion evidence.
+Passed: runtime identity; shared/fresh and repeated-state correctness; overall quality
+(`50/64` versus strongest baseline `53/64`); order robustness (`0/64` changes); native zero
+generation.
 
-## Implemented today
+Failed: `evidence_entailment` was `12/16` versus `16/16` for the strongest baseline, and
+short-workload latency was semantic p50 `829.39 s` versus generated JSON `199.38 s`.
 
-- strict typed request/result contracts and deterministic compiler;
-- semantic v2, semantic v1, letters and generated JSON comparison paths;
-- zero answer generation on native scoring paths with explicit uncalibrated probability semantics;
-- in-process local-GGUF `LlamaCppBackend` with exact artifact/runtime provenance;
-- native-batch-safe candidate branching with conservative fresh fallback;
-- byte/entry-bounded repeated-state LRU with physical-token and state-copy metrics;
-- frozen 64-case workload, normal/reversed comparison and deterministic gate evaluator;
-- CPU timing/p50/p95/throughput/RSS, real-model smoke and Snake evidence.
+The four missed entailment cases are exact arithmetic/time conclusions (team size, storage, schedule,
+budget). They are diagnostic evidence; the prompt is not tuned against these observed failures.
 
-## Evidence status
+All 64 short rows used conservative fresh fallback. Semantic v2 made 240 fresh candidate evaluations
+and processed 53,333 physical input tokens per measured round.
 
-Pinned 0.8B llama.cpp smoke established the state-reuse mechanism before the reference-model switch.
-Run `35717350247` proved exact shared-vs-fresh scorer equivalence on its smoke fixture. Run
-`35726724805` proved a same-state/different-question cache hit with zero score/probability drift,
-526 physical tokens versus 2574 fresh, and deterministic cache clear.
+## Repeated-state evidence
 
-Those runs prove the mechanism, not the 2B scorer decision.
+The same 2B run proved the long-state cache mechanism independently: cached scoring matched fresh
+exactly, evaluated 526 physical tokens versus 2574 fresh, and observed 8.998 s versus 40.009 s
+(~4.45x fresh-path speedup).
 
-## Remaining gate
-
-W5 must run on the exact 2B artifact above with the frozen workload SHA
-`087ee8bbec3393609689046ea9c5d8219d0f39562e322180ca8f1e08eb368d3a`, unchanged runtime
-settings and unchanged criteria:
-
-- full-workload shared-vs-fresh equivalence;
-- long repeated-state cache oracle;
-- semantic v2, v1, letters and generated JSON in normal/reversed order;
-- quality, family, order, zero-generation and generated-latency checks;
-- one warm-up plus four position-balanced performance rounds.
-
-A quality or equivalence failure keeps semantic v2 experimental. No cache-speed threshold is invented
-from earlier smaller-model observations.
+That does not yet prove an advantage over generated JSON. A separate diagnostic now measures both
+paths on repeated questions over the same long state. It is diagnostic-only and has no post-hoc
+promotion threshold.
 
 ## Next
 
-1. Run scorer-gate v2 on the frozen Qwen3.5-2B Q4_K_M reference artifact.
-2. Diagnose any failed criterion without weakening the precommitted gate.
-3. Record exact-head 2B evidence.
-4. If the gate passes, return PR #1 to ready and run exact-head integration preflight.
+1. Run the repeated-state diagnostic on the pinned 2B runtime.
+2. Choose BUILD, NARROW_SCOPE, CHOOSE_ALTERNATIVE or DO_NOT_BUILD for v2 from that evidence.
+3. Freeze any replacement promotion experiment before observing its result.
+4. Keep PR #1 draft until scorer scope, durable docs and exact-head integration evidence agree.
