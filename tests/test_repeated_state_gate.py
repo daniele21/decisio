@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-from copy import deepcopy
 from pathlib import Path
 
 from benchmarks.build_repeated_state_gate_fixture import (

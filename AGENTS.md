@@ -42,13 +42,13 @@ Follow `docs/roadmap.md`.
 
 Do not add HTTP, MLX, additional runtime backends/quantizations, UI or broad model support before Milestones 0–1 establish the scorer on the llama.cpp/GGUF reference path.
 
-Scorer-gate v2 answered the short/fresh general-purpose question negatively; do not weaken or
-reinterpret that failed gate. The active executable question is now:
+Scorer-gate v2 failed for short/fresh general-purpose use; do not weaken it.
 
-> On the frozen repeated-state workload and pinned Qwen 3.5 2B Q4_K_M GGUF + llama.cpp runtime, can semantic v2 retain comparable decision quality while using exact shared-state reuse to deliver a material latency/token advantage over generated JSON?
+Active question:
 
-The precommitted contract is `benchmarks/repeated-state-gate-v3.md`. A PASS supports only a
-repeated-state `NARROW_SCOPE` decision.
+> On frozen repeated-state gate v3, does semantic v2 keep comparable quality while materially beating generated JSON through exact shared-state reuse?
+
+Contract: `benchmarks/repeated-state-gate-v3.md`. PASS supports only `NARROW_SCOPE`.
 
 ## Validation priorities
 
