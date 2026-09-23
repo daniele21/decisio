@@ -1,12 +1,19 @@
 import json
 from pathlib import Path
 
+import pytest
+
+import benchmarks.snake_controller_benchmark as benchmark_module
 from benchmarks.snake_controller_benchmark import (
     CONFIGS,
     SnakePlanner,
     append_ledger,
     fixed_state_benchmark,
     game_from_case,
+)
+from benchmarks.run_snake_controller_benchmark import (
+    parser as controller_benchmark_parser,
+    run as run_controller_benchmark,
 )
 from benchmarks.summarize_snake_controller_history import summarize
 from decisio.schema import DecisionResult
@@ -187,3 +194,57 @@ def test_history_summary_keeps_model_fixture_and_protocol_identity_separate():
         "protocol-a",
         "protocol-b",
     }
+
+
+def test_source_identity_uses_pull_request_head_not_merge_commit(monkeypatch):
+    monkeypatch.delenv("DECISIO_SOURCE_SHA", raising=False)
+    monkeypatch.delenv("DECISIO_SOURCE_BRANCH", raising=False)
+    monkeypatch.setenv("GITHUB_HEAD_REF", "product/define-decisio-foundation")
+
+    def fake_git(*args):
+        if args == ("status", "--porcelain"):
+            return ""
+        if args == ("show", "-s", "--format=%P", "HEAD"):
+            return "base-sha exact-head-sha"
+        if args == ("rev-parse", "HEAD"):
+            return "merge-sha"
+        if args == ("rev-parse", "--abbrev-ref", "HEAD"):
+            return "HEAD"
+        return None
+
+    monkeypatch.setattr(benchmark_module, "_git", fake_git)
+
+    identity = benchmark_module.source_identity()
+
+    assert identity["commit"] == "exact-head-sha"
+    assert identity["branch"] == "product/define-decisio-foundation"
+    assert identity["dirty"] is False
+
+
+def test_backend_load_failure_is_appended_and_reported(tmp_path: Path):
+    ledger = tmp_path / "history.jsonl"
+    report = tmp_path / "report.json"
+    missing_model = tmp_path / "missing.gguf"
+    args = controller_benchmark_parser().parse_args([
+        "--model", str(missing_model),
+        "--output", str(report),
+        "--ledger", str(ledger),
+        "--configs", "direct-stateful-verbose",
+        "--fixed-limit", "1",
+        "--episode-seeds", "7",
+        "--episode-max-steps", "1",
+    ])
+
+    with pytest.raises(FileNotFoundError):
+        run_controller_benchmark(args)
+
+    rows = [json.loads(line) for line in ledger.read_text(encoding="utf-8").splitlines()]
+    assert [row["record_type"] for row in rows] == ["run_start", "run_end"]
+    assert rows[0]["model_runtime"]["artifact_filename"] == "missing.gguf"
+    assert rows[0]["model_runtime"]["artifact_exists"] is False
+    assert rows[-1]["status"] == "failed"
+    assert "FileNotFoundError" in rows[-1]["error"]
+
+    payload = json.loads(report.read_text(encoding="utf-8"))
+    assert payload["status"] == "failed"
+    assert "FileNotFoundError" in payload["error"]

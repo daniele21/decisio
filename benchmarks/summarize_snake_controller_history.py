@@ -63,6 +63,18 @@ def summarize(records: list[dict[str, Any]]) -> dict[str, Any]:
             if item.get("fixed_state")
             and item["fixed_state"].get("optimal_set_agreement") is not None
         ]
+        rank_regret = [
+            float(item["fixed_state"]["mean_rank_regret"])
+            for item in completed
+            if item.get("fixed_state")
+            and item["fixed_state"].get("mean_rank_regret") is not None
+        ]
+        extra_food_steps = [
+            float(item["fixed_state"]["mean_extra_safe_food_steps"])
+            for item in completed
+            if item.get("fixed_state")
+            and item["fixed_state"].get("mean_extra_safe_food_steps") is not None
+        ]
         catastrophic = [
             float(item["fixed_state"]["catastrophic_miss_rate"])
             for item in completed
@@ -86,6 +98,12 @@ def summarize(records: list[dict[str, Any]]) -> dict[str, Any]:
             if item.get("fixed_state")
             and item["fixed_state"]["latency_seconds"].get("p50") is not None
         ]
+        physical_ratio = [
+            float(item["runtime_metrics"]["physical_to_logical_ratio"])
+            for item in completed
+            if item.get("runtime_metrics")
+            and item["runtime_metrics"].get("physical_to_logical_ratio") is not None
+        ]
         rows.append(
             {
                 "configuration": config_id,
@@ -96,10 +114,13 @@ def summarize(records: list[dict[str, Any]]) -> dict[str, Any]:
                 "completed_runs": len(completed),
                 "median_oracle_coverage": _median(oracle_coverage),
                 "median_optimal_set_agreement": _median(agreements),
+                "median_rank_regret": _median(rank_regret),
+                "median_extra_safe_food_steps": _median(extra_food_steps),
                 "median_catastrophic_miss_rate": _median(catastrophic),
                 "median_episode_food": _median(food),
                 "median_loop_rate": _median(loop_rate),
                 "median_fixed_p50_seconds": _median(latency),
+                "median_physical_to_logical_ratio": _median(physical_ratio),
                 "latest_finished_at": max(str(item.get("finished_at", "")) for item in group),
             }
         )
@@ -107,6 +128,10 @@ def summarize(records: list[dict[str, Any]]) -> dict[str, Any]:
         "schema_version": 1,
         "records": len(records),
         "run_manifests": sum(record.get("record_type") == "run_start" for record in records),
+        "runtime_ready_records": sum(
+            record.get("record_type") == "runtime_ready" for record in records
+        ),
+        "run_end_records": sum(record.get("record_type") == "run_end" for record in records),
         "configuration_records": len(configuration_records),
         "groups": rows,
     }
@@ -118,12 +143,14 @@ def markdown(summary: dict[str, Any]) -> str:
         "",
         (
             f"Ledger records: {summary['records']} "
-            f"({summary.get('run_manifests', 0)} run manifests, "
-            f"{summary.get('configuration_records', summary['records'])} configuration results)"
+            f"({summary.get('run_manifests', 0)} starts, "
+            f"{summary.get('runtime_ready_records', 0)} runtime-ready, "
+            f"{summary.get('configuration_records', summary['records'])} configuration results, "
+            f"{summary.get('run_end_records', 0)} ends)"
         ),
         "",
-        "| Configuration | Runs | Oracle coverage | Agreement | Catastrophic | Median food | Loop rate | Fixed p50 (s) | Model SHA | Fixture SHA | Protocol SHA |",
-        "| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | --- | --- | --- |",
+        "| Configuration | Runs | Oracle coverage | Agreement | Rank regret | Extra food steps | Catastrophic | Median food | Loop rate | Fixed p50 (s) | Physical/logical | Model SHA | Fixture SHA | Protocol SHA |",
+        "| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | --- | --- | --- |",
     ]
     for row in summary["groups"]:
         def fmt(value: Any) -> str:
@@ -131,17 +158,20 @@ def markdown(summary: dict[str, Any]) -> str:
 
         lines.append(
             "| {configuration} | {completed_runs}/{runs} | {oracle} | {agreement} | "
-            "{catastrophic} | {food} | {loop} | {latency} | `{model}` | `{fixture}` | "
-            "`{protocol}` |".format(
+            "{regret} | {extra} | {catastrophic} | {food} | {loop} | {latency} | "
+            "{physical} | `{model}` | `{fixture}` | `{protocol}` |".format(
                 configuration=row["configuration"],
                 completed_runs=row["completed_runs"],
                 runs=row["runs"],
                 oracle=fmt(row["median_oracle_coverage"]),
                 agreement=fmt(row["median_optimal_set_agreement"]),
+                regret=fmt(row["median_rank_regret"]),
+                extra=fmt(row["median_extra_safe_food_steps"]),
                 catastrophic=fmt(row["median_catastrophic_miss_rate"]),
                 food=fmt(row["median_episode_food"]),
                 loop=fmt(row["median_loop_rate"]),
                 latency=fmt(row["median_fixed_p50_seconds"]),
+                physical=fmt(row["median_physical_to_logical_ratio"]),
                 model=str(row["model_sha256"])[:12],
                 fixture=str(row["fixture_sha256"])[:12],
                 protocol=str(row["protocol_sha256"])[:12],

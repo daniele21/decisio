@@ -21,7 +21,7 @@ from examples.snake.planner import PlannerResult, SnakePlanner
 from examples.snake.play import build_request
 
 BENCHMARK_ID = "snake-controller-benchmark-v1"
-SCHEMA_VERSION = 1
+SCHEMA_VERSION = 2
 DEFAULT_FIXTURE = Path("benchmarks/fixtures/snake-controller-v1.jsonl")
 DEFAULT_LEDGER = Path(".artifacts/snake-controller/history.jsonl")
 
@@ -129,17 +129,26 @@ def _git(*args: str) -> str | None:
         return None
 
 
+def _pull_request_head_sha() -> str | None:
+    if not os.getenv("GITHUB_HEAD_REF"):
+        return None
+    parents = (_git("show", "-s", "--format=%P", "HEAD") or "").split()
+    return parents[-1] if len(parents) >= 2 else None
+
+
 def source_identity() -> dict[str, Any]:
     status = _git("status", "--porcelain")
     return {
         "commit": (
             os.getenv("DECISIO_SOURCE_SHA")
+            or _pull_request_head_sha()
             or _git("rev-parse", "HEAD")
             or os.getenv("GITHUB_SHA")
             or "unknown"
         ),
         "branch": (
             os.getenv("DECISIO_SOURCE_BRANCH")
+            or os.getenv("GITHUB_HEAD_REF")
             or _git("rev-parse", "--abbrev-ref", "HEAD")
             or os.getenv("GITHUB_REF_NAME")
         ),

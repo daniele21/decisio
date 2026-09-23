@@ -86,10 +86,13 @@ controller families. Different model artifacts are separate evidence identities.
 
 ## Append-only result ledger
 
-Every run first appends a `run_start` manifest before model evaluation. It then appends exactly one
-terminal `configuration_result` object for every configuration that completes or raises a handled
-failure. Rows are never overwritten by the benchmark runner. The early manifest means an externally
-cancelled run still preserves source/model/protocol identity when the ledger artifact is retained.
+Every run appends a `run_start` manifest **before GGUF backend construction**, a
+`runtime_ready` row after the exact runtime identity is loaded, one terminal
+`configuration_result` for every attempted configuration, and a `run_end` row from the runner's
+finalization path. Rows are never overwritten. A model/runtime load failure therefore still leaves
+the requested model path/runtime parameters plus a failed `run_end`; a handled configuration
+failure keeps its partial evidence and error. An externally killed process can still leave an
+incomplete run, but its earlier append-only rows remain available for diagnosis.
 
 Each row records at least:
 

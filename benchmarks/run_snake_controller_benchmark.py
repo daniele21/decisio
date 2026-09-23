@@ -5,11 +5,15 @@ from __future__ import annotations
 import argparse
 import json
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
-from decisio.backends.llama_cpp import LlamaCppBackend, LlamaCppBackendConfig
+from decisio.backends.llama_cpp import (
+    LLAMA_CPP_PYTHON_VERSION,
+    LlamaCppBackend,
+    LlamaCppBackendConfig,
+)
 from examples.snake.planner import PLANNER_VERSION, SnakePlanner
 
 from .snake_controller_benchmark import (
@@ -32,7 +36,32 @@ from .snake_controller_benchmark import (
 
 
 def _now() -> str:
-    return datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
+    return datetime.now(UTC).isoformat().replace("+00:00", "Z")
+
+
+def _requested_model_identity(args: argparse.Namespace) -> dict[str, Any]:
+    path = args.model.expanduser()
+    exists = path.is_file()
+    return {
+        "backend": "llama-cpp-python",
+        "runtime": "llama.cpp",
+        "binding_version": LLAMA_CPP_PYTHON_VERSION,
+        "artifact_filename": path.name,
+        "artifact_path": str(path),
+        "artifact_exists": exists,
+        "artifact_sha256": file_sha256(path) if exists else None,
+        "artifact_size_bytes": path.stat().st_size if exists else None,
+        "device": "cpu",
+        "n_ctx": args.n_ctx,
+        "n_batch": args.n_batch,
+        "n_ubatch": args.n_ubatch,
+        "n_threads": args.threads,
+        "n_threads_batch": args.threads_batch,
+        "n_seq_max_requested": args.max_sequences,
+        "use_mmap": not args.no_mmap,
+        "use_mlock": args.mlock,
+        "identity_status": "requested",
+    }
 
 
 def _ledger_record(
@@ -74,8 +103,9 @@ def _ledger_record(
 def run(args: argparse.Namespace) -> dict[str, Any]:
     cases = load_fixture(args.fixture, args.fixed_limit)
     source = source_identity()
+    started_at = _now()
     run_id = (
-        f"{datetime.now(timezone.utc).strftime('%Y%m%dT%H%M%SZ')}-"
+        f"{datetime.now(UTC).strftime('%Y%m%dT%H%M%SZ')}-"
         f"{str(source['commit'])[:8]}-{uuid.uuid4().hex[:8]}"
     )
     fixture = {
@@ -107,27 +137,16 @@ def run(args: argparse.Namespace) -> dict[str, Any]:
         },
     }
     protocol = {**protocol_payload, "sha256": canonical_sha256(protocol_payload)}
-    backend = LlamaCppBackend(
-        LlamaCppBackendConfig(
-            model=args.model,
-            n_ctx=args.n_ctx,
-            n_batch=args.n_batch,
-            n_ubatch=args.n_ubatch,
-            n_threads=args.threads,
-            n_threads_batch=args.threads_batch,
-            max_sequences=args.max_sequences,
-            use_mmap=not args.no_mmap,
-            use_mlock=args.mlock,
-        )
-    )
-    report = {
+    requested_model = _requested_model_identity(args)
+    report: dict[str, Any] = {
         "schema_version": SCHEMA_VERSION,
         "benchmark": BENCHMARK_ID,
         "run_id": run_id,
+        "started_at": started_at,
         "source": source,
         "fixture": fixture,
         "protocol": protocol,
-        "model_runtime": backend.identity,
+        "model_runtime": requested_model,
         "configurations": {},
     }
     append_ledger(
@@ -137,18 +156,53 @@ def run(args: argparse.Namespace) -> dict[str, Any]:
             "benchmark": BENCHMARK_ID,
             "record_type": "run_start",
             "run_id": run_id,
-            "started_at": _now(),
+            "started_at": started_at,
             "source": source,
             "fixture": fixture,
             "protocol": protocol,
             "requested_configurations": list(args.configs),
-            "model_runtime": backend.identity,
+            "model_runtime": requested_model,
         },
     )
+
+    backend: LlamaCppBackend | None = None
+    exact_model = requested_model
+    run_status = "failed"
+    run_error: str | None = None
     try:
+        backend = LlamaCppBackend(
+            LlamaCppBackendConfig(
+                model=args.model,
+                n_ctx=args.n_ctx,
+                n_batch=args.n_batch,
+                n_ubatch=args.n_ubatch,
+                n_threads=args.threads,
+                n_threads_batch=args.threads_batch,
+                max_sequences=args.max_sequences,
+                use_mmap=not args.no_mmap,
+                use_mlock=args.mlock,
+            )
+        )
+        exact_model = {**backend.identity, "identity_status": "loaded"}
+        report["model_runtime"] = exact_model
+        append_ledger(
+            args.ledger,
+            {
+                "schema_version": SCHEMA_VERSION,
+                "benchmark": BENCHMARK_ID,
+                "record_type": "runtime_ready",
+                "run_id": run_id,
+                "ready_at": _now(),
+                "source": source,
+                "fixture": fixture,
+                "protocol": protocol,
+                "model_runtime": exact_model,
+            },
+        )
+
         for config_id in args.configs:
             config = CONFIGS[config_id]
-            started = _now()
+            config_started = _now()
             fixed = episodes = runtime = None
             try:
                 backend.clear_repeated_state_cache()
@@ -167,12 +221,12 @@ def run(args: argparse.Namespace) -> dict[str, Any]:
                 runtime = runtime_metrics(backend)
                 row = _ledger_record(
                     run_id=run_id,
-                    started_at=started,
+                    started_at=config_started,
                     source=source,
                     fixture=fixture,
                     protocol=protocol,
                     config=config,
-                    model=backend.identity,
+                    model=exact_model,
                     fixed=fixed,
                     episodes=episodes,
                     runtime=runtime,
@@ -193,15 +247,17 @@ def run(args: argparse.Namespace) -> dict[str, Any]:
                 try:
                     runtime = runtime or runtime_metrics(backend)
                 except Exception as metrics_exc:
-                    runtime = {"collection_error": f"{type(metrics_exc).__name__}: {metrics_exc}"}
+                    runtime = {
+                        "collection_error": f"{type(metrics_exc).__name__}: {metrics_exc}"
+                    }
                 row = _ledger_record(
                     run_id=run_id,
-                    started_at=started,
+                    started_at=config_started,
                     source=source,
                     fixture=fixture,
                     protocol=protocol,
                     config=config,
-                    model=backend.identity,
+                    model=exact_model,
                     fixed=fixed,
                     episodes=episodes,
                     runtime=runtime,
@@ -212,18 +268,60 @@ def run(args: argparse.Namespace) -> dict[str, Any]:
                 report["configurations"][config_id] = row
                 if not args.continue_on_error:
                     raise
-    finally:
-        backend.close()
-    report["finished_at"] = _now()
-    report["failed_configurations"] = [
-        config_id
-        for config_id, row in report["configurations"].items()
-        if row["status"] != "completed"
-    ]
-    args.output.parent.mkdir(parents=True, exist_ok=True)
-    args.output.write_text(json.dumps(report, indent=2, sort_keys=True) + "\n", encoding="utf-8")
-    return report
 
+        failed = [
+            config_id
+            for config_id, row in report["configurations"].items()
+            if row["status"] != "completed"
+        ]
+        run_status = "completed_with_failures" if failed else "completed"
+    except Exception as exc:
+        run_error = f"{type(exc).__name__}: {exc}"
+        raise
+    finally:
+        if backend is not None:
+            try:
+                backend.close()
+            except Exception as close_exc:
+                close_error = f"{type(close_exc).__name__}: {close_exc}"
+                if run_error is None:
+                    run_error = close_error
+                    run_status = "failed"
+                else:
+                    run_error = f"{run_error}; close_error={close_error}"
+        failed = [
+            config_id
+            for config_id, row in report["configurations"].items()
+            if row["status"] != "completed"
+        ]
+        report["failed_configurations"] = failed
+        report["status"] = run_status
+        report["error"] = run_error
+        report["finished_at"] = _now()
+        append_ledger(
+            args.ledger,
+            {
+                "schema_version": SCHEMA_VERSION,
+                "benchmark": BENCHMARK_ID,
+                "record_type": "run_end",
+                "run_id": run_id,
+                "started_at": started_at,
+                "finished_at": report["finished_at"],
+                "status": run_status,
+                "error": run_error,
+                "failed_configurations": failed,
+                "source": source,
+                "fixture": fixture,
+                "protocol": protocol,
+                "model_runtime": exact_model,
+            },
+        )
+        args.output.parent.mkdir(parents=True, exist_ok=True)
+        args.output.write_text(
+            json.dumps(report, indent=2, sort_keys=True) + "\n",
+            encoding="utf-8",
+        )
+    return report
 
 def parser() -> argparse.ArgumentParser:
     result = argparse.ArgumentParser(description=__doc__)
@@ -262,9 +360,10 @@ def main(argv: list[str] | None = None) -> int:
     print(json.dumps({
         "run_id": report["run_id"],
         "ledger": str(args.ledger),
+        "status": report["status"],
         "failed_configurations": report["failed_configurations"],
     }, indent=2))
-    return 1 if report["failed_configurations"] else 0
+    return int(report["status"] != "completed")
 
 
 if __name__ == "__main__":
