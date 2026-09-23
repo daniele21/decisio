@@ -52,13 +52,17 @@ The same 2B run proved the long-state cache mechanism independently: cached scor
 exactly, evaluated 526 physical tokens versus 2574 fresh, and observed 8.998 s versus 40.009 s
 (~4.45x fresh-path speedup).
 
-That does not yet prove an advantage over generated JSON. A separate diagnostic now measures both
-paths on repeated questions over the same long state. It is diagnostic-only and has no post-hoc
-promotion threshold.
+Diagnostic v1 confirmed the performance mechanism but exposed a workload confound: semantic v2 was
+~4.75x faster than generated JSON (18.12 s versus 86.00 s p50) with 95.2% token reuse, but scored
+2/14 because questions referenced opaque case IDs inside the long state. Generated JSON scored 14/14.
+That mixes decision quality with ID dereferencing, so it is not accepted as product evidence.
+
+Diagnostic v2 is predeclared to keep the same long shared state/cache while putting the relevant case
+evidence directly in each question. It remains diagnostic-only with no post-hoc promotion threshold.
 
 ## Next
 
-1. Run the repeated-state diagnostic on the pinned 2B runtime.
+1. Run repeated-state diagnostic v2 on the pinned 2B runtime.
 2. Choose BUILD, NARROW_SCOPE, CHOOSE_ALTERNATIVE or DO_NOT_BUILD for v2 from that evidence.
 3. Freeze any replacement promotion experiment before observing its result.
 4. Keep PR #1 draft until scorer scope, durable docs and exact-head integration evidence agree.

@@ -190,7 +190,16 @@ long unchanged state. The diagnostic:
 - records quality, p50/p95 latency, semantic physical/logical tokens and cache hits;
 - is explicitly diagnostic-only: no pass threshold or promotion decision is invented after gate #76.
 
-The result may justify `NARROW_SCOPE`, a new scorer experiment, or abandoning v2 as the default.
+Diagnostic v1 completed on run `35829178231`: semantic v2 was ~4.75x faster than generated JSON
+(p50 18.12 s versus 86.00 s), with 14/14 cache hits and 95.2% token reuse, but quality was 2/14
+versus generated 14/14. Inspection found a diagnostic confound: questions contained only opaque case
+IDs, forcing an unrelated state lookup before classification. That run therefore proves the cache
+performance mechanism but is not accepted as scorer-quality evidence.
+
+Diagnostic v2 fixes only that confound before observing a v2 result: the long shared state and
+candidate set stay unchanged, while each question includes its relevant case evidence explicitly.
+No promotion threshold is introduced. Its result may justify `NARROW_SCOPE`, a new scorer experiment,
+or abandoning v2 as the default.
 
 ## Calibration compatibility
 

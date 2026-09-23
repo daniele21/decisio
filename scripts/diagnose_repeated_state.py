@@ -47,7 +47,7 @@ def _requests() -> list[tuple[ChoiceRequest, str]]:
             ChoiceRequest(
                 id=case_id,
                 state=state,
-                question=f"Which queue should receive {case_id}?",
+                question=f"Which queue best matches this situation: {evidence}",
                 candidates=candidates,
             ),
             expected,
@@ -163,7 +163,8 @@ def evaluate(args: argparse.Namespace) -> dict[str, Any]:
 
     report: dict[str, Any] = {
         "schema_version": 1,
-        "experiment": "repeated-state-diagnostic-v1",
+        "experiment": "repeated-state-diagnostic-v2",
+        "design_note": "questions include the relevant case evidence explicitly; opaque case-id lookup is not part of the task",
         "diagnostic_only": True,
         "promotion_threshold": None,
         "rounds": args.rounds,
