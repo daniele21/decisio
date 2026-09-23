@@ -5,9 +5,9 @@ Owner: repository
 
 ## Mission
 
-Decisio exists to make general-purpose open-weight language models directly useful as fast, typed decision engines when an application needs a bounded semantic judgment rather than generated text.
+Decisio exists to turn a local open-weight causal LLM into a **stateful decision runtime** for applications that repeatedly need bounded typed actions while their world state changes.
 
-Its durable objective is to determine how much decision quality, robustness and efficiency can be obtained **without training a new model**, by changing the inference/readout strategy.
+Its durable objective is to compile stable decision context once, safely reuse the model context state, and evaluate only the changing state/action suffix wherever runtime semantics allow it — while remaining training-free and generating zero answer tokens on the native path.
 
 ## Primary users / consumers
 
@@ -21,7 +21,7 @@ The primary consumer is software, not a conversational end user.
 
 Decisio owns the following job:
 
-> Given state/evidence, a semantic question and a bounded set of valid runtime-defined alternatives, return a typed decision signal that software can consume directly without autoregressive answer generation.
+> Given a stable decision contract, changing application state and a bounded set of valid runtime-defined alternatives, return repeated typed decisions while reusing the stable model context instead of re-prefilling it on every step.
 
 The initial problem surface includes:
 
@@ -80,9 +80,18 @@ GGUFs. Scores remain uncalibrated unless a calibration artifact matches that ide
 
 ## Meaningful differentiation
 
-Decisio combines comparative semantic scoring, separate answerability/probability semantics,
-shared execution and reproducible evidence, while staying training-free until evidence justifies
-a learned layer. Reading logits alone is not the differentiator.
+Reading option logits is **not** the differentiator. SemIf independently demonstrates direct typed
+option scoring, shared-state execution, multiple backends and calibration. Decisio deliberately
+builds on the same broad primitive but chooses a different product boundary:
+
+- **state is a runtime resource, not just request text** — stable decision context is compiled/prefilled once and reused across many changing decisions;
+- **constraints before probabilities** — deterministic domain facts remove impossible actions before the model sees the candidate set;
+- **static context vs dynamic state is explicit** — policy/task semantics stay in the reusable prefix; current world state and deterministic sensors stay in the changing suffix;
+- **fresh equivalence is the oracle** — an optimization is not accepted merely because it records a cache hit;
+- **local GGUF + llama.cpp is the opinionated v1 runtime** rather than a multi-backend research matrix;
+- **typed action, provenance and later abstention/answerability** are part of the decision contract.
+
+The product shorthand is: **compile stable context once; make many typed local decisions.**
 
 ## Core outcomes
 
@@ -113,7 +122,7 @@ Decisio deliberately does not own:
 - **Choose the readout deliberately.** Prefer semantic candidate readouts when evidence supports them; direct option-token logits are valid for latency-oriented bounded controls, but scorer identity and order/verbalizer sensitivity must stay explicit.
 - **Answerability is separate from preference.** "Which option?" and "Can this be answered?" are different questions.
 - **Scores are not confidence until calibrated.** API naming and metadata must preserve that distinction.
-- **Share expensive context.** Long state should be processed once wherever model/runtime semantics safely allow it.
+- **State is first-class.** Split stable decision context from changing world state; process the stable prefix once wherever model/runtime semantics safely allow it.
 - **Benchmark the failure modes.** Accuracy alone is insufficient; permutation robustness, missing evidence, calibration, latency and memory matter.
 - **Reference implementation before abstraction explosion.** Prove Qwen 3.5 2B Q4_K_M on llama.cpp before generalizing to other runtimes or quantizations.
 
@@ -153,7 +162,7 @@ Before calling v1 successful, we should have evidence for:
 - lower sensitivity to option order/verbalizer artifacts;
 - stronger missing-evidence behavior or a clearly useful answerability signal;
 - meaningful latency/throughput improvement over generated structured output;
-- measurable shared-state speedup;
+- measurable physical-token reduction and latency benefit from stable-context reuse;
 - documented cases where the approach should not be used.
 
 ## Decision to introduce training
