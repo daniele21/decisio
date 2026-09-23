@@ -5,6 +5,7 @@ Start here:
 - [Product](product.md) — why Decisio exists, who it serves, non-goals and success criteria.
 - [Architecture](architecture.md) — zero-generation readout paths, runtime boundaries and current system shape.
 - [Current state](current-state.md) — what is integrated, blocked and next.
+- [Calibration](calibration.md) — why native score distributions are not calibrated correctness probabilities and how future calibration artifacts are scoped.
 - [Roadmap](roadmap.md) — evidence-driven implementation order.
 - [Repository quality](repository-quality.md) — usability, reproducibility, documentation and hardening plan.
 - [Benchmarks](../benchmarks/README.md) — frozen scorer comparisons, perturbations and evidence rules.
