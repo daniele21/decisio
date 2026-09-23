@@ -3,8 +3,11 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import resource
 import time
+import uuid
+from datetime import datetime, timezone
 from dataclasses import replace
 from pathlib import Path
 
@@ -36,6 +39,8 @@ def main() -> None:
         n_threads=args.threads, n_threads_batch=args.threads_batch,
     )
     backend = LlamaCppBackend(config)
+    run_id = uuid.uuid4().hex
+    recorded_at_utc = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
     variants = {
         "verbose": ("verbose", LetterTokenScorer(backend)),
         "compact": ("compact", LetterTokenScorer(backend)),
@@ -51,13 +56,20 @@ def main() -> None:
         ),
     }
     variants = {name: variants[name] for name in args.variants}
+    run_config = {
+        "batch": args.batch,
+        "threads": args.threads,
+        "threads_batch": args.threads_batch,
+        "rounds": args.rounds,
+        "variants": list(args.variants),
+    }
     args.output.parent.mkdir(parents=True, exist_ok=True)
     try:
         # Load/warm all execution paths outside measured rows. Drop warm cache afterwards.
         for input_format, scorer in variants.values():
             scorer.score(build_request(SnakeGame(seed=7), input_format=input_format))
         backend.clear_repeated_state_cache()
-        with args.output.open("w") as stream:
+        with args.output.open("a", encoding="utf-8") as stream:
             for repeat in range(args.rounds):
                 for food in [(4, 2), (4, 3), (6, 4), (5, 4), (4, 6), (4, 5)]:
                     game = SnakeGame(seed=7)
@@ -76,6 +88,11 @@ def main() -> None:
                             result = scorer.score(request)
                             elapsed = time.perf_counter() - started
                             row = {
+                                "benchmark": "snake-input-efficiency-diagnostic-v1",
+                                "run_id": run_id,
+                                "recorded_at_utc": recorded_at_utc,
+                                "run_config": run_config,
+                                "model_runtime": backend.identity,
                                 "round": repeat, "food": food, "reverse": reverse,
                                 "variant": name, "expected": expected,
                                 "request": request.to_dict(), "decision": result.to_dict(),
@@ -85,6 +102,7 @@ def main() -> None:
                             }
                             stream.write(json.dumps(row, sort_keys=True) + "\n")
                             stream.flush()
+                            os.fsync(stream.fileno())
                     print(f"round={repeat} food={food} complete", flush=True)
     finally:
         backend.close()
