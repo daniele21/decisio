@@ -25,7 +25,9 @@ def test_planner_rejects_locally_tempting_body_pocket():
 
     result = SnakePlanner(max_nodes=50_000).evaluate(game)
 
-    assert set(game.safe_directions()) == {"left", "right"}
+    # UP enters the cell occupied by the current tail. That move is legal here because the
+    # snake is not eating on this step, so the tail vacates the cell before collision is resolved.
+    assert set(game.safe_directions()) == {"up", "left", "right"}
     assert result.best_actions == ("left",)
     assert result.actions["left"].status == "proven_safe_food"
     assert result.actions["right"].status in {"trapping_food", "proven_no_safe_food"}
