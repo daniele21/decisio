@@ -26,9 +26,15 @@ depth; reaching a node/depth budget is reported as `bounded_unknown`, never as f
 
 Reported fixed-state metrics:
 
-- `optimal_set_agreement`: chosen action is in the planner's best-action set;
-- `mean_rank_regret`: chosen planner rank minus one, so near-equivalent choices are distinguishable
-  from large misses;
+- `oracle_coverage`: fraction of states where every candidate is resolved without hitting a
+  planner node/depth bound; bounded states stay in the ledger but are excluded from optimality
+  denominators;
+- `optimal_set_agreement`: on oracle-complete states, the chosen action is in the planner's
+  best-action set;
+- `mean_rank_regret`: on oracle-complete states, chosen planner rank minus one, so near-equivalent
+  choices are distinguishable from large misses;
+- `mean_extra_safe_food_steps`: extra proven-safe steps to the current food versus the shortest
+  proven-safe candidate when both values are known;
 - `catastrophic_miss_rate`: a proven non-safe-food action is chosen when another supplied action has
   a proven safe-food path;
 - `order_change_rate`: choice changes when the same candidates are reversed;
@@ -45,8 +51,8 @@ Configurations also run deterministic seeded games. Episode evidence reports:
 - survival steps and board-filled rate;
 - moves per food;
 - revisit-step rate;
-- maximum steps since food and stall rate;
-- controller failures and per-decision latency.
+- maximum steps since food, stall rate and exact repeated-state loop rate;
+- controller failures, generated-token count and model-decision latency.
 
 `board_filled` is the strict solved condition. Completion ratio remains useful when no configuration
 fills the board:
@@ -94,7 +100,8 @@ Each row records at least:
 - configuration ID, scorer, input format, prompt mode, execution mode, effective prefix reuse and controller;
 - GGUF filename/SHA/size/quantization, llama.cpp binding/runtime, CPU/context/batch/thread settings;
 - selected fixed cases plus episode seeds/board/horizon/stall threshold, hashed as a protocol fingerprint;
-- fixed-state metrics and detailed per-case planner evidence;
+- fixed-state metrics, oracle coverage, raw normal/reversed decision readouts and detailed
+  per-case planner evidence;
 - episode metrics and per-seed outcomes;
 - runtime logical/physical tokens, cache metrics and physical/logical ratio;
 - completed/failed status and error text.
@@ -143,9 +150,9 @@ uv run python -m benchmarks.summarize_snake_controller_history \
 
 Do not collapse quality and latency into an arbitrary weighted score. Interpret in order:
 
-1. controller failures and catastrophic misses;
-2. fixed-state agreement/rank regret and order robustness;
-3. full-episode food/completion/survival/stall evidence;
+1. oracle coverage, controller failures and catastrophic misses;
+2. fixed-state agreement/rank regret/extra safe-food steps and order robustness;
+3. full-episode food/completion/survival/stall/loop evidence;
 4. latency, physical tokens and reuse among configurations with acceptable quality.
 
 A screening result selects configurations for further evidence; it is not automatically a product
