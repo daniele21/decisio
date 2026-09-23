@@ -42,13 +42,13 @@ Follow `docs/roadmap.md`.
 
 Do not add HTTP, MLX, additional runtime backends/quantizations, UI or broad model support before Milestones 0–1 establish the scorer on the llama.cpp/GGUF reference path.
 
-Scorer-gate v2 failed for short/fresh general-purpose use; do not weaken it.
+Scorer-gate v2 failed for short/fresh general use; do not weaken it.
 
-Active question:
+Active:
 
-> On frozen repeated-state gate v3, does semantic v2 keep comparable quality while materially beating generated JSON through exact shared-state reuse?
+> On frozen repeated-state gate v3, does semantic v2 keep comparable quality while materially beating generated JSON via exact shared-state reuse?
 
-Contract: `benchmarks/repeated-state-gate-v3.md`. PASS supports only `NARROW_SCOPE`.
+Contract: `benchmarks/repeated-state-gate-v3.md`. PASS only supports `NARROW_SCOPE`.
 
 ## Validation priorities
 
