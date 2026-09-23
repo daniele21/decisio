@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import time
 from pathlib import Path
@@ -15,28 +16,70 @@ from examples.snake.game import SnakeGame
 
 SCORER_CHOICES = ("direct", "semantic", "semantic-independent", "letters")
 
+DECISION_CONTEXT_ID = "snake-stateful-v1"
+STATIC_DECISION_CONTEXT = (
+    "You control Snake on a rectangular grid. This text is the stable decision contract for the "
+    "whole episode; the current board is supplied separately on every move. Coordinates use "
+    "origin (0,0) at the top-left, x increases to the right, and y increases downward. In a "
+    "rendered board H is the head, o is body, T is tail, * is food, and . is empty. "
+    "The application has already removed moves that reverse direction or cause an immediate wall "
+    "or body collision, so choose only among the supplied candidates. Treat those deterministic "
+    "constraints as facts rather than something to second-guess probabilistically. "
+    "Decision priority is: first preserve survival and future mobility; then avoid projected dead "
+    "ends and severe loss of reachable space; then eat food when doing so leaves an escape; then "
+    "prefer progress toward food when mobility remains healthy; finally prefer a less-revisited "
+    "destination when otherwise comparable. Moving farther from food can be correct when it "
+    "preserves escape space or avoids a loop. Candidate sensors are deterministic hints: food "
+    "distance is Manhattan distance and ignores obstacles; exits are immediately safe next "
+    "directions after the candidate; area is the number of cells reachable from the projected head "
+    "while treating the projected body as static; visits counts recent visits to the destination "
+    "and is summarized as loop risk. None of these local sensors proves a globally safe route. "
+    "Use only the current decision state and candidate sensors supplied in this request. Do not "
+    "invent previous boards, hidden history, or unavailable actions. Return exactly one supplied "
+    "option."
+)
+DECISION_CONTEXT_SHA256 = hashlib.sha256(
+    STATIC_DECISION_CONTEXT.encode("utf-8")
+).hexdigest()
+
 QUESTION = (
-    "Which single move should Snake take now? All supplied moves avoid immediate collision. "
-    "Use the board and the sensors on each option. Prefer eating food or getting closer when "
-    "future mobility remains healthy. Avoid dead ends and repeated cells with high loop risk; "
-    "moving farther can be necessary to escape a trap. Reachable space treats the body as static, "
-    "and Manhattan distance ignores obstacles; neither guarantees a safe route."
+    STATIC_DECISION_CONTEXT
+    + "\n\nCurrent decision: choose the single best move from the supplied safe actions. "
+      "Use the current board plus the deterministic sensors attached to each option."
 )
 COMPACT_QUESTION = (
-    "Choose a safe Snake move: eat food or get closer while preserving escape space. "
-    "Avoid dead ends and repeated visits. "
-    "food=Manhattan distance before>after (ignores obstacles); "
-    "exits=safe next directions; area=reachable cells with static body; "
-    "visits=recent visits to destination. Coordinates: x right, y down."
+    STATIC_DECISION_CONTEXT
+    + "\n\nCurrent decision: choose the single best move from the supplied safe actions. "
+      "Compact option fields are next=(x,y), food=distance-before>distance-after, eat, exits, "
+      "area, and visits."
 )
 
 
 def add_control_arguments(parser: argparse.ArgumentParser) -> None:
     parser.add_argument("--input-format", choices=("verbose", "compact"), default="verbose")
-    parser.add_argument("--reuse-prefix", action="store_true",
-                        help="Experimental question-first direct scoring with exact prefix reuse")
+    prefix = parser.add_mutually_exclusive_group()
+    prefix.add_argument(
+        "--reuse-prefix",
+        dest="reuse_prefix",
+        action="store_true",
+        help="Force stateful fixed-context reuse for direct/letters scoring",
+    )
+    prefix.add_argument(
+        "--fresh-prefix",
+        dest="reuse_prefix",
+        action="store_false",
+        help="Disable fixed-context reuse and evaluate the full direct prompt fresh",
+    )
+    parser.set_defaults(reuse_prefix=None)
     parser.add_argument("--controller", choices=("model", "adjacent-food"), default="model",
                         help="adjacent-food applies an explicit local food policy before scoring")
+
+
+def prefix_reuse_enabled(args: argparse.Namespace) -> bool:
+    """Use stateful context reuse by default only for the direct choice path."""
+    if args.reuse_prefix is not None:
+        return bool(args.reuse_prefix)
+    return args.scorer in {"direct", "letters"}
 
 
 def _candidate(game: SnakeGame, direction: str, input_format: str = "verbose") -> Candidate:
@@ -77,7 +120,8 @@ def build_request(
 
 
 def build_scorer(args: argparse.Namespace) -> Any:
-    if args.reuse_prefix and args.scorer not in {"direct", "letters"}:
+    reuse_prefix = prefix_reuse_enabled(args)
+    if reuse_prefix and args.scorer not in {"direct", "letters"}:
         raise ValueError("--reuse-prefix requires --scorer direct or letters")
     backend = LlamaCppBackend(
         LlamaCppBackendConfig(
@@ -97,7 +141,7 @@ def build_scorer(args: argparse.Namespace) -> Any:
     if args.scorer == "semantic-independent":
         return IndependentSemanticScorer(backend)
     if args.scorer in {"direct", "letters"}:
-        return LetterTokenScorer(backend, reuse_prefix=args.reuse_prefix)
+        return LetterTokenScorer(backend, reuse_prefix=reuse_prefix)
     raise ValueError(f"unsupported Snake scorer: {args.scorer}")
 
 
@@ -120,9 +164,16 @@ def build_request_data(
     if input_format not in {"verbose", "compact"}:
         raise ValueError(f"unknown input format: {input_format}")
     state = game.state()
+    # Static coordinate/legend semantics live in STATIC_DECISION_CONTEXT. Keep the model request
+    # focused on the current board and deterministic candidate sensors rather than replaying
+    # bounded history or static instructions on every step.
+    state.pop("decision_memory", None)
+    state.pop("legend", None)
+    board = dict(state["board"])
+    board.pop("coordinates", None)
+    state["board"] = board
     if input_format == "compact":
         state.pop("board_grid")
-        state.pop("legend")
     return {
         "id": f"snake-step-{game.steps}",
         "state": state,
@@ -175,6 +226,12 @@ def choose_move(
         "legal_actions": list(legal),
         "safe_actions": list(safe),
         "candidate_features": features,
+        "decision_context": {
+            "id": DECISION_CONTEXT_ID,
+            "sha256": DECISION_CONTEXT_SHA256,
+            "state_scope": "current_only",
+            "static_prefix_reusable": True,
+        },
         "filtered_actions": {
             direction: reason
             for direction, reason in constraints.items()
@@ -196,8 +253,8 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--model", type=Path, required=True)
     add_control_arguments(parser)
     parser.add_argument("--n-ctx", type=int, default=8192)
-    parser.add_argument("--n-batch", type=int, default=512)
-    parser.add_argument("--n-ubatch", type=int, default=512)
+    parser.add_argument("--n-batch", type=int, default=128)
+    parser.add_argument("--n-ubatch", type=int, default=128)
     parser.add_argument("--threads", type=int)
     parser.add_argument("--threads-batch", type=int)
     parser.add_argument("--max-sequences", type=int, default=8)
@@ -232,21 +289,42 @@ def main(argv: list[str] | None = None) -> int:
 
     total_model_latency = 0.0
     model_decisions = 0
+    total_logical_input_tokens = 0
+    total_physical_input_tokens = 0
+    repeated_state_cache_hits = 0
+    backend = scorer.backend
     try:
         while game.alive and game.steps < args.max_steps:
             if args.render:
                 print(f"\nstep={game.steps} score={game.score} direction={game.direction}")
                 print(game.render())
+            reset_metrics = getattr(backend, "reset_runtime_metrics", None)
+            if callable(reset_metrics):
+                reset_metrics()
             request_data, decision, latency, constraints = choose_move(
                 game, scorer, input_format=args.input_format, controller=args.controller,
             )
+            runtime_metrics: dict[str, Any] = {}
+            metrics = getattr(backend, "runtime_metrics", None)
+            if callable(metrics):
+                value = metrics()
+                if isinstance(value, dict):
+                    runtime_metrics = dict(value)
             total_model_latency += latency
             model_decisions += int(constraints["mode"] == "model")
+            total_logical_input_tokens += int(runtime_metrics.get("logical_input_tokens", 0))
+            total_physical_input_tokens += int(
+                runtime_metrics.get("physically_evaluated_tokens", 0)
+            )
+            repeated_state_cache_hits += int(
+                runtime_metrics.get("repeated_state_cache_hits", 0)
+            )
             outcome = game.step(decision.choice)
             print(
                 f"step={game.steps:03d} choice={decision.choice:<5} "
                 f"score={game.score:02d} p={decision.distribution[decision.choice]:.4f} "
                 f"latency={latency:.3f}s mode={constraints['mode']} "
+                f"reuse={runtime_metrics.get('reuse_ratio', 0.0):.3f} "
                 f"alive={outcome.alive} reason={outcome.reason or '-'}"
             )
             if args.trace is not None:
@@ -256,6 +334,7 @@ def main(argv: list[str] | None = None) -> int:
                     "constraints": constraints,
                     "decision_latency_seconds": latency,
                     "decision": decision.to_dict(),
+                    "runtime_metrics": runtime_metrics,
                     "outcome": {
                         "alive": outcome.alive,
                         "ate_food": outcome.ate_food,
@@ -264,7 +343,7 @@ def main(argv: list[str] | None = None) -> int:
                     },
                 })
     finally:
-        close = getattr(scorer.backend, "close", None)
+        close = getattr(backend, "close", None)
         if callable(close):
             close()
 
@@ -282,6 +361,11 @@ def main(argv: list[str] | None = None) -> int:
         "model": args.model.name,
         "seed": args.seed,
         "model_decisions": model_decisions,
+        "decision_context_id": DECISION_CONTEXT_ID,
+        "prefix_reuse_enabled": prefix_reuse_enabled(args),
+        "logical_input_tokens": total_logical_input_tokens,
+        "physically_evaluated_tokens": total_physical_input_tokens,
+        "repeated_state_cache_hits": repeated_state_cache_hits,
         "total_model_latency_seconds": total_model_latency,
         "mean_model_latency_seconds": (
             total_model_latency / model_decisions if model_decisions else 0.0
