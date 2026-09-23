@@ -87,17 +87,17 @@ The scoped repeated-state contract is
 Materialize and run the frozen 48-case / 8-state workload:
 
 ```bash
-uv run python benchmarks/build_repeated_state_gate_fixture.py \
+uv run python -m benchmarks.build_repeated_state_gate_fixture \
   --output .artifacts/repeated-state-gate-v3/fixture.json
 
-uv run python benchmarks/run_repeated_state_gate.py \
+uv run python -m benchmarks.run_repeated_state_gate \
   --fixture .artifacts/repeated-state-gate-v3/fixture.json \
   --model /path/to/Qwen3.5-2B-Q4_K_M.gguf \
   --output .artifacts/repeated-state-gate-v3/report.json \
   --n-ctx 8192 --n-batch 512 --n-ubatch 512 \
   --threads 2 --threads-batch 2
 
-uv run python benchmarks/evaluate_repeated_state_gate.py \
+uv run python -m benchmarks.evaluate_repeated_state_gate \
   --report .artifacts/repeated-state-gate-v3/report.json \
   --output-dir .artifacts/repeated-state-gate-v3 \
   --require-pass

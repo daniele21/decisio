@@ -55,12 +55,12 @@ jobs:
 
       - name: Materialize frozen repeated-state workload
         run: |
-          python benchmarks/build_repeated_state_gate_fixture.py \
+          python -m benchmarks.build_repeated_state_gate_fixture \
             --output "$GATE_INPUT"
 
       - name: Run repeated-state comparison
         run: |
-          python benchmarks/run_repeated_state_gate.py \
+          python -m benchmarks.run_repeated_state_gate \
             --fixture "$GATE_INPUT" \
             --model "$MODEL" \
             --output "$GATE_REPORT" \
@@ -72,7 +72,7 @@ jobs:
 
       - name: Apply precommitted repeated-state gate v3
         run: |
-          python benchmarks/evaluate_repeated_state_gate.py \
+          python -m benchmarks.evaluate_repeated_state_gate \
             --report "$GATE_REPORT" \
             --output-dir "$GATE_DIR" \
             --require-pass
