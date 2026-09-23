@@ -19,6 +19,7 @@ Active plan: [llama.cpp reference runtime migration](workstreams/llama-cpp-refer
 | Repeated-state gate v3 | ACTIVE | frozen 48-case/8-state scoped promotion experiment |
 | Product foundation | ACTIVE | PR #1 remains draft until the scorer scope is decided |
 | Snake stateful reference loop | ACTIVE | fixed decision context + current-only dynamic state + direct logits + fresh/cache oracle |
+| Snake controller quality benchmark | ACTIVE | bounded dynamic-body oracle + append-only fixed/episode matrix implemented; reference 2B screening evidence pending |
 
 ## Reference identity
 
@@ -74,6 +75,7 @@ zero-generation choice readout and observable context reuse.
 ## Next
 
 1. Validate the new Snake stateful direct path on real-model smoke: cached and fresh stateful prompts must return identical choices/scores and cached execution must reduce physical token work.
-2. Measure gameplay quality/optimality separately; cache efficiency is not controller quality.
-3. Keep repeated-state gate v3 as scoped semantic-v2 evidence without treating it as the universal scorer.
-4. Shape the smallest stable DecisionSession API only after the runtime contract is proven.
+2. Run the Snake controller screening matrix on the pinned reference 2B model; require oracle coverage, fixed-state quality, episode outcomes and append-only evidence before selecting a controller family.
+3. Freeze a holdout Snake fixture before prompt/controller tuning is treated as validated; cache efficiency is not controller quality.
+4. Keep repeated-state gate v3 as scoped semantic-v2 evidence without treating it as the universal scorer.
+5. Shape the smallest stable DecisionSession API only after the runtime contract is proven.
