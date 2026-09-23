@@ -1,0 +1,135 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Decisio Snake</title>
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <img src="/decisio-mark.svg" alt="" width="34" height="34">
+      <div>
+        <strong>Decisio</strong>
+        <span>snake</span>
+      </div>
+    </div>
+    <div class="runtime">
+      <span id="modelBadge" class="pill">loading model…</span>
+      <span id="modeBadge" class="pill subtle">LOCAL</span>
+    </div>
+  </header>
+
+  <main class="shell">
+    <section class="panel game-panel" aria-label="Snake game">
+      <div class="section-head">
+        <div>
+          <div class="eyebrow">GAME</div>
+          <h1>One state. One decision. One move.</h1>
+        </div>
+        <div class="controls">
+          <button id="toggleBtn" class="primary">Start</button>
+          <button id="stepBtn">1 move</button>
+          <button id="resetBtn">Reset</button>
+        </div>
+      </div>
+
+      <div class="phase-rail" aria-label="Decision phase">
+        <div data-phase="observe" class="phase active"><span>1</span><b>OBSERVE</b></div>
+        <div class="connector"></div>
+        <div data-phase="decide" class="phase"><span>2</span><b>DECIDE</b></div>
+        <div class="connector"></div>
+        <div data-phase="act" class="phase"><span>3</span><b>ACT</b></div>
+      </div>
+
+      <div class="board-wrap">
+        <canvas id="board" role="img" aria-label="Snake board"></canvas>
+        <div id="gameOverlay" class="overlay" hidden>
+          <strong id="overlayTitle">Game over</strong>
+          <span id="overlayText"></span>
+        </div>
+      </div>
+
+      <div class="metrics game-metrics">
+        <div class="metric"><b id="scoreMetric">0</b><span>score</span></div>
+        <div class="metric"><b id="lengthMetric">3</b><span>length</span></div>
+        <div class="metric"><b id="moveMetric">0</b><span>move</span></div>
+        <div class="metric"><b id="phaseMetric">observe</b><span>phase</span></div>
+      </div>
+
+      <div class="hold-control">
+        <label for="holdRange">Reveal hold <strong id="holdLabel">750 ms</strong></label>
+        <input id="holdRange" type="range" min="0" max="2000" step="100" value="750">
+      </div>
+    </section>
+
+    <section class="panel decision-panel" aria-label="Model decision">
+      <div class="eyebrow">MODEL DECISION</div>
+
+      <div id="verdict" class="verdict idle">
+        <div id="verdictArrow" class="arrow">·</div>
+        <div>
+          <div id="verdictTitle" class="verdict-title">Waiting</div>
+          <div id="verdictSub" class="verdict-sub">Start the game or request one move.</div>
+        </div>
+      </div>
+
+      <div id="choices" class="choices" aria-live="polite"></div>
+
+      <div class="subsection">
+        <div class="subsection-title">CONSTRAINTS BEFORE MODEL</div>
+        <div id="constraints" class="constraint-list">
+          <span class="muted">No decision yet.</span>
+        </div>
+      </div>
+
+      <div class="subsection">
+        <div class="subsection-title">EVIDENCE</div>
+        <div class="metrics evidence-grid">
+          <div class="metric"><b id="latencyMetric">—</b><span>decision latency</span></div>
+          <div class="metric"><b id="roundtripMetric">—</b><span>browser round-trip</span></div>
+          <div class="metric"><b id="tokensMetric">0</b><span>generated tokens</span></div>
+          <div class="metric"><b id="reuseMetric">—</b><span>reuse ratio</span></div>
+        </div>
+        <div class="meta-lines">
+          <div><span>model</span><b id="modelLine">—</b></div>
+          <div><span>scorer</span><b id="scorerLine">—</b></div>
+          <div><span>execution</span><b id="executionLine">—</b></div>
+        </div>
+      </div>
+
+      <div class="subsection">
+        <div class="subsection-title row-between">
+          <span>DECISION LOG</span>
+          <span id="logCount" class="muted">0 moves</span>
+        </div>
+        <div id="decisionLog" class="decision-log">
+          <div class="empty">No decisions yet.</div>
+        </div>
+      </div>
+
+      <details>
+        <summary>Last request / response</summary>
+        <div class="json-grid">
+          <div>
+            <div class="subsection-title">REQUEST</div>
+            <pre id="requestJson">{}</pre>
+          </div>
+          <div>
+            <div class="subsection-title">RESPONSE</div>
+            <pre id="responseJson">{}</pre>
+          </div>
+        </div>
+      </details>
+
+      <p class="note">
+        Relative preferences are uncalibrated model scores, not probability of correctness.
+        Deterministically invalid moves are filtered before scoring.
+      </p>
+    </section>
+  </main>
+
+  <script src="/app.js" defer></script>
+</body>
+</html>

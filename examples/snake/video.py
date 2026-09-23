@@ -40,18 +40,18 @@ def _font(ImageFont: Any, size: int, *, bold: bool = False):
 
 
 PALETTE = {
-    "bg": "#f6f5f1",
-    "panel": "#ffffff",
-    "ink": "#1b1d1f",
-    "muted": "#6a6f76",
-    "line": "#dedcd5",
-    "accent": "#0b8f6c",
-    "accent_soft": "#dff3ec",
-    "track": "#ebe9e2",
-    "warn": "#b4540a",
-    "warn_soft": "#fbead8",
-    "bad": "#b3261e",
-    "bad_soft": "#fbe3e1",
+    "bg": "#F7FAFC",
+    "panel": "#FFFFFF",
+    "ink": "#112543",
+    "muted": "#66758A",
+    "line": "#DBE5EC",
+    "accent": "#03C27E",
+    "accent_soft": "#D2F2F1",
+    "track": "#EDF3F6",
+    "warn": "#B46A13",
+    "warn_soft": "#FFF3DE",
+    "bad": "#B33B32",
+    "bad_soft": "#FDEBE8",
 }
 
 _DIRECTION_DELTAS = {
