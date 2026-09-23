@@ -296,16 +296,63 @@ jobs:
           python - <<'PY'
           import json
           from pathlib import Path
-          rows = Path("/tmp/decisio-snake-smoke.jsonl").read_text().splitlines()
+          rows = [json.loads(line) for line in Path("/tmp/decisio-snake-smoke.jsonl").read_text().splitlines()]
           assert 1 <= len(rows) <= 5, rows
-          for line in rows:
-              record = json.loads(line)
+          model_rows = []
+          for record in rows:
               decision = record["decision"]
               safe = set(record["constraints"]["safe_actions"])
+              assert record["constraints"]["decision_context"]["id"] == "snake-stateful-v1", record
+              assert record["constraints"]["decision_context"]["state_scope"] == "current_only", record
+              assert "decision_memory" not in record["request"]["state"], record
               assert decision["generated_tokens"] == 0, record
               assert abs(sum(decision["distribution"].values()) - 1.0) < 1e-6, record
               if safe:
                   assert decision["choice"] in safe, record
+              if record["constraints"]["mode"] == "model":
+                  model_rows.append(record)
+          assert model_rows, rows
+          if len(model_rows) > 1:
+              assert sum(r["runtime_metrics"].get("repeated_state_cache_hits", 0) for r in model_rows) > 0, model_rows
+              assert any(
+                  r["runtime_metrics"].get("physically_evaluated_tokens", 0)
+                  < r["runtime_metrics"].get("logical_input_tokens", 0)
+                  for r in model_rows[1:]
+              ), model_rows
+          PY
+
+      - name: Check stateful Snake fresh/cache equivalence
+        run: |
+          python -m examples.snake.benchmark_inputs \
+            --model "$DECISIO_SMOKE_MODEL" \
+            --output /tmp/decisio-snake-stateful.jsonl \
+            --batch 128 \
+            --threads 2 \
+            --threads-batch 2 \
+            --rounds 1 \
+            --variants stateful_fresh stateful_shared
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          rows = [json.loads(line) for line in Path("/tmp/decisio-snake-stateful.jsonl").read_text().splitlines()]
+          pairs = {}
+          for row in rows:
+              key = (tuple(row["food"]), row["reverse"], row["round"])
+              pairs.setdefault(key, {})[row["variant"]] = row
+          assert len(pairs) == 12, pairs.keys()
+          total_logical = total_physical = total_hits = 0
+          for pair in pairs.values():
+              fresh = pair["stateful_fresh"]
+              shared = pair["stateful_shared"]
+              assert fresh["decision"]["choice"] == shared["decision"]["choice"], pair
+              assert fresh["decision"]["scores"] == shared["decision"]["scores"], pair
+              runtime = shared["runtime"]
+              total_logical += runtime["logical_input_tokens"]
+              total_physical += runtime["physically_evaluated_tokens"]
+              total_hits += runtime["repeated_state_cache_hits"]
+          assert total_hits > 0, rows
+          assert total_physical < total_logical, (total_physical, total_logical)
           PY
       - name: Install video dependencies
         run: |
@@ -329,6 +376,7 @@ jobs:
           path: |
             /tmp/decisio-snake.mp4
             /tmp/decisio-snake-smoke.jsonl
+            /tmp/decisio-snake-stateful.jsonl
             /tmp/decisio-real-model-smoke.json
             /tmp/decisio-shared-fresh-equivalence.json
             /tmp/decisio-repeated-state-cache.json
