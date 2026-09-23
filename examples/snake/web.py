@@ -13,7 +13,13 @@ from typing import Any
 from urllib.parse import urlparse
 
 from examples.snake.game import SnakeGame
-from examples.snake.play import SCORER_CHOICES, append_trace, build_request, build_scorer, choose_move
+from examples.snake.play import (
+    SCORER_CHOICES,
+    append_trace,
+    build_request,
+    build_scorer,
+    choose_move,
+)
 
 STATIC_ROOT = Path(__file__).with_name("static")
 REPO_ROOT = Path(__file__).resolve().parents[2]

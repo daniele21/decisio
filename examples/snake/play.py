@@ -11,7 +11,7 @@ from typing import Any
 from decisio.backends.llama_cpp import LlamaCppBackend, LlamaCppBackendConfig
 from decisio.schema import Candidate, ChoiceRequest, DecisionResult
 from decisio.scorers import IndependentSemanticScorer, LetterTokenScorer, SemanticBinaryScorer
-from examples.snake.game import DIRECTIONS, SnakeGame
+from examples.snake.game import SnakeGame
 
 SCORER_CHOICES = ("direct", "semantic", "semantic-independent", "letters")
 
