@@ -4,6 +4,10 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
+import platform
+import resource
+import subprocess
 import threading
 import webbrowser
 from http import HTTPStatus
@@ -25,6 +29,107 @@ from examples.snake.play import (
 STATIC_ROOT = Path(__file__).with_name("static")
 REPO_ROOT = Path(__file__).resolve().parents[2]
 BRAND_MARK = REPO_ROOT / "assets" / "brand" / "decisio-mark.svg"
+BRAND_MARK_DARK = REPO_ROOT / "assets" / "brand" / "decisio-mark-dark.svg"
+BRAND_PATTERN = REPO_ROOT / "brand" / "decisio-pattern.png"
+CONFIG_PATH = Path(__file__).with_name("ui_config.json")
+
+MIME_TYPES: dict[str, str] = {
+    ".html": "text/html; charset=utf-8",
+    ".css": "text/css; charset=utf-8",
+    ".js": "text/javascript; charset=utf-8",
+    ".json": "application/json; charset=utf-8",
+    ".svg": "image/svg+xml",
+    ".png": "image/png",
+    ".jpg": "image/jpeg",
+    ".jpeg": "image/jpeg",
+    ".ico": "image/x-icon",
+    ".woff2": "font/woff2",
+}
+
+
+def _get_system_telemetry() -> dict[str, Any]:
+    """Capture host machine, OS, processor, CPU count and live RAM metrics."""
+    uname = platform.uname()
+    chip = uname.processor or uname.machine
+    total_mem = None
+    if uname.system == "Darwin":
+        try:
+            val = subprocess.check_output(
+                ["sysctl", "-n", "machdep.cpu.brand_string"],
+                text=True,
+                stderr=subprocess.DEVNULL,
+            ).strip()
+            if val:
+                chip = val
+        except Exception:
+            pass
+        try:
+            mem_bytes = int(
+                subprocess.check_output(
+                    ["sysctl", "-n", "hw.memsize"],
+                    text=True,
+                    stderr=subprocess.DEVNULL,
+                ).strip()
+            )
+            total_mem = f"{mem_bytes / (1024**3):.1f} GB"
+        except Exception:
+            pass
+    elif uname.system == "Linux":
+        try:
+            with open("/proc/meminfo") as f:
+                for line in f:
+                    if line.startswith("MemTotal:"):
+                        kb = int(line.split()[1])
+                        total_mem = f"{kb / (1024**2):.1f} GB"
+                        break
+        except Exception:
+            pass
+
+    usage = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
+    rss_bytes = usage if uname.system == "Darwin" else usage * 1024
+    if rss_bytes >= 1024**3:
+        rss_str = f"{rss_bytes / (1024**3):.2f} GB"
+    else:
+        rss_str = f"{rss_bytes / (1024**2):.1f} MB"
+
+    mac_ver = platform.mac_ver()[0]
+    os_str = f"macOS {mac_ver}" if mac_ver else f"{uname.system} {uname.release}"
+
+    return {
+        "hostname": platform.node(),
+        "chip": chip,
+        "os": os_str,
+        "arch": uname.machine,
+        "cpu_count": os.cpu_count() or 1,
+        "total_memory": total_mem or "N/A",
+        "process_rss": rss_str,
+        "python_version": platform.python_version(),
+        "pid": os.getpid(),
+    }
+
+
+
+def _load_ui_config() -> dict[str, Any]:
+    if CONFIG_PATH.is_file():
+        try:
+            return json.loads(CONFIG_PATH.read_text(encoding="utf-8"))
+        except Exception:
+            pass
+    return {
+        "theme": {"default": "dark", "allow_toggle": True, "pattern_background": True},
+        "board": {
+            "snake_style": "brand-gradient",
+            "glow_effects": True,
+            "show_candidate_overlays": True,
+        },
+        "gameplay": {"default_hold_ms": 750},
+        "panels": {
+            "show_model_io": True,
+            "show_decision_log": True,
+            "show_runtime_metrics": True,
+        },
+    }
+
 
 
 class SnakeSession:
@@ -99,12 +204,15 @@ class SnakeSession:
             "score": self.game.score,
             "snake_length": len(self.game.snake),
             "seed": self.seed,
+            "width": self.width,
+            "height": self.height,
             "max_steps": self.max_steps,
             "limit_reached": self.game.steps >= self.max_steps,
             "scorer": getattr(self.scorer, "name", type(self.scorer).__name__),
             "input_format": self.input_format,
             "controller": self.controller,
             "model": self._runtime_identity(),
+            "system": _get_system_telemetry(),
         }
 
     def reset(self) -> dict[str, Any]:
@@ -219,16 +327,32 @@ class SnakeDemoHandler(BaseHTTPRequestHandler):
         path = urlparse(self.path).path
         if path == "/":
             self._send_file(STATIC_ROOT / "index.html", "text/html; charset=utf-8")
-        elif path == "/style.css":
-            self._send_file(STATIC_ROOT / "style.css", "text/css; charset=utf-8")
-        elif path == "/app.js":
-            self._send_file(STATIC_ROOT / "app.js", "text/javascript; charset=utf-8")
         elif path == "/decisio-mark.svg":
             self._send_file(BRAND_MARK, "image/svg+xml")
+        elif path == "/decisio-mark-dark.svg":
+            self._send_file(BRAND_MARK_DARK, "image/svg+xml")
+        elif path == "/decisio-pattern.png":
+            self._send_file(BRAND_PATTERN, "image/png")
         elif path == "/api/status":
             self._send_json(HTTPStatus.OK, self.server.session.status())
+        elif path == "/api/config":
+            self._send_json(HTTPStatus.OK, _load_ui_config())
         else:
-            self._send_json(HTTPStatus.NOT_FOUND, {"error": "not found"})
+            rel = path.lstrip("/")
+            resolved = (STATIC_ROOT / rel).resolve()
+            static_resolved = STATIC_ROOT.resolve()
+            try:
+                resolved.relative_to(static_resolved)
+                is_safe = True
+            except ValueError:
+                is_safe = False
+
+            if is_safe and resolved.is_file():
+                ext = resolved.suffix.lower()
+                content_type = MIME_TYPES.get(ext, "application/octet-stream")
+                self._send_file(resolved, content_type)
+            else:
+                self._send_json(HTTPStatus.NOT_FOUND, {"error": "not found"})
 
     def do_POST(self) -> None:  # noqa: N802
         path = urlparse(self.path).path

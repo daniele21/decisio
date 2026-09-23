@@ -1,0 +1,201 @@
+/* Decision Verdict Card, Probability Bars, and Candidate Choices */
+
+.decision-panel {
+  display: grid;
+  gap: 16px;
+}
+
+/* Hero Verdict Card */
+.verdict {
+  min-height: 94px;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 14px 18px;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  background: var(--bg-card);
+  transition: all var(--transition-normal);
+  position: relative;
+  overflow: hidden;
+}
+
+.verdict::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 4px;
+  background: transparent;
+  transition: background var(--transition-fast);
+}
+
+.verdict.deciding {
+  border-color: rgba(2, 201, 193, 0.45);
+  background: var(--decisio-gradient-subtle);
+  box-shadow: 0 0 20px rgba(2, 201, 193, 0.15);
+}
+
+.verdict.deciding::before {
+  background: var(--decisio-teal);
+}
+
+.verdict.selected {
+  border-color: rgba(3, 194, 126, 0.45);
+  background: var(--decisio-gradient-subtle);
+}
+
+.verdict.selected::before {
+  background: var(--decisio-emerald);
+}
+
+.verdict.rule {
+  border-color: rgba(217, 119, 6, 0.35);
+  background: var(--warn-soft);
+}
+
+.verdict.rule::before {
+  background: var(--warn);
+}
+
+.arrow {
+  width: 54px;
+  flex: 0 0 54px;
+  text-align: center;
+  color: var(--decisio-emerald);
+  font: 800 44px/1 var(--font-mono);
+  transition: color var(--transition-fast);
+}
+
+.verdict.deciding .arrow {
+  animation: pulseArrow 1s ease-in-out infinite;
+  color: var(--decisio-teal);
+}
+
+.verdict.rule .arrow {
+  color: var(--warn);
+}
+
+.verdict-title {
+  color: var(--text-heading);
+  font: 800 22px/1.15 var(--font-mono);
+  letter-spacing: -0.01em;
+}
+
+.verdict-sub {
+  margin-top: 4px;
+  color: var(--text-secondary);
+  font-size: 12.5px;
+}
+
+/* Choices List & Progress Bars */
+.choices {
+  display: grid;
+  gap: 8px;
+}
+
+.choice {
+  display: grid;
+  grid-template-columns: 96px 1fr 64px;
+  gap: 12px;
+  align-items: center;
+  min-height: 42px;
+  padding: 6px 10px;
+  border-radius: var(--radius-sm);
+  background: var(--bg-card);
+  border: 1px solid var(--border-subtle);
+  transition: all var(--transition-fast);
+}
+
+.choice:hover {
+  background: var(--bg-hover);
+  border-color: var(--border-strong);
+}
+
+.choice-name {
+  color: var(--text-heading);
+  font: 700 12.5px var(--font-mono);
+  white-space: nowrap;
+}
+
+.choice-name small {
+  display: block;
+  color: var(--text-muted);
+  font: 500 9.5px var(--font-sans);
+  margin-top: 1px;
+}
+
+.choice.filtered .choice-name {
+  color: var(--text-muted);
+  opacity: 0.6;
+}
+
+.choice.filtered .choice-name small {
+  color: var(--warn);
+  opacity: 1;
+}
+
+.track {
+  height: 10px;
+  overflow: hidden;
+  border-radius: var(--radius-full);
+  background: var(--bg-track);
+}
+
+.track i {
+  display: block;
+  width: 0;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--border-strong);
+  transition: width 0.25s ease-out;
+}
+
+.choice.selected .track i {
+  background: var(--decisio-gradient);
+  box-shadow: 0 0 10px rgba(3, 194, 126, 0.4);
+}
+
+.choice.filtered .track i {
+  background: transparent;
+}
+
+.choice-value {
+  color: var(--text-secondary);
+  text-align: right;
+  font: 650 11.5px var(--font-mono);
+}
+
+.choice.selected .choice-value,
+.choice.selected .choice-name {
+  color: var(--decisio-emerald);
+}
+
+/* Constraint Chips */
+.constraint-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.constraint {
+  padding: 4px 10px;
+  border-radius: var(--radius-full);
+  background: var(--warn-soft);
+  color: var(--warn);
+  font: 650 10.5px var(--font-mono);
+  border: 1px solid rgba(217, 119, 6, 0.25);
+}
+
+.muted {
+  color: var(--text-muted);
+  font-weight: 500;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+@keyframes pulseArrow {
+  50% { opacity: 0.3; transform: scale(0.92); }
+}

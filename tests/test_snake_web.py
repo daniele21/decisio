@@ -73,6 +73,11 @@ def test_snake_web_status_exposes_candidates_before_model():
     assert status["next_request"]["candidates"][0]["description"]
     assert status["model"]["n_threads"] == 5
     assert status["model"]["n_threads_batch"] == 11
+    assert "system" in status
+    assert status["system"]["hostname"]
+    assert status["system"]["chip"]
+    assert status["system"]["cpu_count"] >= 1
+    assert "process_rss" in status["system"]
 
 
 def test_single_safe_action_status_can_be_previewed_without_choice_request():
@@ -143,3 +148,60 @@ def test_snake_web_close_closes_backend():
     session.close()
 
     assert scorer.backend.closed is True
+
+
+def test_snake_web_load_ui_config():
+    from examples.snake.web import _load_ui_config
+
+    config = _load_ui_config()
+    assert isinstance(config, dict)
+    assert "theme" in config
+    assert "board" in config
+    assert config["theme"]["default"] in ("dark", "light", "system")
+
+
+def test_snake_web_server_endpoints():
+    import json
+    import threading
+    import urllib.request
+
+    from examples.snake.web import SnakeDemoServer
+
+    scorer = FakeScorer()
+    session = SnakeSession(scorer=scorer, seed=1, width=8, height=8, max_steps=10)
+    server = SnakeDemoServer(("127.0.0.1", 0), session=session)
+    thread = threading.Thread(target=server.serve_forever, daemon=True)
+    thread.start()
+    port = server.server_address[1]
+    base_url = f"http://127.0.0.1:{port}"
+
+    try:
+        with urllib.request.urlopen(f"{base_url}/") as res:
+            assert res.status == 200
+            assert b"Decisio Snake" in res.read()
+
+        with urllib.request.urlopen(f"{base_url}/api/config") as res:
+            assert res.status == 200
+            data = json.loads(res.read())
+            assert "theme" in data
+
+        with urllib.request.urlopen(f"{base_url}/style.css") as res:
+            assert res.status == 200
+            assert b"@import" in res.read()
+
+        with urllib.request.urlopen(f"{base_url}/css/tokens.css") as res:
+            assert res.status == 200
+            assert b"--decisio-navy" in res.read()
+
+        with urllib.request.urlopen(f"{base_url}/js/config.js") as res:
+            assert res.status == 200
+            assert b"export" in res.read()
+
+        with urllib.request.urlopen(f"{base_url}/decisio-mark-dark.svg") as res:
+            assert res.status == 200
+            assert b"<svg" in res.read()
+    finally:
+        server.shutdown()
+        server.server_close()
+
+

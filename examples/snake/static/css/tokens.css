@@ -1,0 +1,114 @@
+/* Decisio Brand Design Tokens & Theming System
+   Derived from brand/BRAND.md & brand/tokens/brand.css */
+
+:root {
+  /* Brand Primitive Colors */
+  --decisio-navy: #112543;
+  --decisio-emerald: #03c27e;
+  --decisio-teal: #02c9c1;
+  --decisio-azure: #01c8f6;
+  --decisio-mint: #65dfd5;
+  --decisio-ice: #d2f2f1;
+  --decisio-off-white: #f7fafc;
+  --decisio-white: #ffffff;
+
+  /* Brand Gradient (120deg: Emerald -> Teal -> Azure) */
+  --decisio-gradient: linear-gradient(120deg, #03c27e 0%, #02c9c1 52%, #01c8f6 100%);
+  --decisio-gradient-hover: linear-gradient(120deg, #05d68d 0%, #03ded5 52%, #1ad3fd 100%);
+  --decisio-gradient-subtle: linear-gradient(120deg, rgba(3, 194, 126, 0.15) 0%, rgba(2, 201, 193, 0.15) 52%, rgba(1, 200, 246, 0.15) 100%);
+
+  /* Functional Colors */
+  --warn: #d97706;
+  --warn-soft: rgba(217, 119, 6, 0.14);
+  --bad: #e11d48;
+  --bad-soft: rgba(225, 29, 72, 0.14);
+  --info: #0284c7;
+
+  /* Typography */
+  --font-sans: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Consolas, monospace;
+
+  /* Geometry & Motion */
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+  --radius-xl: 20px;
+  --radius-full: 9999px;
+  --transition-fast: 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-normal: 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Dark Theme (Brand Navy / Cybernetic AI Console - Default) */
+[data-theme="dark"],
+:root:not([data-theme="light"]) {
+  color-scheme: dark;
+  --bg-app: #08111e;
+  --bg-app-radial: radial-gradient(circle at 20% 0%, rgba(2, 201, 193, 0.12), transparent 32rem),
+                   radial-gradient(circle at 80% 10%, rgba(1, 200, 246, 0.08), transparent 28rem),
+                   #08111e;
+  --bg-panel: rgba(14, 27, 46, 0.75);
+  --bg-card: rgba(18, 35, 60, 0.7);
+  --bg-card-elevated: rgba(23, 44, 76, 0.9);
+  --bg-hover: rgba(101, 223, 213, 0.08);
+  --bg-active: rgba(101, 223, 213, 0.16);
+  --bg-track: rgba(255, 255, 255, 0.07);
+
+  --border-subtle: rgba(101, 223, 213, 0.14);
+  --border-strong: rgba(101, 223, 213, 0.28);
+  --border-glow: rgba(3, 194, 126, 0.45);
+
+  --text-primary: #f7fafc;
+  --text-secondary: #9cb2c9;
+  --text-muted: #647b94;
+  --text-heading: #ffffff;
+
+  --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.3);
+  --shadow-md: 0 8px 24px rgba(0, 0, 0, 0.45);
+  --shadow-panel: 0 16px 40px rgba(0, 0, 0, 0.5), 0 0 0 1px var(--border-subtle);
+
+  --board-bg: #070e1a;
+  --board-cell: #0b172a;
+  --board-grid: rgba(101, 223, 213, 0.06);
+
+  --pill-bg: rgba(2, 201, 193, 0.12);
+  --pill-text: #65dfd5;
+  --pill-subtle-bg: rgba(255, 255, 255, 0.06);
+  --pill-subtle-text: #8fa3b8;
+}
+
+/* Light Theme (Brand Off-White / Scientific) */
+[data-theme="light"] {
+  color-scheme: light;
+  --bg-app: #f7fafc;
+  --bg-app-radial: radial-gradient(circle at 14% 0%, rgba(101, 223, 213, 0.15), transparent 28rem),
+                   radial-gradient(circle at 86% 12%, rgba(1, 200, 246, 0.10), transparent 26rem),
+                   #f7fafc;
+  --bg-panel: #ffffff;
+  --bg-card: #fbfdfe;
+  --bg-card-elevated: #ffffff;
+  --bg-hover: #f1f7fa;
+  --bg-active: #e5f3f4;
+  --bg-track: #edf3f6;
+
+  --border-subtle: #dbe5ec;
+  --border-strong: #bacdd9;
+  --border-glow: rgba(3, 194, 126, 0.35);
+
+  --text-primary: #112543;
+  --text-secondary: #4a5d73;
+  --text-muted: #73869c;
+  --text-heading: #112543;
+
+  --shadow-sm: 0 2px 6px rgba(17, 37, 67, 0.04);
+  --shadow-md: 0 8px 20px rgba(17, 37, 67, 0.07);
+  --shadow-panel: 0 16px 44px rgba(17, 37, 67, 0.07), 0 0 0 1px var(--border-subtle);
+
+  --board-bg: #f7fafc;
+  --board-cell: #ffffff;
+  --board-grid: #e2ecf2;
+
+  --pill-bg: #d2f2f1;
+  --pill-text: #112543;
+  --pill-subtle-bg: #edf3f6;
+  --pill-subtle-text: #66758a;
+}

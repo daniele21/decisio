@@ -1,0 +1,33 @@
+{
+  "$schema": "./ui_config.schema.json",
+  "theme": {
+    "default": "dark",
+    "allow_toggle": true,
+    "pattern_background": true,
+    "accent": "emerald"
+  },
+  "board": {
+    "snake_style": "brand-gradient",
+    "glow_effects": true,
+    "show_candidate_overlays": true,
+    "show_grid": true,
+    "border_radius": 14
+  },
+  "gameplay": {
+    "default_hold_ms": 750,
+    "speed_presets": [100, 250, 500, 750, 1000, 1500]
+  },
+  "panels": {
+    "show_system_telemetry": true,
+    "show_model_io": true,
+    "show_decision_log": true,
+    "show_runtime_metrics": true,
+    "max_log_entries": 100
+  },
+  "branding": {
+    "title": "Decisio Snake",
+    "tagline": "One state. One decision. One move.",
+    "mark_svg_light": "/decisio-mark.svg",
+    "mark_svg_dark": "/decisio-mark-dark.svg"
+  }
+}

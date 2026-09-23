@@ -1,0 +1,122 @@
+/* Host Machine, System Resources, and Hardware Configuration HUD */
+
+.host-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  background: var(--bg-card);
+  border: 1px solid var(--border-strong);
+  color: var(--text-primary);
+  font: 600 11px/1.2 var(--font-mono);
+  padding: 4px 11px;
+}
+
+.live-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--decisio-emerald);
+  box-shadow: 0 0 8px var(--decisio-emerald);
+  display: inline-block;
+  animation: pulseDot 2s ease-in-out infinite;
+}
+
+/* System Telemetry Section */
+.system-hud-card {
+  display: grid;
+  gap: 12px;
+  padding: 14px;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  background: var(--bg-card);
+  margin-top: 10px;
+}
+
+.system-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.system-item {
+  min-width: 0;
+  padding: 9px 10px;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  background: var(--bg-surface);
+  transition: all var(--transition-fast);
+}
+
+.system-item:hover {
+  border-color: var(--border-strong);
+  background: var(--bg-card-elevated);
+}
+
+.system-item .kicker {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  color: var(--decisio-teal);
+  font-size: 9.5px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.system-item b {
+  display: block;
+  margin-top: 4px;
+  overflow: hidden;
+  color: var(--text-heading);
+  font: 700 13px/1.25 var(--font-mono);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.system-item span {
+  display: block;
+  margin-top: 3px;
+  overflow: hidden;
+  color: var(--text-muted);
+  font-size: 10.5px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* System detail chips */
+.system-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 2px;
+}
+
+.sys-chip {
+  padding: 3px 9px;
+  border-radius: var(--radius-full);
+  background: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  color: var(--text-secondary);
+  font: 600 10.5px var(--font-mono);
+}
+
+.sys-chip strong {
+  color: var(--decisio-emerald);
+}
+
+@keyframes pulseDot {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.4; transform: scale(0.85); }
+}
+
+@media (max-width: 900px) {
+  .system-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 500px) {
+  .system-grid {
+    grid-template-columns: 1fr;
+  }
+}

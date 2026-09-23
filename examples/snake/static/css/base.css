@@ -1,0 +1,167 @@
+/* Base Typography, Reset, and Interactive Element Primitives */
+
+*, *::before, *::after {
+  box-sizing: border-box;
+}
+
+html {
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  background: var(--bg-app-radial);
+  color: var(--text-primary);
+  font-size: 14px;
+  line-height: 1.5;
+  transition: background-color var(--transition-normal), color var(--transition-normal);
+}
+
+/* Custom Scrollbars */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--border-strong);
+  border-radius: var(--radius-full);
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--decisio-teal);
+}
+
+/* Typography Hierarchy */
+h1, h2, h3, h4, p {
+  margin: 0;
+}
+
+h1 {
+  font-size: clamp(20px, 2.2vw, 28px);
+  font-weight: 750;
+  color: var(--text-heading);
+  letter-spacing: -0.025em;
+  line-height: 1.2;
+}
+
+.eyebrow {
+  color: var(--decisio-teal);
+  font-size: 10.5px;
+  font-weight: 800;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.note {
+  margin-top: 10px;
+  color: var(--text-muted);
+  font-size: 11px;
+  line-height: 1.5;
+}
+
+/* Button System */
+button {
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  padding: 8px 15px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border-subtle);
+  background: var(--bg-card);
+  color: var(--text-primary);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  transition: all var(--transition-fast);
+  user-select: none;
+}
+
+button:hover:not(:disabled) {
+  border-color: var(--border-strong);
+  background: var(--bg-hover);
+  transform: translateY(-1px);
+}
+
+button:active:not(:disabled) {
+  transform: translateY(0);
+}
+
+button:focus-visible {
+  outline: 2px solid var(--decisio-azure);
+  outline-offset: 2px;
+}
+
+button:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+  transform: none;
+}
+
+/* Primary Button with Brand Gradient */
+button.primary {
+  border: 0;
+  background: var(--decisio-gradient);
+  color: #071322;
+  font-weight: 700;
+  box-shadow: 0 4px 14px rgba(3, 194, 126, 0.35);
+}
+
+button.primary:hover:not(:disabled) {
+  background: var(--decisio-gradient-hover);
+  box-shadow: 0 6px 20px rgba(3, 194, 126, 0.5);
+  transform: translateY(-1.5px);
+}
+
+/* Icon / Theme Toggle Button */
+.btn-icon {
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  border-radius: var(--radius-full);
+  display: grid;
+  place-items: center;
+  background: var(--bg-card);
+  border: 1px solid var(--border-subtle);
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.btn-icon:hover {
+  color: var(--decisio-teal);
+  border-color: var(--border-strong);
+  background: var(--bg-hover);
+}
+
+/* Pills & Badges */
+.pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  min-height: 26px;
+  padding: 3px 10px;
+  border-radius: var(--radius-full);
+  background: var(--pill-bg);
+  color: var(--pill-text);
+  font: 650 11px/1.2 var(--font-mono);
+  letter-spacing: 0.02em;
+  border: 1px solid var(--border-subtle);
+}
+
+.pill.subtle {
+  background: var(--pill-subtle-bg);
+  color: var(--pill-subtle-text);
+}
+
+.pill.active {
+  background: var(--decisio-gradient-subtle);
+  color: var(--decisio-emerald);
+  border-color: rgba(3, 194, 126, 0.4);
+}
