@@ -27,6 +27,9 @@ jobs:
   qwen-08b-controller-smoke:
     runs-on: ubuntu-latest
     timeout-minutes: 35
+    env:
+      DECISIO_SOURCE_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+      DECISIO_SOURCE_BRANCH: ${{ github.event.pull_request.head.ref || github.ref_name }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -51,6 +54,8 @@ jobs:
           python -m pip install "pytest>=8.3"
           pytest -q tests/test_snake_planner.py tests/test_snake_controller_benchmark.py
       - name: Run real-model controller matrix smoke
+        id: controller_benchmark
+        continue-on-error: true
         run: |
           python -m benchmarks.run_snake_controller_benchmark \
             --model "$DECISIO_SMOKE_MODEL" \
@@ -62,9 +67,11 @@ jobs:
             --episode-max-steps 3 \
             --stall-steps 3 \
             --planner-max-nodes 10000 \
+            --continue-on-error \
             --threads 2 --threads-batch 2 \
             --n-ctx 4096 --n-batch 128 --n-ubatch 128
       - name: Verify append-only evidence identity
+        if: always()
         run: |
           python - <<'PY'
           import json
@@ -78,7 +85,7 @@ jobs:
           results = [row for row in rows if row.get("record_type") == "configuration_result"]
           assert len(manifests) == 1, rows
           assert len(results) == 3, rows
-          assert all(row["status"] == "completed" for row in results), rows
+          assert all(row["status"] in {"completed", "failed"} for row in results), rows
           assert {row["configuration"]["id"] for row in results} == {
               "direct-stateful-verbose", "direct-fresh-verbose", "semantic-verbose"
           }
@@ -99,13 +106,31 @@ jobs:
           )
           assert results[0]["configuration"]["execution_mode"] == "shared"
           assert results[1]["configuration"]["execution_mode"] == "fresh"
+          by_config = {row["configuration"]["id"]: row for row in results}
+          shared = by_config["direct-stateful-verbose"]
+          fresh = by_config["direct-fresh-verbose"]
+          if shared["status"] == fresh["status"] == "completed":
+              shared_cases = {row["id"]: row for row in shared["fixed_state"]["records"]}
+              fresh_cases = {row["id"]: row for row in fresh["fixed_state"]["records"]}
+              assert shared_cases.keys() == fresh_cases.keys()
+              for case_id in shared_cases:
+                  left = shared_cases[case_id]
+                  right = fresh_cases[case_id]
+                  assert left["choice"] == right["choice"], case_id
+                  assert left["decision"]["scores"] == right["decision"]["scores"], case_id
+                  assert left["decision"]["distribution"] == right["decision"]["distribution"], case_id
+                  assert left["decision"]["prompt_sha256"] == right["decision"]["prompt_sha256"], case_id
           PY
       - name: Summarize benchmark history
+        if: always()
         run: |
           python -m benchmarks.summarize_snake_controller_history \
             --ledger /tmp/snake-controller-history.jsonl \
             --output /tmp/snake-controller-history.md \
             --json-output /tmp/snake-controller-history-summary.json
+      - name: Fail when controller matrix reported failures
+        if: always() && steps.controller_benchmark.outcome == 'failure'
+        run: exit 1
       - name: Upload controller benchmark evidence
         if: always()
         uses: actions/upload-artifact@v4
