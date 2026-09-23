@@ -55,6 +55,7 @@ def _ledger_record(
         "benchmark": BENCHMARK_ID,
         "record_type": "configuration_result",
         "run_id": run_id,
+        "attempt_id": f"{run_id}:{config.id}",
         "started_at": started_at,
         "finished_at": _now(),
         "status": status,
@@ -179,13 +180,20 @@ def run(args: argparse.Namespace) -> dict[str, Any]:
                 )
                 append_ledger(args.ledger, row)
                 report["configurations"][config_id] = row
+                agreement = fixed["optimal_set_agreement"]
+                catastrophic = fixed["catastrophic_miss_rate"]
                 print(
-                    f"config={config_id} agreement={fixed['optimal_set_agreement']:.3f} "
-                    f"catastrophic={fixed['catastrophic_miss_rate']:.3f} "
+                    f"config={config_id} oracle={fixed['oracle_coverage']:.3f} "
+                    f"agreement={agreement if agreement is not None else 'n/a'} "
+                    f"catastrophic={catastrophic if catastrophic is not None else 'n/a'} "
                     f"median_food={episodes['median_food_eaten']}",
                     flush=True,
                 )
             except Exception as exc:
+                try:
+                    runtime = runtime or runtime_metrics(backend)
+                except Exception as metrics_exc:
+                    runtime = {"collection_error": f"{type(metrics_exc).__name__}: {metrics_exc}"}
                 row = _ledger_record(
                     run_id=run_id,
                     started_at=started,
@@ -207,6 +215,11 @@ def run(args: argparse.Namespace) -> dict[str, Any]:
     finally:
         backend.close()
     report["finished_at"] = _now()
+    report["failed_configurations"] = [
+        config_id
+        for config_id, row in report["configurations"].items()
+        if row["status"] != "completed"
+    ]
     args.output.parent.mkdir(parents=True, exist_ok=True)
     args.output.write_text(json.dumps(report, indent=2, sort_keys=True) + "\n", encoding="utf-8")
     return report
@@ -246,8 +259,12 @@ def main(argv: list[str] | None = None) -> int:
     if args.fixed_limit is not None and args.fixed_limit < 1:
         raise ValueError("--fixed-limit must be positive")
     report = run(args)
-    print(json.dumps({"run_id": report["run_id"], "ledger": str(args.ledger)}, indent=2))
-    return 0
+    print(json.dumps({
+        "run_id": report["run_id"],
+        "ledger": str(args.ledger),
+        "failed_configurations": report["failed_configurations"],
+    }, indent=2))
+    return 1 if report["failed_configurations"] else 0
 
 
 if __name__ == "__main__":
