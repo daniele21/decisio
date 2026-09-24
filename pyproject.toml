@@ -5,7 +5,7 @@ build-backend = "hatchling.build"
 [project]
 name = "decisio"
 version = "0.1.0a0"
-description = "Training-free, zero-generation decision scoring for open causal LLMs"
+description = "Stateful local-LLM decisions with reusable model context and zero-generation typed actions"
 readme = "README.md"
 requires-python = ">=3.11"
 license = {text = "Apache-2.0"}
