@@ -31,6 +31,10 @@ const DEFAULT_CONFIG = {
     title: "Decisio Snake",
     mark_svg_light: "/decisio-mark.svg",
     mark_svg_dark: "/decisio-mark-dark.svg"
+  },
+  telemetry: {
+    show_hostname: false,
+    host_display_name: ""
   }
 };
 
@@ -49,6 +53,7 @@ export async function loadConfig() {
         gameplay: { ...DEFAULT_CONFIG.gameplay, ...(remote.gameplay || {}) },
         panels: { ...DEFAULT_CONFIG.panels, ...(remote.panels || {}) },
         branding: { ...DEFAULT_CONFIG.branding, ...(remote.branding || {}) },
+        telemetry: { ...DEFAULT_CONFIG.telemetry, ...(remote.telemetry || {}) },
       };
     }
   } catch (err) {

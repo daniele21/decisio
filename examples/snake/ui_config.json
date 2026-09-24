@@ -29,5 +29,10 @@
     "tagline": "One state. One decision. One move.",
     "mark_svg_light": "/decisio-mark.svg",
     "mark_svg_dark": "/decisio-mark-dark.svg"
+  },
+  "telemetry": {
+    "show_hostname": false,
+    "host_display_name": "",
+    "expose_machine_name": false
   }
 }

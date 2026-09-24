@@ -95,8 +95,14 @@ def _get_system_telemetry() -> dict[str, Any]:
     mac_ver = platform.mac_ver()[0]
     os_str = f"macOS {mac_ver}" if mac_ver else f"{uname.system} {uname.release}"
 
+    ui_cfg = _load_ui_config()
+    telemetry_cfg = ui_cfg.get("telemetry", {})
+    expose_machine_name = bool(telemetry_cfg.get("expose_machine_name", False))
+    host_display = telemetry_cfg.get("host_display_name", "").strip()
+    node_name = platform.node() if expose_machine_name else (host_display or "localhost")
+
     return {
-        "hostname": platform.node(),
+        "hostname": node_name,
         "chip": chip,
         "os": os_str,
         "arch": uname.machine,
@@ -106,7 +112,6 @@ def _get_system_telemetry() -> dict[str, Any]:
         "python_version": platform.python_version(),
         "pid": os.getpid(),
     }
-
 
 
 def _load_ui_config() -> dict[str, Any]:
@@ -127,6 +132,11 @@ def _load_ui_config() -> dict[str, Any]:
             "show_model_io": True,
             "show_decision_log": True,
             "show_runtime_metrics": True,
+        },
+        "telemetry": {
+            "show_hostname": False,
+            "host_display_name": "",
+            "expose_machine_name": False,
         },
     }
 

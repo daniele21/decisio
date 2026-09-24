@@ -98,17 +98,41 @@ export function renderSystemTelemetry(ui, status, config) {
 
   if (!sys) return;
 
-  // Header Host Badge
+  const showHost = Boolean(config?.telemetry?.show_hostname);
+  const customHost = (config?.telemetry?.host_display_name || "").trim();
+
+  // Header Host Badge: display hardware & memory, omitting private machine hostname by default
   if (ui.topbarHostText) {
-    const hostName = sys.hostname || "local-pc";
-    const chipShort = sys.chip ? sys.chip.replace("Apple ", "") : sys.arch;
+    const chipShort = sys.chip ? sys.chip.replace("Apple ", "") : (sys.arch || "local");
     const memStr = sys.total_memory && sys.total_memory !== "N/A" ? ` · ${sys.total_memory}` : "";
-    ui.topbarHostText.textContent = `${hostName} · ${chipShort}${memStr}`;
+    const hwInfo = `${chipShort}${memStr}`;
+
+    if (showHost && sys.hostname) {
+      ui.topbarHostText.textContent = `${sys.hostname} · ${hwInfo}`;
+    } else if (customHost) {
+      ui.topbarHostText.textContent = `${customHost} · ${hwInfo}`;
+    } else {
+      ui.topbarHostText.textContent = hwInfo;
+    }
   }
 
-  // System HUD items
-  if (ui.sysHost) ui.sysHost.textContent = sys.hostname || "localhost";
-  if (ui.sysOs) ui.sysOs.textContent = `${sys.os || "OS"} · ${sys.arch || ""}`;
+  // System HUD items: display OS & architecture instead of raw machine hostname
+  if (ui.sysHost) {
+    if (showHost && sys.hostname) {
+      ui.sysHost.textContent = sys.hostname;
+    } else if (customHost) {
+      ui.sysHost.textContent = customHost;
+    } else {
+      ui.sysHost.textContent = sys.os || "Local System";
+    }
+  }
+  if (ui.sysOs) {
+    if (showHost && sys.hostname) {
+      ui.sysOs.textContent = `${sys.os || "OS"} · ${sys.arch || ""}`;
+    } else {
+      ui.sysOs.textContent = sys.arch ? `arch: ${sys.arch} · local` : "local runtime";
+    }
+  }
   if (ui.sysChip) ui.sysChip.textContent = sys.chip || sys.arch || "CPU";
   if (ui.sysCores) ui.sysCores.textContent = `${sys.cpu_count || 1} CPU cores`;
   if (ui.sysRam) {

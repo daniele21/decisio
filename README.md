@@ -37,6 +37,12 @@
   · <a href="CONTRIBUTING.md">Contributing</a>
 </p>
 
+<p align="center">
+  <a href="brand/assets/decisio.mp4">
+    <img src="brand/assets/decisio.gif" alt="Decisio live demo: stateful decision runtime with local LLM" width="100%" />
+  </a>
+</p>
+
 Decisio is a stateful decision runtime for applications that ask a local LLM to make the
 **same kind of bounded decision many times while the world state changes**.
 
@@ -58,7 +64,7 @@ WITHOUT DECISIO
 task + policy + STATE 1  ->  prefill  ->  action
 task + policy + STATE 2  ->  prefill  ->  action
 task + policy + STATE 3  ->  prefill  ->  action
-^^^^^^^^^^^^^
+
 reprocessed every time
 ```
 
@@ -77,12 +83,9 @@ task + policy  ->  PREFILL ONCE  ->  reusable model state
 The main benefit is **less repeated prefill work** for repeated decision loops. Zero answer
 generation removes the decoding loop too, but it is not the main product thesis.
 
-> **IMAGE PLACEHOLDER — Prefill once, then reuse**
-> Two panels. Left: the same large TASK + POLICY prefix is physically evaluated again with State 1,
-> State 2 and State 3. Right: TASK + POLICY is prefetched once into reusable llama.cpp model state;
-> each step evaluates only the changing suffix plus the direct action readout. Show logical input
-> tokens versus physically evaluated tokens, cache hit/miss and fresh-equivalence. Do not print an
-> unmeasured speedup.
+<p align="center">
+  <img src="brand/graphics/decisio-compile-stable-context-once.png" alt="Compile stable context once: prefill stable decision context once, then evaluate only what changes" width="100%" />
+</p>
 
 ### Is this "KV cache reuse"?
 
@@ -169,20 +172,14 @@ current board and deterministic sensors describe only the state that matters now
 
 <!-- SNAKE_DEMO_VIDEO_START -->
 
-> **VIDEO PLACEHOLDER — Stateful Snake demo**
->
-> Replace this block with the trace-backed real-model Snake demo.
-> Prefer an embedded GIF/WebM preview that links to the full MP4 evidence artifact.
-> Pair the board with current model input, valid candidates, selected action, latency, cache
-> hit/reuse and logical-vs-physical token counts. Keep it short enough to understand
-> OBSERVE → CONSTRAIN → DECIDE → ACT at a glance.
+> [!NOTE]
+> The live execution recording is featured at the top of this README. You can also view the full high-resolution recording directly in [`brand/assets/decisio.mp4`](brand/assets/decisio.mp4).
 
 <!-- SNAKE_DEMO_VIDEO_END -->
 
-> **IMAGE PLACEHOLDER — Snake static vs dynamic**
-> Show a cached left column named "Snake decision context" and Step 1 / Step 2 / Step 3 cards
-> containing only the current board, food, valid moves and deterministic sensors. Under each step,
-> show one direct-logit readout. Highlight that previous full boards are not replayed.
+<p align="center">
+  <img src="brand/graphics/decisio-snake-static-vs-dynamic.png" alt="Snake static vs dynamic: compile the stable decision context once and append only changing game state per step" width="100%" />
+</p>
 
 ## How Decisio works
 
@@ -221,10 +218,9 @@ For Snake, wall collision, body collision and reverse-direction failures are fil
 scoring. The same rule applies to authorization checks, impossible state transitions and other
 deterministic domain constraints.
 
-> **IMAGE PLACEHOLDER — Constraints before probabilities**
-> Draw a funnel from application state to deterministic constraints, valid candidates, reusable
-> decision context, current-state suffix, direct logits and typed action. Add a future side branch
-> from answerability/confidence policy to ABSTAIN and mark it clearly as planned.
+<p align="center">
+  <img src="brand/graphics/decisio-constraints-before-probabilities.png" alt="Constraints before probabilities: constrain the decision first, then score only the valid actions" width="100%" />
+</p>
 
 ### 3. Reuse only valid model state
 
@@ -380,11 +376,9 @@ The shorthand is:
 > **SemIf:** score this decision efficiently.  
 > **Decisio:** keep my application's decision context warm while the state changes.
 
-> **IMAGE PLACEHOLDER — Shared primitive, different boundary**
-> Shared center: "open LLM + direct option logits + zero answer generation". SemIf side:
-> "scoring / multiple runtime paths / calibration". Decisio side: "persistent decision context /
-> deterministic constraints / current-state suffix / typed action / fresh-equivalence". Avoid
-> better/worse language.
+<p align="center">
+  <img src="brand/graphics/decisio-shared-primitive-different-boundary.png" alt="Same core primitive, different boundary: SemIf scoring and evaluation toolkit compared with Decisio stateful constrained application decisions" width="100%" />
+</p>
 
 ## Scores are not calibrated confidence
 
