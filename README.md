@@ -19,7 +19,7 @@
   <a href="https://github.com/daniele21/decisio/actions/workflows/repository-health.yml">
     <img alt="Repository Health" src="https://github.com/daniele21/decisio/actions/workflows/repository-health.yml/badge.svg" />
   </a>
-  <img alt="Python >= 3.11" src="https://img.shields.io/badge/Python-%E2%89%A53.11-112543?style=flat-square&logo=python&logoColor=white" />
+  <img alt="Python ≥ 3.11" src="https://img.shields.io/badge/Python-%E2%89%A53.11-112543?style=flat-square&logo=python&logoColor=white" />
   <img alt="Runtime: llama.cpp" src="https://img.shields.io/badge/runtime-llama.cpp-03C27E?style=flat-square" />
   <img alt="Model format: GGUF" src="https://img.shields.io/badge/models-GGUF-01C8F6?style=flat-square" />
   <img alt="Status: experimental" src="https://img.shields.io/badge/status-experimental-F59E0B?style=flat-square" />
