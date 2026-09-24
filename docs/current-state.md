@@ -29,6 +29,11 @@ The canonical evidence artifact remains Qwen3.5-2B Q4_K_M from
 `aaf42c8b7c3cab2bf3d69c355048d4a0ee9973d48f16c731c0520ee914699223`,
 with `llama-cpp-python==0.3.35` on CPU.
 
+The integrated backend also exposes optional Apple Metal execution through `--device metal`. It
+uses the same GGUF scoring and reusable sequence-state path, records its offload configuration in
+runtime identity, and requires a Metal-enabled `llama-cpp-python` build. This is an operational
+runtime option, not evidence equivalent to the pinned CPU reference.
+
 ## Scorer-gate v2 result
 
 Exact-head run `35788235063` completed the full 64-case matrix and **FAILED** without weakening any

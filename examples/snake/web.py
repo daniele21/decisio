@@ -400,6 +400,12 @@ def build_parser() -> argparse.ArgumentParser:
         description="Run the local branded Decisio Snake decision-loop demo"
     )
     parser.add_argument("--model", type=Path, required=True)
+    parser.add_argument(
+        "--device",
+        choices=("cpu", "metal"),
+        default="cpu",
+        help="execution device; metal requires a Metal-enabled llama-cpp-python build",
+    )
     add_control_arguments(parser)
     parser.add_argument("--host", default="127.0.0.1")
     parser.add_argument("--port", type=int, default=8765)

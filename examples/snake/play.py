@@ -126,6 +126,7 @@ def build_scorer(args: argparse.Namespace) -> Any:
     backend = LlamaCppBackend(
         LlamaCppBackendConfig(
             model=args.model,
+            device=args.device,
             n_ctx=args.n_ctx,
             n_batch=args.n_batch,
             n_ubatch=args.n_ubatch,
@@ -255,6 +256,12 @@ def build_parser() -> argparse.ArgumentParser:
         description="Run a headless Snake episode controlled by Decisio"
     )
     parser.add_argument("--model", type=Path, required=True)
+    parser.add_argument(
+        "--device",
+        choices=("cpu", "metal"),
+        default="cpu",
+        help="execution device; metal requires a Metal-enabled llama-cpp-python build",
+    )
     add_control_arguments(parser)
     parser.add_argument("--n-ctx", type=int, default=8192)
     parser.add_argument("--n-batch", type=int, default=128)

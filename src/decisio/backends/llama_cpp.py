@@ -20,7 +20,7 @@ LLAMA_CPP_PYTHON_VERSION = "0.3.35"
 
 @dataclass(frozen=True, slots=True)
 class LlamaCppBackendConfig:
-    """Pinned CPU reference configuration for one local GGUF."""
+    """Local GGUF runtime configuration; CPU remains the evidence reference."""
 
     model: str | Path
     device: str = "cpu"
@@ -38,8 +38,8 @@ class LlamaCppBackendConfig:
     repeated_state_cache_max_bytes: int = 256 * 1024 * 1024
 
     def __post_init__(self) -> None:
-        if self.device != "cpu":
-            raise ValueError("the v1 reference backend currently supports device='cpu' only")
+        if self.device not in {"cpu", "metal"}:
+            raise ValueError("device must be 'cpu' or 'metal'")
         for name in ("n_ctx", "n_batch", "n_ubatch", "max_sequences"):
             if int(getattr(self, name)) < 1:
                 raise ValueError(f"{name} must be positive")
@@ -53,6 +53,31 @@ class LlamaCppBackendConfig:
         ):
             if int(getattr(self, name)) < 0:
                 raise ValueError(f"{name} must not be negative")
+
+
+def _device_options(device: str) -> tuple[int, bool]:
+    """Return llama.cpp model-layer and K/Q/V offload settings for one device."""
+    return (-1, True) if device == "metal" else (0, False)
+
+
+def _require_device_support(
+    device: str,
+    llama_cpp: Any,
+    *,
+    platform_name: str | None = None,
+) -> None:
+    """Fail clearly instead of silently running a requested Metal path on CPU."""
+    if device != "metal":
+        return
+    current_platform = sys.platform if platform_name is None else platform_name
+    if current_platform != "darwin":
+        raise RuntimeError("device='metal' requires macOS")
+    supports_gpu_offload = getattr(llama_cpp, "llama_supports_gpu_offload", None)
+    if not callable(supports_gpu_offload) or not supports_gpu_offload():
+        raise RuntimeError(
+            "device='metal' requires a Metal-enabled llama-cpp-python build; "
+            "reinstall it with CMAKE_ARGS='-DGGML_METAL=on'"
+        )
 
 
 class _Runtime(Protocol):
@@ -188,6 +213,9 @@ class _NativeLlamaCppRuntime:
                 f"{llama_cpp.__version__!r}; expected {LLAMA_CPP_PYTHON_VERSION!r}"
             )
 
+        _require_device_support(config.device, llama_cpp)
+        n_gpu_layers, offload_kqv = _device_options(config.device)
+
         self._llama_cpp = llama_cpp
         self._formatter_type = Jinja2ChatFormatter
         self.binding_version = llama_cpp.__version__
@@ -220,7 +248,7 @@ class _NativeLlamaCppRuntime:
 
         self._llm = Llama(
             model_path=str(Path(config.model)),
-            n_gpu_layers=0,
+            n_gpu_layers=n_gpu_layers,
             n_ctx=config.n_ctx,
             n_batch=config.n_batch,
             n_ubatch=config.n_ubatch,
@@ -229,7 +257,7 @@ class _NativeLlamaCppRuntime:
             seed=config.seed,
             logits_all=False,
             embedding=False,
-            offload_kqv=False,
+            offload_kqv=offload_kqv,
             flash_attn=False,
             use_mmap=config.use_mmap,
             use_mlock=config.use_mlock,
@@ -250,7 +278,7 @@ class _NativeLlamaCppRuntime:
         params.n_ubatch = config.n_ubatch
         params.n_seq_max = self.n_seq_max
         params.embeddings = False
-        params.offload_kqv = False
+        params.offload_kqv = offload_kqv
         params.flash_attn_type = llama_cpp.LLAMA_FLASH_ATTN_TYPE_DISABLED
         params.kv_unified = True
 
@@ -500,14 +528,8 @@ class _NativeLlamaCppRuntime:
             raise ValueError("input_ids_batch must not be empty")
         if len(input_ids_batch) != len(token_ids_batch):
             raise ValueError("input and token-id batch sizes must match")
-        if len(input_ids_batch) > self.n_seq_max:
-            self._metrics["shared_prefix_fallbacks"] += 1
-            return [
-                self.next_token_logits(input_ids, token_ids)
-                for input_ids, token_ids in zip(
-                    input_ids_batch, token_ids_batch, strict=True
-                )
-            ]
+        # Candidate branches are evaluated serially on sequence 0 using complete
+        # state snapshots. Their count is independent of native sequence capacity.
         for input_ids, token_ids in zip(
             input_ids_batch, token_ids_batch, strict=True
         ):
@@ -731,7 +753,7 @@ class FreshLlamaCppBackendView:
 
 
 class LlamaCppBackend:
-    """Canonical v1 backend: local GGUF + pinned llama.cpp, CPU reference path."""
+    """Canonical local GGUF backend with CPU reference and optional Metal execution."""
 
     supports_reusable_prefix_hint = True
 
@@ -769,7 +791,9 @@ class LlamaCppBackend:
             "gguf_architecture": metadata.get("general.architecture"),
             "gguf_name": metadata.get("general.name"),
             "gguf_file_type": metadata.get("general.file_type"),
-            "device": "cpu",
+            "device": config.device,
+            "n_gpu_layers": _device_options(config.device)[0],
+            "offload_kqv": _device_options(config.device)[1],
             "n_ctx": runtime.n_ctx,
             "n_batch": runtime.n_batch,
             "n_ubatch": runtime.n_ubatch,

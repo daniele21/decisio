@@ -62,6 +62,10 @@ uv run python -m examples.snake.web \
 
 The UI opens at `http://127.0.0.1:8765/` by default.
 
+On Apple Silicon, build the pinned binding with `CMAKE_ARGS="-DGGML_METAL=on"` as shown in the
+root README, then add `--device metal` to either the web or headless command. The trace records the
+Metal device and offload settings; it is separate from the CPU reference evidence.
+
 Snake defaults to `--scorer direct`. The safe moves are rendered once as A/B/C/... options, the
 model is evaluated once, and Decisio reads the corresponding option-token logits from that single
 forward pass. It does **not** run one YES/NO evaluation per candidate. Semantic v2 remains available

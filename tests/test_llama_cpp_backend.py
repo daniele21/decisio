@@ -8,7 +8,9 @@ import pytest
 from decisio.backends.llama_cpp import (
     LlamaCppBackend,
     LlamaCppBackendConfig,
+    _device_options,
     _NativeLlamaCppRuntime,
+    _require_device_support,
     _shared_prefix_plan,
 )
 
@@ -116,6 +118,35 @@ def test_cache_bounds_must_not_be_negative(tmp_path: Path):
         LlamaCppBackendConfig(model=path, repeated_state_cache_max_bytes=-1)
 
 
+def test_device_configuration_maps_cpu_and_metal_to_llama_cpp_offload():
+    assert _device_options("cpu") == (0, False)
+    assert _device_options("metal") == (-1, True)
+
+
+def test_device_configuration_rejects_unknown_device(tmp_path: Path):
+    with pytest.raises(ValueError, match="cpu.*metal"):
+        LlamaCppBackendConfig(model=model_file(tmp_path), device="cuda")
+
+
+def test_metal_requires_macos_and_gpu_enabled_binding():
+    class CpuOnlyBinding:
+        @staticmethod
+        def llama_supports_gpu_offload():
+            return False
+
+    class GpuBinding:
+        @staticmethod
+        def llama_supports_gpu_offload():
+            return True
+
+    with pytest.raises(RuntimeError, match="requires macOS"):
+        _require_device_support("metal", GpuBinding(), platform_name="linux")
+    with pytest.raises(RuntimeError, match="Metal-enabled"):
+        _require_device_support("metal", CpuOnlyBinding(), platform_name="darwin")
+    _require_device_support("metal", GpuBinding(), platform_name="darwin")
+    _require_device_support("cpu", CpuOnlyBinding(), platform_name="linux")
+
+
 def test_backend_requires_local_gguf(tmp_path: Path):
     with pytest.raises(FileNotFoundError):
         LlamaCppBackend(
@@ -139,6 +170,9 @@ def test_identity_is_path_free_and_hashes_artifact(tmp_path: Path):
     assert identity["model"] == "Qwen3.5-4B-Q4_K_M.gguf"
     assert identity["quantization"] == "Q4_K_M"
     assert identity["artifact_sha256"] == hashlib.sha256(b"fake-gguf").hexdigest()
+    assert identity["device"] == "cpu"
+    assert identity["n_gpu_layers"] == 0
+    assert identity["offload_kqv"] is False
     assert str(tmp_path) not in str(identity)
     assert identity["selected_vocab_projection"] is False
     assert identity["shared_context_state"] is True
@@ -149,6 +183,18 @@ def test_identity_is_path_free_and_hashes_artifact(tmp_path: Path):
     assert identity["repeated_state_cache"] == "exact_compiler_token_prefix_lru"
     assert identity["repeated_state_cache_max_entries"] == 2
     assert identity["repeated_state_cache_max_bytes"] == 256 * 1024 * 1024
+
+
+def test_metal_identity_records_offload_configuration(tmp_path: Path):
+    path = model_file(tmp_path)
+    backend = LlamaCppBackend(
+        LlamaCppBackendConfig(model=path, device="metal"),
+        _runtime_factory=FakeRuntime,
+    )
+
+    assert backend.identity["device"] == "metal"
+    assert backend.identity["n_gpu_layers"] == -1
+    assert backend.identity["offload_kqv"] is True
 
 
 def test_tokenizer_uses_runtime_chat_template_and_no_implicit_bos(tmp_path: Path):
@@ -314,3 +360,52 @@ def test_native_sequence_state_round_trip_uses_llama_state_api():
     assert restored == 4
     assert runtime._llama_cpp.restored == [(b"test", 0)]
 
+@pytest.mark.parametrize("count", [1, 8, 9, 77])
+def test_serial_candidate_reuse_is_independent_of_sequence_capacity(count):
+    from collections import defaultdict
+
+    runtime = object.__new__(_NativeLlamaCppRuntime)
+    runtime.n_seq_max = 8
+    runtime.n_batch = 4
+    runtime.n_ctx = 128
+    runtime.n_vocab = 256
+    runtime._metrics = defaultdict(int)
+    runtime._require_open = lambda: None
+    state = []
+    decoded = []
+    runtime._clear_scoring_state = state.clear
+
+    def decode(tokens, *, seq_id, n_past):
+        assert seq_id == 0
+        assert len(state) == n_past
+        state.extend(tokens)
+        decoded.append(tuple(tokens))
+
+    def restore(snapshot, seq_id):
+        assert seq_id == 0
+        state[:] = snapshot
+        return len(snapshot)
+
+    runtime._decode_tokens = decode
+    runtime._capture_sequence_state = lambda seq_id: tuple(state)
+    runtime._restore_sequence_state = restore
+    runtime._repeated_cache_key = lambda *args: None
+    runtime._selected_logits = lambda ids: [float(sum(state) + token) for token in ids]
+    inputs = [(1, 2, 3, 4, 10 + i) for i in range(count)]
+    readouts = [[1, 2] for _ in inputs]
+    expected = [
+        runtime.next_token_logits(row, ids)
+        for row, ids in zip(inputs, readouts, strict=True)
+    ]
+    runtime._metrics.clear()
+    decoded.clear()
+
+    actual = runtime.shared_prefix_batch_next_token_logits(inputs, readouts)
+
+    assert actual == expected
+    assert runtime._metrics["shared_prefix_fallbacks"] == 0
+    assert runtime._metrics["shared_prefix_calls"] == 1
+    assert runtime._metrics["fresh_calls"] == 0
+    assert runtime._metrics["physically_evaluated_tokens"] == 4 + count
+    assert runtime._metrics["logical_input_tokens"] == 5 * count
+    assert decoded == [(1, 2, 3, 4)] + [(10 + i,) for i in range(count)]

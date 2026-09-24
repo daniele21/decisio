@@ -93,6 +93,10 @@ def test_snake_defaults_to_stateful_single_forward_direct_choice():
     assert prefix_reuse_enabled(args) is True
     assert args.n_batch == 128
     assert args.n_ubatch == 128
+    assert args.device == "cpu"
+
+    metal = build_parser().parse_args(["--model", "model.gguf", "--device", "metal"])
+    assert metal.device == "metal"
 
     semantic = build_parser().parse_args(["--model", "model.gguf", "--scorer", "semantic"])
     assert prefix_reuse_enabled(semantic) is False

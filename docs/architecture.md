@@ -62,6 +62,12 @@ llama.cpp owns model execution, quantized kernels, context/batch/sequence mechan
 support. Decisio owns prompt/scorer semantics, deterministic constraints boundary, probability
 status, provenance, evaluation and the eventual calibration layer.
 
+The backend accepts `cpu` and optional `metal` execution. Metal uses the same GGUF scorer and
+complete sequence-state reuse path, with all model layers and K/Q/V tensors requested for GPU
+offload in both llama.cpp contexts. Startup fails when Metal is requested from an unsupported host
+or binding. Device and offload settings are part of runtime identity; the pinned evidence path
+remains CPU until a separate Metal equivalence and performance run is recorded.
+
 Representative evidence must bind to the exact GGUF SHA-256, quantization and llama.cpp
 runtime/build identity. BF16/Transformers results are not treated as equivalent to Q4_K_M results.
 
@@ -216,6 +222,9 @@ prefix. The llama.cpp backend keeps one canonical sequence, snapshots complete s
 restores candidate branches from that state, and keeps repeated-state checkpoints in an LRU bounded
 by both entry count and serialized bytes. Keys are exact token prefixes within one loaded runtime;
 unsupported boundaries fall back to ordinary shared-prefix evaluation.
+Candidate branches execute serially on sequence 0, so their count is not limited by
+`max_sequences`. Native batch-aligned checkpoint requirements still apply; prompts without
+a safe checkpoint fall back to fresh evaluation.
 
 Fresh evaluation remains the correctness oracle. Shared execution reports changed choices,
 score/probability deltas, logical versus physical tokens, snapshot/restore bytes and cache hits.

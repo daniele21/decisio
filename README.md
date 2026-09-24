@@ -145,6 +145,22 @@ uv run decisio score \
   --device cpu
 ```
 
+On Apple Silicon, install the pinned binding with Metal enabled and select the Metal device:
+
+```bash
+CMAKE_ARGS="-DGGML_METAL=on" \
+  uv sync --frozen --extra llama --extra dev --reinstall-package llama-cpp-python --no-cache
+
+uv run decisio score \
+  --input examples/support-routing/request.json \
+  --model "$PWD/.models/Qwen3.5-0.8B-Q4_K_M.gguf" \
+  --device metal
+```
+
+Metal offloads all model layers and the K/Q/V tensors. Decisio refuses `--device metal` when the
+installed binding lacks GPU offload support, rather than silently using CPU. CPU remains the pinned
+reference for repository evidence; CPU and Metal results are separate runtime identities.
+
 ## Snake: the idea in one loop
 
 Snake is the reference example because it naturally contains both stable and changing information.

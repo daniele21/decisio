@@ -154,7 +154,8 @@ Goal: broaden beyond the proven llama.cpp/Q4_K_M reference path after semantics 
 Features:
 
 - additional GGUF quantizations such as Q8 where quality evidence justifies them;
-- optional Metal/other llama.cpp device acceleration outside the CPU scientific gate;
+- optional Metal llama.cpp acceleration implemented outside the CPU scientific gate; other devices
+  remain future work;
 - optional non-llama.cpp adapters only when they add user value;
 - cross-runtime/quantization equivalence diagnostics;
 - model capability registry;

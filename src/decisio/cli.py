@@ -50,7 +50,12 @@ def _scorer(name: str, backend: Any):
 
 def _add_model_args(parser: argparse.ArgumentParser) -> None:
     parser.add_argument("--model", type=Path, required=True, help="local GGUF model path")
-    parser.add_argument("--device", choices=["cpu"], default="cpu")
+    parser.add_argument(
+        "--device",
+        choices=["cpu", "metal"],
+        default="cpu",
+        help="execution device; metal requires a Metal-enabled llama-cpp-python build",
+    )
     parser.add_argument("--n-ctx", type=int, default=8192)
     parser.add_argument("--n-batch", type=int, default=512)
     parser.add_argument("--n-ubatch", type=int, default=512)
