@@ -1,29 +1,27 @@
 # Decisio examples
 
-These examples show where a bounded decision engine is a better fit than free-form text generation.
+These examples show where a stateful bounded-decision runtime is a better fit than repeatedly
+generating free-form text.
 
-| Example | Decision shape | Why it matters |
-| --- | --- | --- |
-| [Snake](snake/) | sequential action choice | live OBSERVE → DECIDE → ACT loop with deterministic constraints and one-forward direct choice logits |
-| [Support routing](support-routing/) | dynamic multiclass choice | runtime-defined semantic categories |
-| [Policy gate](policy-gate/) | bounded allow/deny choice | software decision over explicit evidence and policy |
+| Example | Stable context | Changing state | Typed decision |
+| --- | --- | --- | --- |
+| [Snake](snake/) | objective, policy, sensor meanings | current board and valid moves | next move |
+| [Support routing](support-routing/) | routing semantics | new request | queue ID |
+| [Policy gate](policy-gate/) | policy semantics | current evidence | bounded policy action |
 
-All examples use the same public decision shape:
+The repeated-state shape is:
 
 ```text
-state/evidence + question + valid candidates
-                  |
-                  v
-               Decisio
-                  |
-                  v
-       typed choice + distribution
+stable task / policy  ->  reusable model state
+                               |
+current state + valid candidates
+                               |
+                               v
+                       direct typed decision
 ```
 
-The scorer can differ by workload. Snake defaults to direct A/B/C option-token logits because its
-action set is small and latency-sensitive; semantic v2 remains available for explicit comparison.
-Returned distributions are **uncalibrated conditional model scores**, not calibrated probability of
-correctness.
+Snake is the clearest demonstration because its stable decision context can remain warm while only
+the board, sensors and valid moves change.
 
 ## Install
 
@@ -33,10 +31,9 @@ For real local GGUF inference:
 uv sync --frozen --extra llama --extra dev
 ```
 
-Qwen3.5-2B Q4_K_M is the pinned reference artifact for repository evidence, not the only compatible
-model users may try. A compatible smaller GGUF such as Qwen3.5-0.8B can be useful for cheaper local
-demo/smoke runs, but its quality and latency are separate evidence and must not be presented as the
-2B reference result.
+The root [README](../README.md#try-it) includes a copy/paste Snake setup using the small pinned
+Qwen3.5-0.8B Q4_K_M smoke artifact. Qwen3.5-2B Q4_K_M remains the primary reference artifact for
+repository evidence.
 
 ## Snake live UI
 
@@ -47,12 +44,23 @@ uv run python -m examples.snake.web \
   --open
 ```
 
-The UI shows the board state, valid/filtered actions, direct option scores, selected move, model
-identity and per-decision timing. The HTTP surface exists only inside the example; Decisio core does
-not become a general-purpose web server.
+The UI shows the current model input, valid/filtered actions, direct option scores, selected move,
+model identity, timing and context-reuse metrics. Snake direct scoring reuses the fixed decision
+context by default; use `--fresh-prefix` to compare against fresh execution.
+
+The HTTP surface exists only inside the example; Decisio core does not become a general-purpose web
+server.
+
+## Scoring note
+
+The scorer can differ by workload. Snake defaults to direct A/B/C option-token logits because its
+action set is small and latency-sensitive. Semantic v2 remains available for explicit comparison.
+
+Returned distributions are **uncalibrated conditional model scores**, not calibrated probability of
+correctness.
 
 ## What the examples are for
 
-Examples are not benchmark evidence by themselves. They are executable scenarios for understanding
-behavior and discovering failure modes. Product claims come from frozen benchmark datasets and
-reproducible evaluation.
+Examples are executable scenarios for understanding behavior and discovering failure modes. They are
+not benchmark evidence by themselves. Product claims come from frozen benchmark datasets and
+reproducible evaluation tied to exact model/runtime identities.
