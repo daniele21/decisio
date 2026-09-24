@@ -17,7 +17,7 @@ Active plan: [llama.cpp reference runtime migration](workstreams/llama-cpp-refer
 | Shared context-state fast path | DONE | native-batch-safe branching + bounded repeated-state cache |
 | Scorer gate v2 | FAILED | short independent workload does not justify v2 promotion |
 | Repeated-state gate v3 | ACTIVE | frozen 48-case/8-state scoped promotion experiment |
-| Product foundation | ACTIVE | PR #1 remains draft until the scorer scope is decided |
+| Product foundation | ACTIVE | stateful runtime thesis integrated; stable DecisionSession contract still pending |
 | Snake stateful reference loop | ACTIVE | fixed decision context + current-only dynamic state + direct logits + fresh/cache oracle |
 | Snake controller quality benchmark | ACTIVE | bounded dynamic-body oracle + append-only fixed/episode matrix implemented; reference 2B screening evidence pending |
 
