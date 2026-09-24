@@ -38,9 +38,7 @@
 </p>
 
 <p align="center">
-  <a href="brand/assets/decisio.mp4">
-    <img src="brand/assets/decisio.gif" alt="Decisio live demo: stateful decision runtime with local LLM" width="100%" />
-  </a>
+  <img src="brand/assets/decisio.gif" alt="Decisio live demo: stateful decision runtime with local LLM" width="100%" />
 </p>
 
 Decisio is a stateful decision runtime for applications that ask a local LLM to make the
@@ -172,8 +170,9 @@ current board and deterministic sensors describe only the state that matters now
 
 <!-- SNAKE_DEMO_VIDEO_START -->
 
-> [!NOTE]
-> The live execution recording is featured at the top of this README. You can also view the full high-resolution recording directly in [`brand/assets/decisio.mp4`](brand/assets/decisio.mp4).
+<p align="center">
+  <img src="brand/assets/decisio.gif" alt="Stateful Snake demo: real-model decision loop with context reuse" width="100%" />
+</p>
 
 <!-- SNAKE_DEMO_VIDEO_END -->
 

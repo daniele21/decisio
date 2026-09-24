@@ -48,7 +48,7 @@ Recommended product/documentation stack: **Inter** (or the platform system sans 
 - `assets/graphics/readme-hero-1600x500.jpg`: README/site hero.
 - `assets/graphics/decisio-pattern.png`: supporting brand pattern.
 - `assets/graphics/decisio-*.png`: architecture, runtime, and mental-model explanatory diagrams.
-- `assets/decisio.gif` and `assets/decisio.mp4`: live product demo recordings.
+- `assets/decisio.gif`: live product demo recording.
 - `tokens/brand.css` and `tokens/brand-tokens.json`: reusable product/design tokens.
 
 ## Production note
