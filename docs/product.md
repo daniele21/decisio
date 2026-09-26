@@ -78,23 +78,7 @@ artifact/runtime/host/scorer identity; BF16/Transformers is not equivalent. The 
 the local CPU path practical; it is not a claim that 2B is universally better than larger compatible
 GGUFs. Scores remain uncalibrated unless a calibration artifact matches that identity.
 
-## Supported Python boundary
-
-The first supported high-level library contract is `DecisionSession`. It deliberately freezes only
-the stateful direct-choice path already exercised by the reference loop:
-
-- one local GGUF/llama.cpp runtime owned for the session lifetime;
-- one stable decision context per session;
-- changing JSON-serializable state plus runtime-defined valid `Candidate` objects per decision;
-- direct A/B/C/... option-logit readout with zero generated answer tokens;
-- explicit `fresh=True` execution of the identical prompt as the correctness/debug oracle;
-- typed `DecisionResult` carrying scorer identity, model provenance, execution mode and runtime reuse
-  metrics;
-- deterministic `close()` and context-manager lifecycle.
-
-This is a **software contract**, not a model-quality or latency endorsement. Pinned 2B controller and
-repeated-state evidence remains a separate evidence obligation. The high-level API does not expose a
-generic scorer selector, calibration, answerability, hosted execution or workflow orchestration.
+The supported high-level library boundary is `DecisionSession` for the direct stateful choice path. Its software-contract stability does not imply a Qwen3.5-2B quality, latency, calibration or scorer-promotion claim.
 
 ## Meaningful differentiation
 
