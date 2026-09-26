@@ -27,9 +27,9 @@ For the cheap deterministic loop:
 
 ```bash
 uv sync --frozen --extra dev
-uv run ruff check src tests examples scripts
+uv run ruff check src tests examples
 uv run pytest
-uv run python -m compileall -q src tests examples scripts
+uv run python -m compileall -q src tests examples
 ```
 
 Repository/governance checks are owned by `scripts/verify_*.py` and run in the Repository health
@@ -39,7 +39,7 @@ To try the real local runtime without choosing a model first:
 
 ```bash
 uv sync --frozen --extra llama --extra dev
-uv run python scripts/run_snake_demo.py --open
+uv run python -m examples.snake.demo --open
 ```
 
 That path uses the pinned 0.8B smoke artifact and proves integration only.
