@@ -7,7 +7,7 @@ Owner: repository
 
 Make Decisio a stateful local decision runtime: keep stable task context reusable, score changing application state with typed zero-generation choices, and prove cache reuse against fresh execution on the pinned llama.cpp/GGUF path.
 
-Active plan: [llama.cpp reference runtime migration](workstreams/llama-cpp-reference-runtime.md).
+Active plans: [llama.cpp reference runtime evidence closure](workstreams/llama-cpp-reference-runtime.md) and [repository quality/adoption](repository-quality.md).
 
 ## Active workstreams
 
@@ -17,9 +17,10 @@ Active plan: [llama.cpp reference runtime migration](workstreams/llama-cpp-refer
 | Shared context-state fast path | DONE | native-batch-safe branching + bounded repeated-state cache |
 | Scorer gate v2 | FAILED | short independent workload does not justify v2 promotion |
 | Repeated-state gate v3 | ACTIVE | frozen 48-case/8-state scoped promotion experiment |
-| Product foundation | ACTIVE | stateful runtime thesis integrated; stable DecisionSession contract still pending |
+| Product foundation | ACTIVE | stateful runtime thesis integrated; stable DecisionSession waits for evidence closure |
 | Snake stateful reference loop | ACTIVE | fixed decision context + current-only dynamic state + direct logits + fresh/cache oracle |
 | Snake controller quality benchmark | ACTIVE | bounded dynamic-body oracle + append-only fixed/episode matrix implemented; reference 2B screening evidence pending |
+| Repository adoption hardening | ACTIVE | one-command demo, current docs and public intake/package metadata are being integrated; GitHub settings remain external |
 
 ## Reference identity
 
@@ -79,8 +80,9 @@ zero-generation choice readout and observable context reuse.
 
 ## Next
 
-1. Validate the new Snake stateful direct path on real-model smoke: cached and fresh stateful prompts must return identical choices/scores and cached execution must reduce physical token work.
-2. Run the Snake controller screening matrix on the pinned reference 2B model; require oracle coverage, fixed-state quality, episode outcomes and append-only evidence before selecting a controller family.
-3. Freeze a holdout Snake fixture before prompt/controller tuning is treated as validated; cache efficiency is not controller quality.
-4. Keep repeated-state gate v3 as scoped semantic-v2 evidence without treating it as the universal scorer.
-5. Shape the smallest stable DecisionSession API only after the runtime contract is proven.
+1. Validate the exact-head Snake stateful direct path on real-model smoke: cached and fresh stateful prompts must return identical choices/scores and cached execution must reduce physical token work.
+2. Execute repeated-state gate v3 on the unchanged pinned 2B CPU identity and record PASS/FAIL without broadening the semantic-v2 claim.
+3. Run the Snake controller screening matrix on the pinned reference 2B model; require oracle coverage, fixed-state quality, episode outcomes and append-only evidence before selecting a controller family.
+4. Freeze a holdout Snake fixture before prompt/controller tuning is treated as validated; cache efficiency is not controller quality.
+5. Integrate the one-command onboarding and repository-truth cleanup, then shape the smallest stable DecisionSession API only after the runtime contract is sufficiently proven.
+6. Protect `main` and add GitHub description/topics/social preview through repository settings; source-controlled checks cannot substitute for those settings.
