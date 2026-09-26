@@ -78,8 +78,6 @@ artifact/runtime/host/scorer identity; BF16/Transformers is not equivalent. The 
 the local CPU path practical; it is not a claim that 2B is universally better than larger compatible
 GGUFs. Scores remain uncalibrated unless a calibration artifact matches that identity.
 
-The supported high-level library boundary is `DecisionSession` for the direct stateful choice path. Its software-contract stability does not imply a Qwen3.5-2B quality, latency, calibration or scorer-promotion claim.
-
 ## Meaningful differentiation
 
 Reading option logits is **not** the differentiator. SemIf independently demonstrates direct typed
