@@ -16,7 +16,9 @@ milestones rather than every experimental commit.
 - Snake controller-quality benchmark with a bounded moving-body planner and append-only ledger;
 - branded Snake UI, trace/video evidence and explanatory repository graphics;
 - optional Apple Metal execution as a distinct runtime identity;
-- repository-specific engineering, contribution, security and benchmark documentation.
+- repository-specific engineering, contribution, security and benchmark documentation;
+- supported high-level `DecisionSession` for direct stateful choices, same-prompt fresh oracle,
+  runtime reuse metrics and deterministic model lifecycle.
 
 ### Changed
 
@@ -39,7 +41,6 @@ milestones rather than every experimental commit.
 
 ### Still planned
 
-- stable high-level `DecisionSession` API after the runtime/evidence contract is sufficiently proven;
 - answerability/abstention;
 - calibration artifacts;
 - release-grade promotion and package publication.
