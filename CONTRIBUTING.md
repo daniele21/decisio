@@ -44,6 +44,9 @@ uv run python -m examples.snake.demo --open
 
 That path uses the pinned 0.8B smoke artifact and proves integration only.
 
+The `qwen` extra exists only to reproduce the superseded Transformers/BF16 scorer-gate-v1 history.
+New runtime work must use the `llama` extra unless a new evidence contract explicitly says otherwise.
+
 ## Change rules
 
 - Keep deterministic/domain constraints outside probabilistic scoring.

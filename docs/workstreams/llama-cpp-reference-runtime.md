@@ -64,7 +64,7 @@ Semantic-v2 remains a separate evidence lane. Its failed general-purpose gate is
 | W4 | DONE | 2B semantic scorer-gate identity frozen before results. |
 | W5 | FAILED | Semantic-v2 short/fresh general gate failed family + latency criteria. |
 | W5a | DONE | Repeated-state diagnostic justified a scoped semantic experiment. |
-| W5b | ACTIVE | Frozen repeated-state gate v3 decides only semantic-v2 repeated-state scope. |
+| W5b | ACTIVE | Frozen repeated-state gate v3 decides only semantic-v2 repeated-state scope; the first adoption-candidate attempt hit the 240-minute runner budget, so only the workflow timeout is being raised. |
 | W6 | BLOCKED | Record semantic-v2 scope from W5b without rewriting failed evidence. |
 | W7 | ACTIVE | Prove stateful direct Snake loop with fixed context and fresh/cache oracle. |
 

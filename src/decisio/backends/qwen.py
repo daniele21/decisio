@@ -1,4 +1,4 @@
-"""PyTorch/Transformers reference backend for Qwen 3.5 text-only scoring."""
+"""Historical Transformers backend retained only for scorer-gate-v1 reproduction."""
 
 from __future__ import annotations
 
@@ -22,7 +22,7 @@ class QwenBackendConfig:
 
 
 class QwenTransformersBackend:
-    """Reference backend with selected-vocabulary projection and prompt batching."""
+    """Historical BF16/Transformers adapter; not part of the canonical Decisio v1 runtime."""
 
     def __init__(self, config: QwenBackendConfig | None = None):
         config = config or QwenBackendConfig()
@@ -32,7 +32,8 @@ class QwenTransformersBackend:
             from transformers import AutoModelForCausalLM, AutoTokenizer
         except ImportError as exc:  # pragma: no cover - environment dependent
             raise RuntimeError(
-                "Qwen backend requires the 'qwen' extra: uv sync --extra qwen"
+                "Historical Transformers reproduction requires the 'qwen' extra: "
+                "uv sync --extra qwen; the canonical runtime uses --extra llama"
             ) from exc
 
         self._torch = torch

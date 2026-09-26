@@ -41,6 +41,7 @@ Issues = "https://github.com/daniele21/decisio/issues"
 llama = [
   "llama-cpp-python==0.3.35",
 ]
+# Historical scorer-gate-v1 reproduction only; the canonical runtime is the `llama` extra.
 qwen = [
   "torch>=2.6",
   "transformers>=5.17,<6",

@@ -26,7 +26,7 @@ jobs:
   repeated-state-gate-v3:
     if: github.event_name == 'workflow_dispatch' || github.base_ref == 'main'
     runs-on: ubuntu-latest
-    timeout-minutes: 240
+    timeout-minutes: 360
     env:
       MODEL: /tmp/Qwen3.5-2B-Q4_K_M.gguf
       GATE_DIR: .artifacts/repeated-state-gate-v3

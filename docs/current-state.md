@@ -64,7 +64,7 @@ performance-regression case, semantic p50 was 14.98 s versus 68.40 s generated (
 generated zero answer tokens, and the semantic path evaluated 9,226 physical versus 181,258 logical
 tokens. This is diagnostic evidence, not promotion evidence.
 
-Repeated-state gate v3 is now frozen before representative execution. Fixture SHA
+Repeated-state gate v3 is frozen before representative execution. A candidate run reached the repository's 240-minute job limit during the unchanged comparison workload, so the workflow budget is being raised to 360 minutes without changing the fixture, scorer semantics or precommitted thresholds. Fixture SHA
 `f9e5f56128f93efb952f1fc3f4f38441150cb0c29906f688977ffa69ea61338a` covers 48 unique decisions
 in eight shared-state groups, four families, 2/4/8 candidates, short/medium/long state tiers and
 normal/reversed candidate order. Its precommitted gate requires comparable quality, zero semantic
