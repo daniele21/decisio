@@ -1,4 +1,4 @@
-"""Decisio: zero-generation semantic decision scoring."""
+"""Decisio: stateful typed decisions for local causal LLMs."""
 
 from .schema import Candidate, ChoiceRequest, DecisionResult
 
