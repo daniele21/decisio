@@ -65,7 +65,9 @@ material, updated frozen evidence.
 ## Benchmark evidence
 
 The pinned reference identity is Qwen3.5-2B Q4_K_M GGUF through
-`llama-cpp-python==0.3.35` on CPU. Smaller models and Metal runs are separate evidence identities.
+`llama-cpp-python==0.3.35` on CPU. Full 2B reference gates are run locally/manual and must retain the
+exact host/runtime identity; PR CI is limited to cheaper 0.8B mechanism smoke. Smaller models and
+Metal runs are separate evidence identities.
 
 The general short/fresh semantic-v2 gate is a recorded **FAIL** and must not be reinterpreted.
 Repeated-state semantic evidence is governed separately by

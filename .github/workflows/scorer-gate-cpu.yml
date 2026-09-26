@@ -2,14 +2,12 @@ name: CPU scorer gate
 
 on:
   workflow_dispatch:
+  # Keep a PR hook only so changing this workflow cancels any older in-flight run.
+  # The 2B gate itself is manual/local evidence and never executes automatically on PRs.
   pull_request:
     types: [ready_for_review, synchronize, reopened]
     paths:
       - ".github/workflows/scorer-gate-cpu.yml"
-      - "pyproject.toml"
-      - "uv.lock"
-      - "src/decisio/**"
-      - "benchmarks/**"
 
 permissions:
   contents: read
@@ -20,7 +18,7 @@ concurrency:
 
 jobs:
   scorer-gate-v2:
-    if: github.event_name == 'workflow_dispatch' || github.base_ref == 'main'
+    if: github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     timeout-minutes: 240
     env:

@@ -37,8 +37,9 @@ and make repository governance match the engineering discipline already encoded 
 - DELIVERY: `ITERATION` until the adoption candidate is ready for integration.
 - VALIDATION: `FULL` because this candidate also corrects the repository-owned E2E validation
   contract; selector/validation configuration changes force full validation.
-- EXECUTION: `AGENT_LOCAL` for deterministic tests and `REMOTE_AUTOMATED` for pinned real-model
-  CPU evidence. Representative hardware claims remain bound to their declared environment.
+- EXECUTION: `AGENT_LOCAL` for deterministic tests, `REMOTE_AUTOMATED` for reduced 0.8B smoke,
+  and `REAL_ENVIRONMENT` for pinned 2B reference evidence executed locally. Performance claims remain
+  bound to the recorded host/runtime identity.
 
 ## Product intent for adoption hardening
 
@@ -64,7 +65,8 @@ identity.
 
 Current evidence boundaries:
 
-- 0.8B real-model smoke proves the mechanism and directional token reduction;
+- 0.8B CI real-model smoke proves the mechanism and directional token reduction;
+- pinned 2B reference gates are local/manual evidence, not automatic PR CI;
 - the pinned 2B short/fresh semantic-v2 gate remains a recorded FAIL and is not rewritten;
 - repeated-state gate v3 decides only the scoped semantic-v2 repeated-state question;
 - Snake controller quality is separate from cache efficiency;
@@ -187,7 +189,7 @@ Remaining:
 | Package discovery metadata | ACTIVE | wheel metadata exposes keywords, classifiers and project URLs |
 | Structured issue intake | ACTIVE | bug reports request reproducible runtime identity; proposals start from user outcome |
 | Exact-head 0.8B real-model smoke | PENDING | fresh/reused equivalence and physical-token reduction pass on candidate |
-| 2B repeated-state gate v3 | PENDING | unchanged precommitted gate records PASS/FAIL on candidate |
+| 2B repeated-state gate v3 | PENDING LOCAL EVIDENCE | run locally on the pinned artifact and retain PASS/FAIL plus host/runtime identity |
 | Stable `DecisionSession` | BLOCKED | RQ-01 evidence is sufficient to freeze supported semantics |
 | First alpha release | BLOCKED | API + release contract satisfied |
 | Branch protection / GitHub topics | PENDING REPOSITORY SETTING | source changes cannot substitute for the setting |

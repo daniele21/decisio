@@ -2,18 +2,12 @@ name: Repeated-state gate v3
 
 on:
   workflow_dispatch:
+  # Keep a PR hook only so changing this workflow cancels any older in-flight run.
+  # The 2B gate itself is manual/local evidence and never executes automatically on PRs.
   pull_request:
-    types: [synchronize, reopened]
+    types: [synchronize, reopened, ready_for_review]
     paths:
       - ".github/workflows/repeated-state-gate-cpu.yml"
-      - "pyproject.toml"
-      - "uv.lock"
-      - "src/decisio/**"
-      - "benchmarks/build_repeated_state_gate_fixture.py"
-      - "benchmarks/run_repeated_state_gate.py"
-      - "benchmarks/evaluate_repeated_state_gate.py"
-      - "benchmarks/repeated-state-gate-v3.md"
-      - "tests/test_repeated_state_gate.py"
 
 permissions:
   contents: read
@@ -24,7 +18,7 @@ concurrency:
 
 jobs:
   repeated-state-gate-v3:
-    if: github.event_name == 'workflow_dispatch' || github.base_ref == 'main'
+    if: github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     timeout-minutes: 360
     env:

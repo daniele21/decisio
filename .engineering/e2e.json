@@ -84,17 +84,17 @@
       ]
     },
     {
-      "id": "github-hosted-cpu-qwen35-2b-llamacpp",
-      "fidelity_class": "representative_virtual",
-      "automation": "automated",
-      "platform": "github-hosted-linux-cpu",
+      "id": "developer-local-cpu-qwen35-2b-llamacpp",
+      "fidelity_class": "representative_physical",
+      "automation": "real_environment",
+      "platform": "developer-local-cpu",
       "artifact_surface": "source",
       "target_environment_refs": [
         "qwen35-2b-q4km-llamacpp-cpu"
       ],
       "known_gaps": [
-        "host CPU identity may vary across runs, so latency evidence remains bound to the recorded host",
-        "representative physical hardware confirmation remains a release-time concern when a claim depends on it"
+        "latency and memory evidence are specific to the recorded local CPU/thread topology",
+        "the local host is representative evidence only for claims explicitly bound to its captured identity"
       ]
     }
   ],
@@ -125,16 +125,14 @@
       "target_environment_refs": [
         "qwen35-2b-q4km-llamacpp-cpu"
       ],
-      "automated_environment_refs": [
-        "github-hosted-cpu-qwen35-2b-llamacpp"
-      ],
-      "minimum_automated_fidelity": "representative_virtual",
+      "automated_environment_refs": [],
+      "minimum_automated_fidelity": "host_or_fake",
       "residual_gaps": [
         "the authoritative short/fresh semantic-v2 gate is a recorded FAIL and therefore does not promote semantic v2 as a universal default",
-        "systems measurements remain bound to the recorded GitHub-hosted CPU identity"
+        "the pinned 2B gate is intentionally executed locally and evidence remains bound to the recorded local CPU/runtime identity"
       ],
-      "real_environment_confirmation": "conditional",
-      "automation_gap_reason": null
+      "real_environment_confirmation": "required",
+      "automation_gap_reason": "The full pinned 2B scorer gate is intentionally local/manual rather than automatic PR CI because it is long-running reference evidence; CI retains only reduced 0.8B mechanism smoke."
     },
     {
       "id": "repeated-state-runtime",
@@ -145,15 +143,14 @@
         "qwen35-2b-q4km-llamacpp-cpu"
       ],
       "automated_environment_refs": [
-        "github-hosted-cpu-qwen35-08b-llamacpp",
-        "github-hosted-cpu-qwen35-2b-llamacpp"
+        "github-hosted-cpu-qwen35-08b-llamacpp"
       ],
-      "minimum_automated_fidelity": "representative_virtual",
+      "minimum_automated_fidelity": "host_or_fake",
       "residual_gaps": [
         "repeated-state gate v3 decides only its frozen scoped semantic-v2 workload",
-        "performance evidence remains bound to exact model/runtime/host identity"
+        "the pinned 2B gate is intentionally executed locally and performance evidence remains bound to exact model/runtime/host identity"
       ],
-      "real_environment_confirmation": "conditional",
+      "real_environment_confirmation": "required",
       "automation_gap_reason": null
     },
     {
