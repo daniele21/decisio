@@ -81,16 +81,23 @@ Current code owners:
 | Request/result contracts | `src/decisio/schema.py` |
 | Prompt compilation | `src/decisio/compiler.py` |
 | Semantic and letter scoring | `src/decisio/scorers/` |
+| Supported high-level direct-choice session | `src/decisio/session.py` |
 | Canonical local GGUF / llama.cpp runtime and shared-state execution | `src/decisio/backends/llama_cpp.py` |
 | Historical scorer-gate-v1 Transformers reproduction adapter | `src/decisio/backends/qwen.py` |
 | Benchmark execution | `src/decisio/benchmark.py` |
 | Paired scorer comparison | `src/decisio/comparison.py` |
 | CLI | `src/decisio/cli.py` |
 
-Answerability and a stable high-level `DecisionSession` API are not implemented yet. The low-level
-runtime already supports exact compiler-marked prefix reuse through full llama.cpp sequence-state
-snapshot/restore. Snake is the first stateful application reference: its fixed controller contract
-is the reusable prefix; current board state and deterministic action sensors are the changing suffix.
+`DecisionSession` is the supported high-level Python boundary for the direct stateful choice path.
+It owns backend construction/lifecycle, fixes one decision context per session, accepts changing
+state plus valid candidates, exposes reuse versus same-prompt fresh execution, and attaches runtime
+reuse metrics to `DecisionResult`. It intentionally does not expose semantic-scorer selection,
+answerability or calibration.
+
+The low-level runtime continues to support exact compiler-marked prefix reuse through full llama.cpp
+sequence-state snapshot/restore. Snake remains the first stateful application reference: its fixed
+controller contract is the reusable prefix; current board state and deterministic action sensors are
+the changing suffix.
 
 ## Stateful decision flow
 
