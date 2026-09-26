@@ -5,7 +5,7 @@ from pathlib import Path
 
 import pytest
 
-import scripts.run_snake_demo as demo
+import examples.snake.demo as demo
 
 
 def test_existing_custom_model_is_used_without_download(tmp_path: Path):
