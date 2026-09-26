@@ -2,9 +2,9 @@
 
 Status: ACTIVE  
 Owner: repository  
-Convergence branch: `product/define-decisio-foundation`  
-Pull request: #1  
-Last shaped: 2026-09-23
+Convergence branch: `main` (foundation integrated)  
+Evidence closure candidate: `hardening/adoption-readiness`  
+Last shaped: 2026-09-26
 
 ## Axes
 
@@ -64,7 +64,7 @@ Semantic-v2 remains a separate evidence lane. Its failed general-purpose gate is
 | W4 | DONE | 2B semantic scorer-gate identity frozen before results. |
 | W5 | FAILED | Semantic-v2 short/fresh general gate failed family + latency criteria. |
 | W5a | DONE | Repeated-state diagnostic justified a scoped semantic experiment. |
-| W5b | ACTIVE | Frozen repeated-state gate v3 decides only semantic-v2 repeated-state scope. |
+| W5b | ACTIVE | Frozen repeated-state gate v3 decides only semantic-v2 repeated-state scope; pinned 2B execution is local/manual rather than automatic PR CI. |
 | W6 | BLOCKED | Record semantic-v2 scope from W5b without rewriting failed evidence. |
 | W7 | ACTIVE | Prove stateful direct Snake loop with fixed context and fresh/cache oracle. |
 
@@ -156,12 +156,12 @@ build, method and calibration dataset. Without an exact match, output remains un
 
 ## Completion
 
-Before PR #1 returns to ready:
+Before this workstream can be finalized:
 
 1. record W5b from its unchanged criteria as the semantic-v2 scope decision;
-2. prove W7 fresh/cache equivalence plus physical-token reduction on exact-head real-model smoke;
-3. keep controller-quality evidence distinct from runtime-reuse evidence;
-4. update durable docs and PR metadata;
-5. run required exact-head integration gates and inspect the complete diff against live `main`.
+2. prove W7 fresh/cache equivalence plus physical-token reduction on an exact-head real-model smoke candidate;
+3. retain representative 2B Snake controller screening separately from runtime-reuse evidence;
+4. keep durable docs synchronized with the evidence results;
+5. only then shape the smallest stable high-level session API and delete this workstream once its remaining obligations have durable owners.
 
 Historical failed gates remain failed; the stateful product direction does not rewrite them.

@@ -30,6 +30,8 @@ Transformers/BF16 methodology remains in [`scorer-gate-v1.md`](scorer-gate-v1.md
 promote the scorer.
 
 The v2 reference evidence artifact is Qwen3.5-2B Q4_K_M GGUF through the pinned llama.cpp binding.
+The full 2B scorer and repeated-state gates are intentionally **local/manual evidence**; automatic PR
+CI uses the smaller 0.8B artifact only for mechanism/directional smoke.
 This pin is for reproducible product evidence, not a model-selection restriction: Decisio users can
 point the runtime at another compatible GGUF and produce evidence under that artifact's identity.
 

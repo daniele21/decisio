@@ -10,12 +10,38 @@ readme = "README.md"
 requires-python = ">=3.11"
 license = {text = "Apache-2.0"}
 authors = [{name = "Decisio contributors"}]
+keywords = [
+  "llm",
+  "llama-cpp",
+  "gguf",
+  "local-llm",
+  "inference",
+  "decision-making",
+  "qwen",
+]
+classifiers = [
+  "Development Status :: 2 - Pre-Alpha",
+  "Intended Audience :: Developers",
+  "License :: OSI Approved :: Apache Software License",
+  "Operating System :: OS Independent",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Topic :: Scientific/Engineering :: Artificial Intelligence",
+]
 dependencies = []
+
+[project.urls]
+Homepage = "https://github.com/daniele21/decisio"
+Documentation = "https://github.com/daniele21/decisio/tree/main/docs"
+Repository = "https://github.com/daniele21/decisio"
+Issues = "https://github.com/daniele21/decisio/issues"
 
 [project.optional-dependencies]
 llama = [
   "llama-cpp-python==0.3.35",
 ]
+# Historical scorer-gate-v1 reproduction only; the canonical runtime is the `llama` extra.
 qwen = [
   "torch>=2.6",
   "transformers>=5.17,<6",

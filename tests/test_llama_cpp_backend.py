@@ -90,7 +90,7 @@ class FakeRuntime:
 
 
 def model_file(tmp_path: Path) -> Path:
-    path = tmp_path / "Qwen3.5-4B-Q4_K_M.gguf"
+    path = tmp_path / "Qwen3.5-2B-Q4_K_M.gguf"
     path.write_bytes(b"fake-gguf")
     return path
 
@@ -167,7 +167,7 @@ def test_identity_is_path_free_and_hashes_artifact(tmp_path: Path):
     identity = backend.identity
     assert identity["backend"] == "llama-cpp-python"
     assert identity["binding_version"] == "0.3.35"
-    assert identity["model"] == "Qwen3.5-4B-Q4_K_M.gguf"
+    assert identity["model"] == "Qwen3.5-2B-Q4_K_M.gguf"
     assert identity["quantization"] == "Q4_K_M"
     assert identity["artifact_sha256"] == hashlib.sha256(b"fake-gguf").hexdigest()
     assert identity["device"] == "cpu"

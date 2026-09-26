@@ -40,8 +40,9 @@ This boundary avoids spending model compute on impossible options and prevents a
 ## Reference runtime
 
 The canonical implementation path is now an in-process llama.cpp backend over local GGUF artifacts.
-The older PyTorch/Transformers backend remains migration-source code only; representative evidence
-is tied to the pinned llama.cpp/GGUF identity.
+The older PyTorch/Transformers adapter is retained only to reproduce the superseded scorer-gate-v1
+methodology. It is not exported from `decisio.backends`, is not used by active workflows, and is not
+a supported runtime path. Representative evidence is tied to the pinned llama.cpp/GGUF identity.
 
 The target boundary is:
 
@@ -81,7 +82,7 @@ Current code owners:
 | Prompt compilation | `src/decisio/compiler.py` |
 | Semantic and letter scoring | `src/decisio/scorers/` |
 | Canonical local GGUF / llama.cpp runtime and shared-state execution | `src/decisio/backends/llama_cpp.py` |
-| Qwen/Transformers backend (migration source only) | `src/decisio/backends/qwen.py` |
+| Historical scorer-gate-v1 Transformers reproduction adapter | `src/decisio/backends/qwen.py` |
 | Benchmark execution | `src/decisio/benchmark.py` |
 | Paired scorer comparison | `src/decisio/comparison.py` |
 | CLI | `src/decisio/cli.py` |

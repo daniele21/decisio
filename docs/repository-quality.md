@@ -1,364 +1,211 @@
-# Repository quality and hardening
+# Repository quality and adoption
 
 Status: active improvement plan  
-Owner: repository
+Owner: repository  
+Last reviewed: 2026-09-26
 
-## Purpose
+## Goal
 
-This document tracks the work required to make Decisio a repository that is easy to understand, try, trust, integrate and contribute to.
+A new technical user should be able to discover Decisio, understand the stateful-runtime thesis,
+run a real local model, trust the evidence boundary, integrate through a small supported API and
+contribute without learning hidden repository rules.
 
-It is intentionally **vertical**. The question is not whether every folder has enough documentation. The question is whether a new developer can move cleanly through this path:
-
-```text
-discover Decisio
-      ↓
-understand why it exists
-      ↓
-run one real decision
-      ↓
-understand the result
-      ↓
-trust the benchmark evidence
-      ↓
-integrate the library
-      ↓
-contribute without learning hidden rules
-```
-
-Product capability remains owned by `docs/product.md` and `docs/roadmap.md`. This document owns repository usability, reproducibility, documentation quality and engineering hardening.
-
-## Target repository experience
-
-A strong Decisio repository should make these things obvious without requiring tribal knowledge:
-
-- what Decisio does and what it deliberately does not do;
-- why scoring candidates can be preferable to generating structured text;
-- what is implemented today versus still experimental;
-- the shortest supported path to a working result;
-- the current architecture and the intended next architecture;
-- what a score means and what it does **not** mean;
-- how benchmark claims were produced and how to reproduce them;
-- which parts belong to Decisio and which evaluation responsibilities belong to Performance Lab;
-- how to make a safe contribution and validate it.
-
-The repository should prefer short explanations, executable examples and diagrams over repeated prose.
+This document owns repository usability, reproducibility, adoption and release-facing hardening.
+Product scope remains in `docs/product.md`; integrated truth remains in `docs/current-state.md`.
 
 ## Current assessment
 
-| Area | Current state | Main gap |
-| --- | --- | --- |
-| Product story | Strong on the product branches | default `main` still presents the inherited template |
-| Core code | Small and readable | public integration surface is still low-level |
-| Architecture | Clear thesis and invariants | current implementation and target architecture are mixed together |
-| Examples | Useful and executable | no single cheap first-run path is presented as the canonical onboarding flow |
-| Correctness evidence | Good for the current stage | more adversarial contract tests are needed |
-| Performance evidence | Directional only | timing methodology is not yet strong enough for a stable performance decision |
-| Reproducibility | Model revision and fixtures are pinned | dependency environment is not locked |
-| Contributor experience | CI and agent guidance exist | contributor/security/license surfaces are incomplete |
-| Repository hygiene | Product-specific material exists | substantial `repo-template-sw` residue remains |
-| Release readiness | Correctly experimental | no stable public API/release contract yet |
+The repository foundation is now substantially stronger than the original bootstrap:
 
-## 1. Discover and understand
+- `main` presents Decisio rather than the source template;
+- README/brand assets explain stable-context reuse and include a real Snake demo;
+- GGUF + llama.cpp is the canonical local runtime;
+- dependency resolution is locked with `uv.lock`;
+- CI, repository-health checks, package build/install smoke, license, contribution and security
+  guidance exist;
+- benchmark contracts separate short/fresh scorer evidence, repeated-state evidence and Snake
+  controller quality;
+- current architecture distinguishes implemented owners from planned components.
 
-### What already works
+The remaining work is no longer "add more docs". It is to close evidence, reduce adoption friction
+and make repository governance match the engineering discipline already encoded in CI.
 
-The product thesis, non-goals and evidence-first roadmap are clear. The README explains the distinction between generation and scoring, and the ADRs preserve why important decisions were made.
+## Active axes
 
-### What blocks a strong first impression
+- PRODUCT: `PRODUCT_FEATURE` for the one-command onboarding flow; the core product boundary is
+  unchanged.
+- DELIVERY: `ITERATION` until the adoption candidate is ready for integration.
+- VALIDATION: `FULL` because this candidate also corrects the repository-owned E2E validation
+  contract; selector/validation configuration changes force full validation.
+- EXECUTION: `AGENT_LOCAL` for deterministic tests, `REMOTE_AUTOMATED` for reduced 0.8B smoke,
+  and `REAL_ENVIRONMENT` for pinned 2B reference evidence executed locally. Performance claims remain
+  bound to the recorded host/runtime identity.
 
-The default branch still reads as `repo-template-sw`, while the actual Decisio product lives on stacked draft branches. A visitor therefore sees the wrong identity before seeing the product.
+## Product intent for adoption hardening
 
-The README also asks the reader to absorb several concepts before showing the shortest useful interaction.
+- **User:** engineers evaluating or integrating Decisio for repeated bounded local-LLM decisions.
+- **Problem:** the repository is technically rigorous, but first-run setup, stale cross-document
+  references and the lack of a small public session API still create unnecessary adoption friction.
+- **Outcome:** one obvious first run, consistent durable truth, exact-head runtime evidence, then one
+  stable integration surface once the evidence contract supports freezing it.
+- **Non-goals:** no hosted service, no hidden model download in benchmark paths, no universal scorer
+  promotion, no release claim before the repository release contract is satisfied.
+- **Risks:** VALUE `LOW`; USABILITY `MEDIUM`; FEASIBILITY `LOW` for onboarding and docs,
+  `MEDIUM` for the future public API; VIABILITY `LOW`.
 
-### Required outcome
+## Remaining gaps, in order
 
-The default branch must lead with:
+### RQ-01 — Close the core stateful evidence
 
-1. one-sentence product identity;
-2. one visual mental model;
-3. one minimal runnable example;
-4. one example result with its semantics;
-5. current status and limitations;
-6. links to architecture, benchmarks and examples.
+**Priority: P0**
 
-The README should explain the product, not become the complete product manual.
+The product claim is stable-context reuse over changing state. Promotion therefore requires evidence
+that reuse preserves the fresh result and reduces physical model work under the pinned runtime
+identity.
 
-> **IMAGE PLACEHOLDER — README hero diagram**  
-> A clean two-column graphic. Left: “Generated decision” showing prompt → autoregressive JSON → parse/repair → application. Right: “Decisio” showing state + question + candidates → logit scoring → typed decision. Emphasize zero answer generation and runtime-defined candidates. Avoid benchmark numbers until representative evidence exists.
+Current evidence boundaries:
 
-## 2. Run the project successfully
+- 0.8B CI real-model smoke proves the mechanism and directional token reduction;
+- pinned 2B reference gates are local/manual evidence, not automatic PR CI;
+- the pinned 2B short/fresh semantic-v2 gate remains a recorded FAIL and is not rewritten;
+- repeated-state gate v3 decides only the scoped semantic-v2 repeated-state question;
+- Snake controller quality is separate from cache efficiency;
+- representative 2B Snake screening and a later holdout remain pending.
 
-### What already works
+Done when the relevant exact-head evidence is retained and `docs/current-state.md` records the
+result without broadening the claim beyond the benchmark contract.
 
-The CLI has direct `score`, `benchmark` and `compare` commands. Support routing, policy gate and Snake provide real examples.
+### RQ-02 — Keep durable truth consistent
 
-### Gaps
+**Priority: P0**
 
-- the default reference model is 2B to keep the canonical local CPU run practical;
-- dependency versions are not locked with `uv.lock`;
-- setup requirements and expected hardware behavior are spread across documents;
-- there is no explicit “cheap smoke” onboarding path distinct from representative evidence.
+`README.md`, `CONTRIBUTING.md`, `CHANGELOG.md`, architecture, current state and benchmark docs
+must agree on:
 
-### Required outcome
+- Qwen3.5-2B Q4_K_M + llama.cpp CPU as the primary reference evidence identity;
+- 0.8B and Metal as separate smoke/operational identities;
+- semantic-v2 short/fresh failure;
+- stateful reuse as the primary product thesis;
+- `DecisionSession` as planned until the evidence/API contract is frozen.
 
-There should be one canonical first-run sequence with no hidden setup:
+Old 4B/BF16 promotion language must not survive in active contributor guidance.
 
-```text
-install
-  ↓
-run a cheap functional smoke
-  ↓
-inspect a typed result
-  ↓
-optionally run the full 2B CPU scorer gate
+### RQ-03 — Make the first real run one command
+
+**Priority: P1**
+
+After dependency installation, a user should not need to discover a model URL, filename or checksum
+before seeing Decisio work.
+
+The supported repository demo path is:
+
+```bash
+uv sync --frozen --extra llama --extra dev
+uv run python -m examples.snake.demo --open
 ```
 
-The cheap path must be labeled functional/directional and never confused with product evidence.
+The runner downloads only the pinned 0.8B smoke artifact, verifies SHA-256 and caches it under
+`models/`. A custom GGUF remains explicit with `--model`.
 
-Acceptance:
+This path is functional onboarding, not representative product evidence.
 
-- supported Python version and install command are obvious;
-- dependency resolution is reproducible;
-- the first example includes expected output shape;
-- CPU/small-model limitations are stated beside the command that uses them;
-- representative benchmark commands remain separate from onboarding.
+### RQ-04 — Expose one stable library entry point
 
-## 3. Trust the result and the benchmark
+**Priority: P1, BLOCKED BY RQ-01**
 
-### What already works
+Normal consumers should not assemble backend + scorer internals manually.
 
-Decisio already has unusually good evidence foundations for its age:
-
-- exact Qwen revision;
-- frozen benchmark inputs with SHA-256;
-- raw result retention;
-- scorer and prompt identity;
-- generated-token accounting;
-- paired correctness comparison;
-- order perturbation;
-- CI real-model smoke clearly labeled as directional.
-
-### Critical gap before the 2B CPU scorer gate
-
-Correctness methodology is stronger than the current performance methodology. A single wall-clock measurement per example, with scorers executed in a fixed order, is not sufficient evidence for a stable latency claim.
-
-Before using performance as a promotion gate, the representative harness should define:
-
-- explicit warm-up;
-- repeated measured runs;
-- balanced or interleaved scorer execution order;
-- p50 and p95 latency;
-- total throughput / decisions per second;
-- process peak RSS as a diagnostic memory high-water mark;
-- exact timing scope;
-- hardware/runtime identity in the report.
-
-The benchmark must separate:
-
-```text
-semantic quality evidence
-          +
-robustness evidence
-          +
-systems performance evidence
-```
-
-rather than letting one noisy latency number decide the architecture.
-
-> **IMAGE PLACEHOLDER — benchmark matrix**  
-> A four-lane diagram for semantic v2, semantic v1, letters and generated JSON. Each lane receives the exact same frozen request set, runs normal + reversed order, then converges into quality, robustness and systems metrics. Clearly mark generated JSON as the only autoregressive baseline.
-
-## 4. Integrate Decisio as a library
-
-### What already works
-
-The internal boundaries are simple: schema, compiler, scorers, backends and benchmark tooling are separated without framework-heavy abstractions.
-
-### Gaps
-
-The current public package exports data contracts, but consumers still need to know implementation classes such as the Qwen backend and semantic scorer.
-
-Input contracts are also more permissive than the effective runtime contract. Examples include coercing unexpected values with `str(...)`, accepting JSON-incompatible `state` until compilation, and leaving tie behavior implicit.
-
-### Required outcome
-
-After the scorer gate establishes the default semantics, provide one stable library entry point that hides experimental wiring.
-
-The public contract should own:
+The smallest intended surface remains a high-level session that owns:
 
 - model/backend construction;
-- `choice` first, then `boolean`;
-- strict input validation;
-- deterministic tie behavior;
-- explicit error types;
-- no silent truncation;
-- probability-status semantics;
-- model/scorer provenance.
+- stable decision context;
+- bounded choice requests;
+- direct stateful readout;
+- explicit fresh-vs-reuse behavior where needed;
+- typed result, probability status and provenance;
+- deterministic close/resource lifecycle.
 
-Do **not** freeze this API before the scorer decision gate. The goal is a small stable surface, not another abstraction layer.
+Do not freeze this API merely to complete repository hardening. Implement it only after the runtime
+contract and supported default semantics are sufficiently proven.
 
-## 5. Understand the architecture
+### RQ-05 — Protect the default branch and improve GitHub discovery
 
-### Current implementation
+**Priority: P0 for protection, P1 for discovery**
 
-```mermaid
-flowchart LR
-    A[Application state] --> B[Deterministic constraints]
-    B --> C[ChoiceRequest]
-    C --> D[Prompt compiler]
-    D --> E[Semantic / letter scorer]
-    E --> F[Qwen backend]
-    F --> G[Selected logits]
-    G --> H[Scores + softmax]
-    H --> I[DecisionResult]
-```
+Repository settings should match the code-level discipline:
 
-This is the architecture that exists today.
+- protect `main`;
+- require PR-based integration and the repository's required deterministic checks;
+- disallow force pushes to `main`;
+- set a concise repository description;
+- add topics such as `llm`, `llama-cpp`, `gguf`, `local-llm`, `qwen`,
+  `decision-making` and `inference`;
+- use the prepared social preview from the brand kit.
 
-### Documentation gap
+These are GitHub repository settings rather than source-controlled product behavior.
 
-`docs/architecture.md` also describes future owners such as an engine, decision layer, model adapters and API modules that are not implemented yet. The ideas are useful, but current and target architecture must be visually and textually separated.
+### RQ-06 — Establish a deliberate alpha release path
 
-### Required outcome
+**Priority: P1, BLOCKED BY RQ-01/RQ-04**
 
-Architecture documentation should always contain two explicit sections:
+Build/install smoke already exists in CI, and package version/changelog are Decisio-specific.
 
-- **Current architecture** — code that exists on the referenced branch;
-- **Target architecture** — intended boundaries that are still conditional on evidence.
+Before the first promoted alpha:
 
-Every component named in the current diagram should map to a real source owner. Planned modules must be labeled planned.
+- decide the supported public API surface;
+- run the repository-defined release validation profile;
+- retain exact candidate/base and required real-environment evidence;
+- build immutable wheel/sdist artifacts with checksums;
+- publish release notes that preserve experimental/evidence boundaries.
 
-> **IMAGE PLACEHOLDER — polished architecture overview**  
-> Replace the Mermaid overview only when the architecture stabilizes. Show three ownership bands: application/domain constraints, Decisio semantic decision layer, model runtime. Add a side rail for provenance/evidence. Do not imply answerability or shared-prefix reuse is implemented until it is.
+Do not create a "release" merely because a version string already exists.
 
-## 6. Maintain, reproduce and contribute
+### RQ-07 — Finish public repository hygiene
 
-### Current gaps
+**Priority: P1/P2**
 
-The repository was bootstrapped from `repo-template-sw`. Root engineering ownership is now being specialized into `.engineering/`, `skills/`, `scripts/` and repository workflows; the embedded `template/` tree is baseline source material, not Decisio product documentation.
+Implemented or active:
 
-The major trust/reproducibility surfaces now exist on the hardening branches: root engineering contracts, a committed dependency lock, license, contribution/security guidance and package validation.
+- Apache-2.0 license;
+- contribution/security guides;
+- PR template;
+- structured bug and feature issue forms;
+- package metadata/project URLs;
+- branded README assets.
 
-The remaining repository-level gaps are narrower:
+Remaining:
 
-- the stacked product/hardening branches are not yet converged onto the default branch;
-- the new root Repository health gate must remain green on exact HEAD;
-- the embedded `template/` tree is still present as baseline source material and should not appear as product documentation;
-- stable public API/release semantics remain intentionally blocked on the scorer decision.
+- remove or further isolate the root `template/` tree when it is no longer needed as baseline source
+  material;
+- consider CODEOWNERS / Code of Conduct when contributor volume makes them useful rather than adding
+  ceremony pre-emptively.
 
-### Required outcome
+## Candidate implementation status
 
-The repository should be self-contained and product-specific:
-
-- keep the engineering baseline specialized in root-owned `.engineering/`, `skills/`, `scripts/` and workflows;
-- keep template source material out of the Decisio documentation/navigation surface;
-- add a dependency lock and deterministic setup path;
-- add license, contribution and security guidance;
-- document canonical validation commands;
-- keep `docs/current-state.md` exact and fresh;
-- keep release history about Decisio, not about the template used to bootstrap it.
-
-## Implementation progress
-
-| ID | State on this branch | Evidence / remaining work |
+| Item | State | Acceptance |
 | --- | --- | --- |
-| RQ-01 | IMPLEMENTED, evidence pending | repeated balanced CPU performance trials, throughput and process peak-RSS reporting are implemented; full 2B CPU run still required |
-| RQ-02 | PENDING | default branch still needs branch convergence/merge |
-| RQ-03 | IMPLEMENTED, validation pending | root baseline, commands, E2E, skills, verifier scripts and health/preflight workflows are specialized; inherited template-only root docs are removed |
-| RQ-04 | IMPLEMENTED | committed `uv.lock`, frozen setup commands and CI lock verification |
-| RQ-05 | IMPLEMENTED | Apache-2.0 `LICENSE` added |
-| RQ-06 | IMPLEMENTED for current choice contract | strict strings/JSON state, finite result validation, duplicate-description rejection and deterministic ties |
-| RQ-07 | IMPLEMENTED | architecture now separates current owners from planned target components |
-| RQ-08 | BLOCKED BY SCORER GATE | stable high-level Python API intentionally waits for scorer semantics |
-| RQ-09 | IMPLEMENTED | README is reorganized around identity, quickstart, semantics, status and deeper docs |
-| RQ-10 | IMPLEMENTED | concise `CONTRIBUTING.md` and `SECURITY.md` added |
-| RQ-11 | PARTIAL | malformed contracts, numerical edge cases and exact ties are covered; backend/tokenizer/context-limit negatives can expand later |
-| RQ-12 | PRESERVED | benchmark methodology keeps internal scorer evidence in Decisio and external endpoint evaluation in Performance Lab |
-| RQ-13 | PLACEHOLDERS ADDED | README and repository-quality docs specify the required future visuals; polished assets wait for stable semantics |
-| RQ-14 | PARTIAL | Decisio-specific version/changelog plus wheel build/install smoke are implemented; release promotion/versioning remains future work |
-
-## Improvement backlog
-
-Priority meanings:
-
-- **P0** — required before relying on the repository for the next major architectural decision or merging the product foundation to the default branch;
-- **P1** — required before presenting Decisio as a solid developer-facing project;
-- **P2** — valuable after the core scorer/API semantics stabilize.
-
-| ID | Priority | Improvement | Done when |
-| --- | --- | --- | --- |
-| RQ-01 | P0 | Strengthen scorer-gate benchmark timing | warm-up, repeats, balanced execution, latency distribution, throughput, CPU/thread identity and peak RSS are recorded |
-| RQ-02 | P0 | Make the default branch Decisio | product foundation and scorer-gate work converge; GitHub landing page no longer presents `repo-template-sw` |
-| RQ-03 | P0 | Finish repository-template specialization | baseline/commands/e2e configuration is project-owned and template-only root material is removed or intentionally retained |
-| RQ-04 | P0 | Make setup reproducible | `uv.lock` exists and CI/setup use a coherent dependency contract |
-| RQ-05 | P0 | Complete legal/basic trust surface | Apache-2.0 `LICENSE` exists; public claims match repository status |
-| RQ-06 | P1 | Harden request/result contracts | bad types, non-serializable state, non-finite scores/distributions, ambiguous candidates and deterministic ties have explicit behavior and tests |
-| RQ-07 | P1 | Separate current vs target architecture | architecture doc maps implemented components to source and labels planned components unambiguously |
-| RQ-08 | P1 | Create one stable Python entry point | after scorer gate, normal users do not assemble backend + scorer internals manually |
-| RQ-09 | P1 | Rewrite README around the shortest success path | identity → mental model → quickstart → result semantics → status → deeper docs |
-| RQ-10 | P1 | Add contributor and security guidance | `CONTRIBUTING.md` and `SECURITY.md` describe setup, validation, reporting and evidence expectations concisely |
-| RQ-11 | P1 | Expand negative/contract tests | public boundaries are tested for malformed inputs, tokenizer/backend mismatches, ties and numerical edge cases |
-| RQ-12 | P1 | Keep evidence ownership clean | internal scorer evidence stays in Decisio; externally served endpoint evaluation remains in Performance Lab |
-| RQ-13 | P2 | Add polished explanatory graphics | README hero, architecture overview and benchmark matrix replace placeholders after semantics stabilize |
-| RQ-14 | P2 | Establish release-facing package workflow | package/install smoke, versioning and Decisio-specific changelog are proven before a non-alpha release |
-
-## Sequencing
-
-The repository should not try to complete every item at once.
-
-### Before the full 2B CPU gate
-
-Focus on:
-
-- RQ-01 benchmark timing rigor;
-- RQ-04 reproducible dependency environment where it affects evidence;
-- RQ-06/RQ-11 only for invariants that could invalidate benchmark results.
-
-### Before merging the product foundation to the default branch
-
-Focus on:
-
-- RQ-02 default-branch identity;
-- RQ-03 template specialization;
-- RQ-05 license;
-- documentation/current-state freshness.
-
-### After the scorer decision
-
-Focus on:
-
-- RQ-07 architecture stabilization;
-- RQ-08 public Python API;
-- RQ-09 README simplification;
-- RQ-10 contributor/security docs;
-- RQ-13 polished visuals.
-
-## Documentation and visual rules
-
-Repository documentation should follow these rules:
-
-- lead with the answer, then explain;
-- prefer one canonical explanation over the same explanation in five files;
-- distinguish **implemented**, **experimental**, **planned** and **evidence pending**;
-- use code and diagrams where they remove prose;
-- do not use decorative graphics that make technical claims;
-- never draw performance charts from illustrative data;
-- every benchmark figure must point to retained machine-readable evidence;
-- use Mermaid for living architecture while boundaries change;
-- replace Mermaid with polished static artwork only when the diagram has become stable enough to justify maintenance.
+| Contributor/changelog drift cleanup | ACTIVE | no current 4B/BF16 promotion guidance remains |
+| One-command pinned Snake demo | ACTIVE | download/checksum/launch behavior has deterministic tests |
+| Package discovery metadata | ACTIVE | wheel metadata exposes keywords, classifiers and project URLs |
+| Structured issue intake | ACTIVE | bug reports request reproducible runtime identity; proposals start from user outcome |
+| Exact-head 0.8B real-model smoke | PENDING | fresh/reused equivalence and physical-token reduction pass on candidate |
+| 2B repeated-state gate v3 | PENDING LOCAL EVIDENCE | run locally on the pinned artifact and retain PASS/FAIL plus host/runtime identity |
+| Stable `DecisionSession` | BLOCKED | RQ-01 evidence is sufficient to freeze supported semantics |
+| First alpha release | BLOCKED | API + release contract satisfied |
+| Branch protection / GitHub topics | PENDING REPOSITORY SETTING | source changes cannot substitute for the setting |
 
 ## Definition of repository success
 
-Decisio reaches the desired repository quality when a new technical user can, from the default branch:
+Decisio reaches the intended repository quality when a new developer can:
 
-1. understand the product boundary from the README;
-2. run a supported smoke path without discovering undocumented prerequisites;
-3. understand the returned score semantics without reading source code;
-4. locate the current architecture and see which parts are planned;
-5. reproduce a benchmark from pinned inputs/runtime identity;
-6. tell directional CI evidence from representative product evidence;
-7. integrate through a small public API instead of experimental internals;
-8. find contribution, validation, security and license information directly;
-9. see no inherited template material presented as Decisio product truth.
+1. understand the core product boundary in under a minute;
+2. run a real local demo without discovering an undocumented model setup step;
+3. distinguish smoke evidence from representative benchmark evidence;
+4. understand what returned scores do and do not mean;
+5. integrate through a small supported API rather than experimental internals;
+6. reproduce benchmark claims from exact model/runtime/fixture identities;
+7. find contribution, security and release expectations directly;
+8. trust that `main` cannot bypass the checks the repository declares mandatory;
+9. see only current Decisio product truth in active documentation.
 
-That is the target. More documentation is not the goal; **less ambiguity is**.
+More documentation is not the goal. **Less ambiguity and lower adoption friction are.**

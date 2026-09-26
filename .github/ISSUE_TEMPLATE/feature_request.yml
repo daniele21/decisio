@@ -1,0 +1,38 @@
+name: Feature proposal
+description: Propose a product or developer-experience improvement
+title: "[proposal] "
+labels: ["enhancement"]
+body:
+  - type: textarea
+    id: job
+    attributes:
+      label: User / job
+      description: Who needs this and what are they trying to accomplish?
+    validations:
+      required: true
+  - type: textarea
+    id: outcome
+    attributes:
+      label: Desired outcome
+      description: Describe the observable outcome rather than only the mechanism you prefer.
+    validations:
+      required: true
+  - type: textarea
+    id: current
+    attributes:
+      label: Current limitation
+      description: What is difficult or impossible with Decisio today?
+    validations:
+      required: true
+  - type: textarea
+    id: constraints
+    attributes:
+      label: Constraints or evidence
+      description: Note compatibility, correctness, latency, model/runtime, or reproducibility constraints that matter.
+  - type: checkboxes
+    id: boundary
+    attributes:
+      label: Product boundary
+      options:
+        - label: I understand Decisio owns local serving/runtime behavior; externally served endpoint evaluation belongs in Performance Lab.
+          required: true

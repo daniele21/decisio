@@ -8,4 +8,5 @@ build/
 dist/
 .artifacts/
 models/
+.models/
 .DS_Store

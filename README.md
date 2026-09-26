@@ -101,28 +101,29 @@ can patch arbitrary earlier prompt changes.
 
 The shortest path is the Snake demo. It makes the static/dynamic split visible on every move.
 
-Prerequisites: Python 3.11+, [uv](https://docs.astral.sh/uv/) and `curl`.
+Prerequisites: Python 3.11+ and [uv](https://docs.astral.sh/uv/).
 
 ```bash
 git clone https://github.com/daniele21/decisio.git
 cd decisio
-
 uv sync --frozen --extra llama --extra dev
 
-mkdir -p .models
-curl -L \
-  "https://huggingface.co/unsloth/Qwen3.5-0.8B-GGUF/resolve/91840701981c3152e23662fa4416d7a93cab90e2/Qwen3.5-0.8B-Q4_K_M.gguf?download=true" \
-  -o .models/Qwen3.5-0.8B-Q4_K_M.gguf
-
-uv run python -m examples.snake.web \
-  --model "$PWD/.models/Qwen3.5-0.8B-Q4_K_M.gguf" \
-  --scorer direct \
-  --open
+uv run python -m examples.snake.demo --open
 ```
 
-The 0.8B artifact above is the small pinned real-model smoke model, useful for trying the project
-quickly. Repository benchmark claims use their own exact model/runtime identity; the current primary
-reference artifact is Qwen3.5-2B Q4_K_M.
+On the first run, Decisio downloads the pinned Qwen3.5-0.8B Q4_K_M smoke artifact into
+`models/`, verifies its SHA-256, then launches the local UI. That smaller artifact is for a cheap
+functional demo; repository benchmark claims use their own exact model/runtime identity, with
+Qwen3.5-2B Q4_K_M as the current primary reference.
+
+Bring your own compatible GGUF by passing it explicitly:
+
+```bash
+uv run python -m examples.snake.demo \
+  --model /absolute/path/model.gguf \
+  --device cpu \
+  --open
+```
 
 In the Snake UI, look for:
 
@@ -133,15 +134,15 @@ In the Snake UI, look for:
 - latency and context-reuse metrics;
 - logical input tokens versus physically evaluated tokens.
 
-Snake reuse is enabled by default. Use `--fresh-prefix` when you want the same stateful prompt
-evaluated without prefix reuse for comparison.
+Snake reuse is enabled by default. Add `--fresh-prefix` to the demo command when you want the same
+stateful prompt evaluated without prefix reuse for comparison.
 
-For a non-visual request:
+For a non-visual request using the downloaded smoke artifact:
 
 ```bash
 uv run decisio score \
   --input examples/support-routing/request.json \
-  --model "$PWD/.models/Qwen3.5-0.8B-Q4_K_M.gguf" \
+  --model "$PWD/models/Qwen3.5-0.8B-Q4_K_M.gguf" \
   --device cpu
 ```
 
@@ -151,15 +152,13 @@ On Apple Silicon, install the pinned binding with Metal enabled and select the M
 CMAKE_ARGS="-DGGML_METAL=on" \
   uv sync --frozen --extra llama --extra dev --reinstall-package llama-cpp-python --no-cache
 
-uv run decisio score \
-  --input examples/support-routing/request.json \
-  --model "$PWD/.models/Qwen3.5-0.8B-Q4_K_M.gguf" \
-  --device metal
+uv run python -m examples.snake.demo --device metal --open
 ```
 
-Metal offloads all model layers and the K/Q/V tensors. Decisio refuses `--device metal` when the
-installed binding lacks GPU offload support, rather than silently using CPU. CPU remains the pinned
-reference for repository evidence; CPU and Metal results are separate runtime identities.
+Metal offloads model execution through the Metal-enabled llama.cpp build. Decisio refuses
+`--device metal` when the installed binding lacks GPU offload support rather than silently using
+CPU. CPU remains the pinned reference for repository evidence; CPU and Metal results are separate
+runtime identities.
 
 ## Snake: the idea in one loop
 

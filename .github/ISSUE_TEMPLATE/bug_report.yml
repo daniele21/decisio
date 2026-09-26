@@ -1,0 +1,50 @@
+name: Bug report
+description: Report a reproducible Decisio defect
+title: "[bug] "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Please keep public reports free of credentials, private prompts, or sensitive benchmark data.
+  - type: textarea
+    id: problem
+    attributes:
+      label: What happened?
+      description: Describe the observed behavior and what you expected instead.
+    validations:
+      required: true
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Minimal reproduction
+      description: Include the smallest command, request, or code sample that reproduces the issue.
+      render: shell
+    validations:
+      required: true
+  - type: textarea
+    id: identity
+    attributes:
+      label: Model and runtime identity
+      description: Include GGUF/model name or SHA, quantization, llama-cpp-python version, device, OS, and relevant Decisio commit/version.
+      placeholder: |
+        Decisio:
+        Model/GGUF:
+        Quantization:
+        llama-cpp-python:
+        Device:
+        OS:
+    validations:
+      required: true
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Logs or evidence
+      description: Add bounded logs, trace excerpts, or screenshots that help locate the failure.
+  - type: checkboxes
+    id: safety
+    attributes:
+      label: Public-data check
+      options:
+        - label: I removed secrets, sensitive prompts, and private benchmark data from this report.
+          required: true

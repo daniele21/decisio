@@ -3,7 +3,7 @@
   "contract_version": "0.2.1",
   "applicability": {
     "status": "recommended",
-    "reason": "Real-model workflows cross schema/compiler/scorer/backend boundaries; the reference scorer gate is migrating to pinned Qwen3.5-4B Q4_K_M GGUF through llama.cpp on CPU."
+    "reason": "Real-model workflows cross schema/compiler/scorer/backend boundaries; the canonical evidence path is pinned Qwen3.5-2B Q4_K_M GGUF through llama.cpp on CPU, with 0.8B retained only for cheap directional smoke."
   },
   "principles": {
     "final_environment_should_confirm_not_discover": true,
@@ -54,9 +54,9 @@
   ],
   "target_environments": [
     {
-      "id": "qwen35-4b-q4km-llamacpp-cpu",
+      "id": "qwen35-2b-q4km-llamacpp-cpu",
       "platform": "linux-cpu",
-      "description": "Pinned Qwen3.5-4B Q4_K_M GGUF through llama.cpp on Linux CPU for scorer quality, robustness and same-run systems evidence.",
+      "description": "Pinned Qwen3.5-2B Q4_K_M GGUF through llama.cpp on CPU for Decisio reference correctness, quality and systems evidence.",
       "material_dimensions": [
         "exact GGUF SHA-256 and quantization",
         "llama.cpp runtime/build and binding identity",
@@ -75,31 +75,44 @@
       "platform": "github-hosted-linux-cpu",
       "artifact_surface": "source",
       "target_environment_refs": [
-        "qwen35-4b-q4km-llamacpp-cpu"
+        "qwen35-2b-q4km-llamacpp-cpu"
       ],
       "known_gaps": [
-        "smaller Qwen3.5-0.8B Q4_K_M GGUF instead of the 4B reference artifact",
-        "8-case directional workload instead of the frozen 64-case gate",
+        "smaller Qwen3.5-0.8B Q4_K_M GGUF instead of the 2B reference artifact",
+        "reduced directional workloads instead of representative promotion fixtures",
         "host CPU identity may vary across runs"
+      ]
+    },
+    {
+      "id": "developer-local-cpu-qwen35-2b-llamacpp",
+      "fidelity_class": "representative_physical",
+      "automation": "real_environment",
+      "platform": "developer-local-cpu",
+      "artifact_surface": "source",
+      "target_environment_refs": [
+        "qwen35-2b-q4km-llamacpp-cpu"
+      ],
+      "known_gaps": [
+        "latency and memory evidence are specific to the recorded local CPU/thread topology",
+        "the local host is representative evidence only for claims explicitly bound to its captured identity"
       ]
     }
   ],
   "critical_journeys": [
     {
       "id": "single-choice-real-model",
-      "claim": "A typed choice request compiles, scores with a real Qwen model and returns an auditable zero-generation decision.",
+      "claim": "A typed choice request compiles, scores with a real GGUF model and returns an auditable zero-generation decision.",
       "ui_surface": false,
       "minimum_ui_evidence_mode": "assertions",
       "target_environment_refs": [
-        "qwen35-4b-q4km-llamacpp-cpu"
+        "qwen35-2b-q4km-llamacpp-cpu"
       ],
       "automated_environment_refs": [
         "github-hosted-cpu-qwen35-08b-llamacpp"
       ],
       "minimum_automated_fidelity": "host_or_fake",
       "residual_gaps": [
-        "full Qwen3.5-4B scale is not established by the 0.8B smoke",
-        "current smoke uses Transformers/BF16 rather than the target llama.cpp/Q4_K_M runtime"
+        "the 0.8B smoke proves integration and runtime mechanics, not the 2B reference quality claim"
       ],
       "real_environment_confirmation": "conditional",
       "automation_gap_reason": null
@@ -110,34 +123,51 @@
       "ui_surface": false,
       "minimum_ui_evidence_mode": "assertions",
       "target_environment_refs": [
-        "qwen35-4b-q4km-llamacpp-cpu"
+        "qwen35-2b-q4km-llamacpp-cpu"
+      ],
+      "automated_environment_refs": [],
+      "minimum_automated_fidelity": "host_or_fake",
+      "residual_gaps": [
+        "the authoritative short/fresh semantic-v2 gate is a recorded FAIL and therefore does not promote semantic v2 as a universal default",
+        "the pinned 2B gate is intentionally executed locally and evidence remains bound to the recorded local CPU/runtime identity"
+      ],
+      "real_environment_confirmation": "required",
+      "automation_gap_reason": "The full pinned 2B scorer gate is intentionally local/manual rather than automatic PR CI because it is long-running reference evidence; CI retains only reduced 0.8B mechanism smoke."
+    },
+    {
+      "id": "repeated-state-runtime",
+      "claim": "Reusable model state preserves fresh decisions while reducing physical input work for repeated-state workloads.",
+      "ui_surface": false,
+      "minimum_ui_evidence_mode": "assertions",
+      "target_environment_refs": [
+        "qwen35-2b-q4km-llamacpp-cpu"
       ],
       "automated_environment_refs": [
         "github-hosted-cpu-qwen35-08b-llamacpp"
       ],
       "minimum_automated_fidelity": "host_or_fake",
       "residual_gaps": [
-        "the representative llama.cpp/Q4_K_M automated gate is not implemented yet",
-        "existing 4B evidence uses Transformers/BF16 and is non-authoritative for promotion"
+        "repeated-state gate v3 decides only its frozen scoped semantic-v2 workload",
+        "the pinned 2B gate is intentionally executed locally and performance evidence remains bound to exact model/runtime/host identity"
       ],
-      "real_environment_confirmation": "conditional",
+      "real_environment_confirmation": "required",
       "automation_gap_reason": null
     },
     {
       "id": "snake-control-loop",
-      "claim": "Deterministic constraints remove immediately unsafe moves before repeated real-model semantic action selection.",
+      "claim": "Deterministic constraints remove immediately unsafe moves before repeated real-model typed action selection over current-only state.",
       "ui_surface": false,
       "minimum_ui_evidence_mode": "assertions",
       "target_environment_refs": [
-        "qwen35-4b-q4km-llamacpp-cpu"
+        "qwen35-2b-q4km-llamacpp-cpu"
       ],
       "automated_environment_refs": [
         "github-hosted-cpu-qwen35-08b-llamacpp"
       ],
       "minimum_automated_fidelity": "host_or_fake",
       "residual_gaps": [
-        "representative behavioral quality is not established by the smoke rollout",
-        "current smoke uses Transformers/BF16 rather than the target llama.cpp/Q4_K_M runtime"
+        "representative 2B controller screening is not established by the 0.8B smoke rollout",
+        "controller quality and holdout evidence remain separate from cache-efficiency proof"
       ],
       "real_environment_confirmation": "conditional",
       "automation_gap_reason": null
