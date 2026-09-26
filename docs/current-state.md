@@ -17,7 +17,7 @@ Active plans: [llama.cpp reference runtime evidence closure](workstreams/llama-c
 | Shared context-state fast path | DONE | native-batch-safe branching + bounded repeated-state cache |
 | Scorer gate v2 | FAILED | short independent workload does not justify v2 promotion |
 | Repeated-state gate v3 | ACTIVE | frozen 48-case/8-state scoped experiment; 2B reference execution is local/manual, not PR CI |
-| Product foundation | ACTIVE | stateful runtime thesis integrated; stable DecisionSession waits for evidence closure |
+| Product foundation | ACTIVE | supported direct-choice DecisionSession integrated; answerability/calibration remain planned |
 | Snake stateful reference loop | ACTIVE | fixed decision context + current-only dynamic state + direct logits + fresh/cache oracle |
 | Snake controller quality benchmark | ACTIVE | bounded dynamic-body oracle + append-only fixed/episode matrix implemented; reference 2B screening evidence pending |
 | Repository adoption hardening | ACTIVE | one-command demo, current docs and public intake/package metadata are being integrated; GitHub settings remain external |
@@ -84,5 +84,5 @@ zero-generation choice readout and observable context reuse.
 2. Run repeated-state gate v3 locally on the unchanged pinned 2B CPU identity and record PASS/FAIL with host/runtime identity, without broadening the semantic-v2 claim.
 3. Run the Snake controller screening matrix on the pinned reference 2B model; require oracle coverage, fixed-state quality, episode outcomes and append-only evidence before selecting a controller family.
 4. Freeze a holdout Snake fixture before prompt/controller tuning is treated as validated; cache efficiency is not controller quality.
-5. Integrate the one-command onboarding and repository-truth cleanup, then shape the smallest stable DecisionSession API only after the runtime contract is sufficiently proven.
+5. Exercise the supported DecisionSession contract in local 2B evidence without treating API stability as a quality/performance endorsement.
 6. Protect `main` and add GitHub description/topics/social preview through repository settings; source-controlled checks cannot substitute for those settings.
