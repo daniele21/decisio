@@ -160,6 +160,43 @@ Metal offloads model execution through the Metal-enabled llama.cpp build. Decisi
 CPU. CPU remains the pinned reference for repository evidence; CPU and Metal results are separate
 runtime identities.
 
+## Python API
+
+`DecisionSession` is the supported high-level path for repeated direct-choice decisions. It owns
+the GGUF/llama.cpp runtime, keeps one stable decision context for the session, accepts only changing
+state plus the currently valid candidates, and releases model resources deterministically.
+
+```python
+from decisio import Candidate, DecisionSession
+
+candidates = (
+    Candidate("billing", "Payments, invoices, refunds, and duplicate charges"),
+    Candidate("technical", "Product defects, API failures, and troubleshooting"),
+)
+
+with DecisionSession(
+    "models/Qwen3.5-0.8B-Q4_K_M.gguf",
+    "Which support queue should own this ticket?",
+) as session:
+    result = session.choose(
+        state={"ticket": "I was charged twice for the same subscription."},
+        candidates=candidates,
+    )
+
+print(result.choice)
+print(result.execution_mode)
+print(result.runtime_metrics)
+```
+
+The first matching decision warms reusable model context; later decisions can reuse it when the exact
+compiler/runtime rules permit. `fresh=True` evaluates the **same prompt** without shared-prefix
+execution and is the supported oracle/debug path.
+
+This API deliberately exposes only the direct A/B/C/... readout in v1. It does not select among
+experimental scorers, does not turn normalized option scores into calibrated confidence, and does
+not replace deterministic application constraints. Remove impossible candidates before calling
+`choose`.
+
 ## Snake: the idea in one loop
 
 Snake is the reference example because it naturally contains both stable and changing information.
@@ -319,8 +356,8 @@ flowchart LR
 **Decisio** owns the stable/dynamic decision boundary, deterministic compilation, readout semantics,
 reuse correctness, probability status, provenance and evidence.
 
-The high-level `DecisionSession` API is not yet a promoted stable public contract. The current
-reference implementation proves the lower-level runtime behavior first.
+`DecisionSession` is the supported high-level Python contract for the direct stateful choice path.
+Lower-level backend/scorer modules remain available for benchmarks and advanced experiments.
 
 See [Architecture](docs/architecture.md) for the detailed boundary.
 
@@ -434,7 +471,6 @@ Implemented now:
 
 Still planned or experimental:
 
-- stable high-level `DecisionSession` API;
 - answerability/abstention contract;
 - calibration artifacts;
 - broader controller-quality and perturbation coverage;
