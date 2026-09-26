@@ -35,8 +35,8 @@ and make repository governance match the engineering discipline already encoded 
 - PRODUCT: `PRODUCT_FEATURE` for the one-command onboarding flow; the core product boundary is
   unchanged.
 - DELIVERY: `ITERATION` until the adoption candidate is ready for integration.
-- VALIDATION: `STRONG` because executable onboarding, package metadata and model-runtime paths are
-  affected.
+- VALIDATION: `FULL` because this candidate also corrects the repository-owned E2E validation
+  contract; selector/validation configuration changes force full validation.
 - EXECUTION: `AGENT_LOCAL` for deterministic tests and `REMOTE_AUTOMATED` for pinned real-model
   CPU evidence. Representative hardware claims remain bound to their declared environment.
 
