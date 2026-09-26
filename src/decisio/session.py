@@ -123,7 +123,7 @@ class DecisionSession:
 
     shutdown = close
 
-    def __enter__(self) -> "DecisionSession":
+    def __enter__(self) -> DecisionSession:
         self._require_open()
         return self
 
