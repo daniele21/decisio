@@ -130,3 +130,36 @@ def test_decision_result_serializes_binary_conditional_probability_only_when_pre
     )
     assert semantic.to_dict()["binary_conditional_probability"] == {"a": 0.8, "b": 0.5}
     assert "binary_conditional_probability" not in letters.to_dict()
+
+
+
+def test_decision_result_validates_session_execution_metadata():
+    result = DecisionResult(
+        choice="a",
+        distribution={"a": 0.75, "b": 0.25},
+        scores={"a": 1.0, "b": 0.0},
+        scorer="direct",
+        execution_mode="reuse",
+        runtime_metrics={"logical_input_tokens": 10, "reuse_ratio": 0.4},
+    )
+    data = result.to_dict()
+    assert data["execution_mode"] == "reuse"
+    assert data["runtime_metrics"]["reuse_ratio"] == 0.4
+
+    with pytest.raises(ValueError, match="execution_mode"):
+        DecisionResult(
+            choice="a",
+            distribution={"a": 0.5, "b": 0.5},
+            scores={"a": 1.0, "b": 0.0},
+            scorer="direct",
+            execution_mode="cached",
+        )
+
+    with pytest.raises(ValueError, match="runtime_metrics"):
+        DecisionResult(
+            choice="a",
+            distribution={"a": 0.5, "b": 0.5},
+            scores={"a": 1.0, "b": 0.0},
+            scorer="direct",
+            runtime_metrics={"latency": math.inf},
+        )
