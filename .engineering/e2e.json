@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "contract_version": "0.3.0",
+  "contract_version": "0.2.1",
   "applicability": {
     "status": "recommended",
     "reason": "Real-model workflows cross schema/compiler/scorer/backend boundaries; the canonical evidence path is pinned Qwen3.5-2B Q4_K_M GGUF through llama.cpp on CPU, with 0.8B retained only for cheap directional smoke."
