@@ -32,14 +32,12 @@ and make repository governance match the engineering discipline already encoded 
 
 ## Active axes
 
-- PRODUCT: `PRODUCT_FEATURE` for the one-command onboarding flow; the core product boundary is
-  unchanged.
-- DELIVERY: `ITERATION` until the adoption candidate is ready for integration.
-- VALIDATION: `FULL` because this candidate also corrects the repository-owned E2E validation
-  contract; selector/validation configuration changes force full validation.
-- EXECUTION: `AGENT_LOCAL` for deterministic tests, `REMOTE_AUTOMATED` for reduced 0.8B smoke,
-  and `REAL_ENVIRONMENT` for pinned 2B reference evidence executed locally. Performance claims remain
-  bound to the recorded host/runtime identity.
+- PRODUCT: `PRODUCT_FEATURE` for the supported `DecisionSession` library boundary.
+- DELIVERY: `ITERATION` until the session candidate is ready for integration.
+- VALIDATION: `STRONG` because a public/shared API, lifecycle and result contract are affected.
+- EXECUTION: `AGENT_LOCAL` for deterministic contract tests and `REMOTE_AUTOMATED` for the existing
+  reduced 0.8B runtime smoke. Pinned 2B quality/performance evidence remains separate
+  `REAL_ENVIRONMENT` work.
 
 ## Product intent for adoption hardening
 
@@ -183,10 +181,10 @@ Remaining:
 
 | Item | State | Acceptance |
 | --- | --- | --- |
-| Contributor/changelog drift cleanup | ACTIVE | no current 4B/BF16 promotion guidance remains |
-| One-command pinned Snake demo | ACTIVE | download/checksum/launch behavior has deterministic tests |
-| Package discovery metadata | ACTIVE | wheel metadata exposes keywords, classifiers and project URLs |
-| Structured issue intake | ACTIVE | bug reports request reproducible runtime identity; proposals start from user outcome |
+| Contributor/changelog drift cleanup | DONE | no current 4B/BF16 promotion guidance remains |
+| One-command pinned Snake demo | DONE | download/checksum/launch behavior has deterministic tests |
+| Package discovery metadata | DONE | wheel metadata exposes keywords, classifiers and project URLs |
+| Structured issue intake | DONE | bug reports request reproducible runtime identity; proposals start from user outcome |
 | Exact-head 0.8B real-model smoke | PENDING | fresh/reused equivalence and physical-token reduction pass on candidate |
 | 2B repeated-state gate v3 | PENDING LOCAL EVIDENCE | run locally on the pinned artifact and retain PASS/FAIL plus host/runtime identity |
 | Stable `DecisionSession` | IMPLEMENTED NARROW SCOPE | direct-choice API only; 2B quality/performance evidence remains separate |
