@@ -118,8 +118,8 @@ class DecisionSession:
         """Release the underlying llama.cpp runtime. Safe to call more than once."""
         if self._closed:
             return
-        self._closed = True
         self._backend.close()
+        self._closed = True
 
     shutdown = close
 
