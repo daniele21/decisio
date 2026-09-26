@@ -46,14 +46,18 @@ safe + filtered moves       model + scorer                updated board
 The browser is only a local example surface. The GGUF model stays in the Python process and no HTTP
 server is added to the Decisio core package.
 
-Install the llama.cpp runtime, then launch:
+The fastest path downloads and verifies the pinned small smoke model automatically:
 
 ```bash
-uv sync --extra llama --extra dev
+uv sync --frozen --extra llama --extra dev
+uv run python -m examples.snake.demo --open
+```
 
-uv run python -m examples.snake.web \
+To use your own GGUF or tune runtime arguments, pass them through the demo runner:
+
+```bash
+uv run python -m examples.snake.demo \
   --model /path/to/Qwen3.5-2B-Q4_K_M.gguf \
-  --scorer direct \
   --threads 5 \
   --threads-batch 11 \
   --trace .artifacts/snake-live.jsonl \
