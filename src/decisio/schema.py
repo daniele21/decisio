@@ -114,6 +114,8 @@ class DecisionResult:
     generated_tokens: int = 0
     prompt_sha256: dict[str, str] = field(default_factory=dict)
     model: dict[str, Any] = field(default_factory=dict)
+    execution_mode: str | None = None
+    runtime_metrics: dict[str, int | float] = field(default_factory=dict)
 
     def __post_init__(self) -> None:
         _require_non_empty_string(self.choice, field_name="choice")
@@ -121,6 +123,17 @@ class DecisionResult:
         _require_non_empty_string(self.probability_status, field_name="probability_status")
         if self.generated_tokens != 0:
             raise ValueError("native Decisio scoring must not report generated answer tokens")
+        if self.execution_mode not in {None, "reuse", "fresh"}:
+            raise ValueError("execution_mode must be reuse, fresh, or None")
+        if any(
+            not isinstance(key, str)
+            or not key
+            or isinstance(value, bool)
+            or not isinstance(value, (int, float))
+            or not math.isfinite(float(value))
+            for key, value in self.runtime_metrics.items()
+        ):
+            raise ValueError("runtime_metrics must contain finite numeric values with string keys")
         if self.choice not in self.distribution:
             raise ValueError("choice must be present in distribution")
         if set(self.distribution) != set(self.scores):
@@ -171,4 +184,8 @@ class DecisionResult:
         }
         if self.binary_conditional_probability:
             data["binary_conditional_probability"] = self.binary_conditional_probability
+        if self.execution_mode is not None:
+            data["execution_mode"] = self.execution_mode
+        if self.runtime_metrics:
+            data["runtime_metrics"] = self.runtime_metrics
         return data

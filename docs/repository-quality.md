@@ -32,14 +32,12 @@ and make repository governance match the engineering discipline already encoded 
 
 ## Active axes
 
-- PRODUCT: `PRODUCT_FEATURE` for the one-command onboarding flow; the core product boundary is
-  unchanged.
-- DELIVERY: `ITERATION` until the adoption candidate is ready for integration.
-- VALIDATION: `FULL` because this candidate also corrects the repository-owned E2E validation
-  contract; selector/validation configuration changes force full validation.
-- EXECUTION: `AGENT_LOCAL` for deterministic tests, `REMOTE_AUTOMATED` for reduced 0.8B smoke,
-  and `REAL_ENVIRONMENT` for pinned 2B reference evidence executed locally. Performance claims remain
-  bound to the recorded host/runtime identity.
+- PRODUCT: `PRODUCT_FEATURE` for the supported `DecisionSession` library boundary.
+- DELIVERY: `ITERATION` until the session candidate is ready for integration.
+- VALIDATION: `STRONG` because a public/shared API, lifecycle and result contract are affected.
+- EXECUTION: `AGENT_LOCAL` for deterministic contract tests and `REMOTE_AUTOMATED` for the existing
+  reduced 0.8B runtime smoke. Pinned 2B quality/performance evidence remains separate
+  `REAL_ENVIRONMENT` work.
 
 ## Product intent for adoption hardening
 
@@ -86,7 +84,8 @@ must agree on:
 - 0.8B and Metal as separate smoke/operational identities;
 - semantic-v2 short/fresh failure;
 - stateful reuse as the primary product thesis;
-- `DecisionSession` as planned until the evidence/API contract is frozen.
+- `DecisionSession` as the supported direct-choice library boundary; model-quality/performance
+  evidence remains separate.
 
 Old 4B/BF16 promotion language must not survive in active contributor guidance.
 
@@ -111,22 +110,20 @@ This path is functional onboarding, not representative product evidence.
 
 ### RQ-04 — Expose one stable library entry point
 
-**Priority: P1, BLOCKED BY RQ-01**
+**Priority: P1 — IMPLEMENTED IN NARROW SCOPE**
 
-Normal consumers should not assemble backend + scorer internals manually.
+Normal consumers no longer need to assemble backend + scorer internals for the supported direct
+stateful choice path. `DecisionSession` owns:
 
-The smallest intended surface remains a high-level session that owns:
+- GGUF/backend construction and deterministic lifecycle;
+- one stable decision context;
+- bounded typed choice requests over changing state;
+- direct A/B/C/... readout only;
+- explicit same-prompt fresh versus reuse execution;
+- typed result, probability status, provenance and reuse metrics.
 
-- model/backend construction;
-- stable decision context;
-- bounded choice requests;
-- direct stateful readout;
-- explicit fresh-vs-reuse behavior where needed;
-- typed result, probability status and provenance;
-- deterministic close/resource lifecycle.
-
-Do not freeze this API merely to complete repository hardening. Implement it only after the runtime
-contract and supported default semantics are sufficiently proven.
+The contract is intentionally narrower than the outstanding 2B evidence question: API stability does
+not promote a scorer or claim representative controller quality/performance.
 
 ### RQ-05 — Protect the default branch and improve GitHub discovery
 
@@ -152,7 +149,7 @@ Build/install smoke already exists in CI, and package version/changelog are Deci
 
 Before the first promoted alpha:
 
-- decide the supported public API surface;
+- validate the supported DecisionSession surface on the release candidate;
 - run the repository-defined release validation profile;
 - retain exact candidate/base and required real-environment evidence;
 - build immutable wheel/sdist artifacts with checksums;
@@ -184,13 +181,13 @@ Remaining:
 
 | Item | State | Acceptance |
 | --- | --- | --- |
-| Contributor/changelog drift cleanup | ACTIVE | no current 4B/BF16 promotion guidance remains |
-| One-command pinned Snake demo | ACTIVE | download/checksum/launch behavior has deterministic tests |
-| Package discovery metadata | ACTIVE | wheel metadata exposes keywords, classifiers and project URLs |
-| Structured issue intake | ACTIVE | bug reports request reproducible runtime identity; proposals start from user outcome |
+| Contributor/changelog drift cleanup | DONE | no current 4B/BF16 promotion guidance remains |
+| One-command pinned Snake demo | DONE | download/checksum/launch behavior has deterministic tests |
+| Package discovery metadata | DONE | wheel metadata exposes keywords, classifiers and project URLs |
+| Structured issue intake | DONE | bug reports request reproducible runtime identity; proposals start from user outcome |
 | Exact-head 0.8B real-model smoke | PENDING | fresh/reused equivalence and physical-token reduction pass on candidate |
 | 2B repeated-state gate v3 | PENDING LOCAL EVIDENCE | run locally on the pinned artifact and retain PASS/FAIL plus host/runtime identity |
-| Stable `DecisionSession` | BLOCKED | RQ-01 evidence is sufficient to freeze supported semantics |
+| Stable `DecisionSession` | IMPLEMENTED NARROW SCOPE | direct-choice API only; 2B quality/performance evidence remains separate |
 | First alpha release | BLOCKED | API + release contract satisfied |
 | Branch protection / GitHub topics | PENDING REPOSITORY SETTING | source changes cannot substitute for the setting |
 
