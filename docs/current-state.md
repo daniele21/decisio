@@ -20,7 +20,7 @@ Active plans: [llama.cpp reference runtime evidence closure](workstreams/llama-c
 | Product foundation | ACTIVE | supported direct-choice DecisionSession integrated; answerability/calibration remain planned |
 | Snake stateful reference loop | ACTIVE | fixed decision context + current-only dynamic state + direct logits + fresh/cache oracle |
 | Snake controller quality benchmark | ACTIVE | bounded dynamic-body oracle + append-only fixed/episode matrix implemented; reference 2B screening evidence pending |
-| Repository adoption hardening | ACTIVE | one-command demo, current docs and public intake/package metadata are being integrated; GitHub settings remain external |
+| Repository adoption hardening | DONE | one-command demo, docs, package metadata and public intake integrated; GitHub settings remain external (#9) |
 
 ## Reference identity
 
