@@ -17,7 +17,7 @@ DEMO_MODEL_URL = (
     "https://huggingface.co/unsloth/Qwen3.5-0.8B-GGUF/resolve/"
     f"{DEMO_MODEL_REVISION}/{DEMO_MODEL_NAME}?download=true"
 )
-REPO_ROOT = Path(__file__).resolve().parents[1]
+REPO_ROOT = Path(__file__).resolve().parents[2]
 DEFAULT_MODEL = REPO_ROOT / "models" / DEMO_MODEL_NAME
 
 
