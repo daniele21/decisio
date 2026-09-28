@@ -13,7 +13,7 @@ Implementation order must optimize for learning. Performance engineering that do
 
 ## Milestone 0 — Reproducible decision laboratory
 
-**Implementation status:** the pinned Qwen3.5-2B Q4_K_M GGUF + llama.cpp reference runtime, scorer/compiler core, zero-generation readouts and runtime evidence tooling are implemented. The general short/fresh semantic-v2 gate has completed and failed; repeated-state scope is being tested separately.
+**Implementation status:** the pinned Qwen3.5-2B Q4_K_M GGUF + llama.cpp reference runtime, scorer/compiler core, zero-generation readouts and runtime evidence tooling are implemented. Both semantic-v2 promotion gates have completed and failed; the active evidence lane is stateful direct choice.
 
 Goal: establish a trustworthy baseline before building a service.
 
@@ -44,7 +44,7 @@ Exit evidence:
 
 ## Milestone 1 — Prove the stateful decision loop
 
-**Harness status:** generated JSON, direct A/B/C logits, candidate-order reversal, comparative semantic v2, independent semantic v1 and real-model llama.cpp execution are implemented. Scorer-gate v2 failed for semantic v2 as a short/fresh general default; repeated-state gate v3 is the active precommitted experiment.
+**Harness status:** generated JSON, canonical direct A/B/C logits, candidate-order perturbation, semantic v2/v1 and real-model llama.cpp execution are implemented. Semantic-v2 failed both short/fresh and repeated-state promotion gates. The first pinned-2B direct screening proved stateful/fresh equivalence but exposed controller-quality and order-bias issues; direct v2 remediation is awaiting rerun.
 
 Goal: prove the core differentiator before expanding APIs: stable decision context is reusable, fresh-equivalent and materially reduces repeated prefill while decision quality is evaluated independently.
 
@@ -71,8 +71,8 @@ Required experiment variants:
 Decision gate:
 
 - scorer-gate v2 remains FAIL for semantic v2 as a short/fresh general-purpose default and is not the product thesis;
-- repeated-state gate v3 may support only a narrower semantic-v2 scope if its frozen criteria pass;
-- direct A/B/C logits are the reference control primitive for the stateful Snake loop; the differentiator is the surrounding context/session contract, not the logits themselves;
+- repeated-state gate v3 is FAIL and does not promote semantic-v2 even in its scoped workload;
+- canonical direct A/B/C logits are the reference control primitive for the stateful Snake loop; the differentiator is the surrounding context/session contract, not the logits themselves;
 - no scorer becomes a universal default without scope-specific evidence.
 
 ## Milestone 2 — Answerability
