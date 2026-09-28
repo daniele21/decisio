@@ -280,8 +280,8 @@ reuses only exact/prefix-safe context under explicit compiler/runtime rules.
 
 ### 4. Read the decision instead of generating an answer
 
-For a small bounded action set, Decisio can render the valid actions as A/B/C/... and read the
-corresponding next-token logits from one model evaluation:
+For a small bounded action set, Decisio canonicalizes the valid actions by stable candidate ID,
+renders them as A/B/C/..., and reads the corresponding next-token logits from one model evaluation:
 
 ```text
 A. UP
@@ -405,8 +405,9 @@ typed action
 ```
 
 A separate comparative semantic-v2 scorer also exists for experiments. It is **not** the general
-default: its frozen short/fresh gate failed the precommitted general-purpose criteria. Repeated-state
-experiments remain a scoped evidence lane.
+default: both its frozen short/fresh gate and its later repeated-state promotion gate failed their
+precommitted criteria. The promoted v1 direction is one-pass direct choice with deterministic
+candidate ordering and fresh-equivalent model-state reuse.
 
 ## How this differs from SemIf
 
@@ -463,7 +464,7 @@ Implemented now:
 - local GGUF + llama.cpp execution;
 - stable-context model-state reuse with fresh-path correctness checks;
 - bounded repeated-state context cache and runtime instrumentation;
-- direct A/B/C choice logits with zero generated answer tokens;
+- canonical direct A/B/C choice logits with zero generated answer tokens and caller-order invariance;
 - deterministic constraints-before-score examples;
 - exact model/runtime provenance;
 - frozen benchmark/evaluation tooling;
