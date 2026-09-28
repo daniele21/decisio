@@ -197,7 +197,8 @@ def test_letter_compiler_maps_ids_to_distinct_tokens():
     assert compiled.version == "letter-baseline-v2"
 
 
-def test_letter_compiler_is_invariant_to_candidate_presentation_order():
+@pytest.mark.parametrize("reuse_prefix", [False, True])
+def test_letter_compiler_is_invariant_to_candidate_presentation_order(reuse_prefix):
     item = request()
     reversed_request = ChoiceRequest(
         id=item.id,
@@ -206,13 +207,18 @@ def test_letter_compiler_is_invariant_to_candidate_presentation_order():
         candidates=tuple(reversed(item.candidates)),
     )
 
-    left = compile_letter_choice(FakeTokenizer(), item, reuse_prefix=True)
-    right = compile_letter_choice(FakeTokenizer(), reversed_request, reuse_prefix=True)
+    left = compile_letter_choice(FakeTokenizer(), item, reuse_prefix=reuse_prefix)
+    right = compile_letter_choice(
+        FakeTokenizer(), reversed_request, reuse_prefix=reuse_prefix
+    )
 
     assert left.prompt == right.prompt
     assert left.sha256 == right.sha256
     assert left.readout == right.readout
-    assert left.version == right.version == "letter-question-prefix-v2"
+    assert left.version == right.version
+    assert left.version == (
+        "letter-question-prefix-v2" if reuse_prefix else "letter-baseline-v2"
+    )
 
 
 def test_letter_scorer_preserves_candidate_scores_when_caller_order_changes():
