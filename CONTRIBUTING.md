@@ -69,10 +69,7 @@ The pinned reference identity is Qwen3.5-2B Q4_K_M GGUF through
 exact host/runtime identity; PR CI is limited to cheaper 0.8B mechanism smoke. Smaller models and
 Metal runs are separate evidence identities.
 
-The general short/fresh semantic-v2 gate is a recorded **FAIL** and must not be reinterpreted.
-Repeated-state semantic evidence is governed separately by
-`benchmarks/repeated-state-gate-v3.md`. Snake controller quality is governed by
-`benchmarks/snake-controller-benchmark-v1.md` and is deliberately separate from cache efficiency.
+Both semantic-v2 promotion gates are recorded **FAIL** results and must not be reinterpreted; the repeated-state run still retains strong cache-mechanism evidence. Snake controller quality is governed by `benchmarks/snake-controller-benchmark-v1.md` and remains deliberately separate from cache efficiency. Direct-v1 screening evidence is append-only; direct-v2 reruns use a distinct protocol fingerprint.
 
 Do not edit a frozen fixture silently. A fixture change requires a new explicit dataset/protocol
 identity or version decision.
