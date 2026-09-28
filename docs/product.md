@@ -46,35 +46,14 @@ For decision-shaped workloads, Decisio aims to provide:
 
 A normal causal LLM already contains enough semantic information in its logits/hidden state to support useful bounded decisions without generating text.
 
-The initial scorer hypothesis was that **comparative candidate-level binary semantic scoring**
-would be a better general decision primitive than arbitrary answer-token scoring or
-candidate-independent binary scoring.
+The initial comparative semantic-scoring hypothesis failed both its representative short/fresh
+gate and its later repeated-state promotion gate. Semantic v2 remains an experimental comparison,
+not the promoted v1 decision primitive.
 
-The first representative 2B short/fresh scorer gate did **not** support that as a general default,
-and the later repeated-state gate also failed its precommitted quality guardrails despite strong
-cache reuse. Semantic v2 therefore remains an experimental comparison path, not the promoted v1
-decision primitive.
-
-The active v1 hypothesis is **stateful direct choice**: deterministically canonicalize the supplied
-candidate identities, compile one A/B/C/... choice prompt, evaluate it once, and read all option
-logits from the same final model position. Stateful execution must remain equivalent to the same
-compiled prompt evaluated fresh.
-
-For semantic candidate `c_i`:
-
-```text
-state + question + all alternatives + candidate_i
-                         |
-                         v
-                    YES / NO logits
-              |
-              v
-score_i = logit(YES) - logit(NO)
-```
-
-Candidate scores are then normalized across the supplied alternatives.
-
-A separate answerability judgment estimates whether the state contains enough information to answer at all.
+The active v1 hypothesis is **stateful direct choice**: canonicalize candidate identities, compile one
+A/B/C/... prompt, evaluate it once, and read all option logits from the same final model position.
+Stateful execution must remain equivalent to that same compiled prompt evaluated fresh. Answerability
+remains a separate future judgment from candidate preference.
 
 ## Reference runtime
 
