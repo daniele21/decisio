@@ -36,7 +36,7 @@ For decision-shaped workloads, Decisio aims to provide:
 
 - **zero answer generation** — no decoding loop for the final decision;
 - **no mandatory training** — start from an existing open-weight causal LLM;
-- **semantic candidates** — score the meaning of each candidate rather than an arbitrary A/B/C label;
+- **bounded candidates** — rank runtime-defined alternatives directly without generating an answer;
 - **shared computation** — reuse state/question work across candidates and related decisions;
 - **typed outputs** — no JSON repair or free-form parsing on the decision path;
 - **honest probability semantics** — distinguish conditional model scores from calibrated probability of correctness;
@@ -50,10 +50,15 @@ The initial scorer hypothesis was that **comparative candidate-level binary sema
 would be a better general decision primitive than arbitrary answer-token scoring or
 candidate-independent binary scoring.
 
-The first representative 2B short/fresh scorer gate did **not** support that as a general default.
-Semantic v2 therefore remains experimental, with the active question narrowed to repeated-state
-workloads. Direct A/B/C option-token scoring remains an explicit benchmark baseline and is also a
-legitimate low-latency application path for small bounded controls such as Snake.
+The first representative 2B short/fresh scorer gate did **not** support that as a general default,
+and the later repeated-state gate also failed its precommitted quality guardrails despite strong
+cache reuse. Semantic v2 therefore remains an experimental comparison path, not the promoted v1
+decision primitive.
+
+The active v1 hypothesis is **stateful direct choice**: deterministically canonicalize the supplied
+candidate identities, compile one A/B/C/... choice prompt, evaluate it once, and read all option
+logits from the same final model position. Stateful execution must remain equivalent to the same
+compiled prompt evaluated fresh.
 
 For semantic candidate `c_i`:
 
@@ -119,7 +124,7 @@ Decisio deliberately does not own:
 - **Decisions, not strings.** If the valid output space is bounded, do not generate prose to recover it.
 - **Training-free before trained.** Establish the inference-time ceiling before adding learned components.
 - **Constrain before score.** Deterministic validity/safety/business constraints stay with the owning domain and remove impossible candidates before probabilistic scoring.
-- **Choose the readout deliberately.** Prefer semantic candidate readouts when evidence supports them; direct option-token logits are valid for latency-oriented bounded controls, but scorer identity and order/verbalizer sensitivity must stay explicit.
+- **Choose the readout deliberately.** v1 promotes one-pass direct option logits for bounded choices; candidate IDs are canonicalized before A/B/C lettering, while scorer identity and verbalizer sensitivity remain explicit.
 - **Answerability is separate from preference.** "Which option?" and "Can this be answered?" are different questions.
 - **Scores are not confidence until calibrated.** API naming and metadata must preserve that distinction.
 - **State is first-class.** Split stable decision context from changing world state; process the stable prefix once wherever model/runtime semantics safely allow it.
@@ -146,10 +151,11 @@ The reference implementation can execute boolean and choice decisions with zero 
 
 ### Outcome
 
-On frozen evaluation sets, semantic candidate scoring is compared against:
+On frozen evaluation sets, the promoted stateful direct-choice path is compared against:
 
-- direct A/B/C or equivalent answer-token scoring;
-- autoregressive structured-output generation;
+- the exact same compiled prompt evaluated fresh;
+- autoregressive structured-output generation where useful;
+- experimental semantic scorers as non-promoted comparisons;
 - optional external references when legally/reproducibly available.
 
 The key question is not only "is it accurate?" but "does it improve the decision-specific trade-off?"
