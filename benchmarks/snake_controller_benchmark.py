@@ -11,7 +11,7 @@ import time
 from collections import deque
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any
+from typing import Any, Callable
 
 from decisio.baselines import GeneratedJsonScorer
 from decisio.schema import DecisionResult
@@ -24,6 +24,7 @@ BENCHMARK_ID = "snake-controller-benchmark-v1"
 SCHEMA_VERSION = 2
 DEFAULT_FIXTURE = Path("benchmarks/fixtures/snake-controller-v1.jsonl")
 DEFAULT_LEDGER = Path(".artifacts/snake-controller/history.jsonl")
+ProgressCallback = Callable[[dict[str, Any]], None]
 
 
 @dataclass(frozen=True, slots=True)
@@ -273,11 +274,13 @@ def fixed_state_benchmark(
     scorer: Any,
     config: ControllerConfig,
     planner: SnakePlanner,
+    *,
+    progress_callback: ProgressCallback | None = None,
 ) -> dict[str, Any]:
     records: list[dict[str, Any]] = []
     all_latencies: list[float] = []
     model_latencies: list[float] = []
-    for case in cases:
+    for case_index, case in enumerate(cases, start=1):
         plan: PlannerResult = planner.evaluate(game_from_case(case))
         choice, latency, mode, decision = controller_decision(
             game_from_case(case), scorer, config
@@ -354,6 +357,15 @@ def fixed_state_benchmark(
                 "planner": plan.to_dict(),
             }
         )
+        if progress_callback is not None:
+            progress_callback(
+                {
+                    "phase": "fixed",
+                    "completed": case_index,
+                    "total": len(cases),
+                    "case_id": str(case["id"]),
+                }
+            )
 
     total = len(records)
     oracle_records = [row for row in records if row["oracle_complete"]]
@@ -412,6 +424,7 @@ def run_episode(
     height: int,
     max_steps: int,
     stall_steps: int,
+    progress_callback: ProgressCallback | None = None,
 ) -> dict[str, Any]:
     game = SnakeGame(width=width, height=height, seed=seed)
     initial_length = len(game.snake)
@@ -434,6 +447,17 @@ def run_episode(
         generated_tokens += int((decision or {}).get("generated_tokens", 0))
         if choice is None:
             reason = "invalid_choice"
+            if progress_callback is not None:
+                progress_callback(
+                    {
+                        "phase": "episode_step",
+                        "seed": seed,
+                        "step": game.steps,
+                        "max_steps": max_steps,
+                        "food_eaten": game.score,
+                        "stop_reason": reason,
+                    }
+                )
             break
 
         score_before = game.score
@@ -452,8 +476,22 @@ def run_episode(
         if signature in seen_states:
             reason = "loop_detected"
             loop_detected = True
+        else:
+            seen_states.add(signature)
+
+        if progress_callback is not None:
+            progress_callback(
+                {
+                    "phase": "episode_step",
+                    "seed": seed,
+                    "step": game.steps,
+                    "max_steps": max_steps,
+                    "food_eaten": game.score,
+                    "stop_reason": reason if loop_detected or not game.alive else None,
+                }
+            )
+        if loop_detected:
             break
-        seen_states.add(signature)
 
     possible_food = width * height - initial_length
     return {
@@ -486,9 +524,32 @@ def episode_benchmark(
     height: int,
     max_steps: int,
     stall_steps: int,
+    progress_callback: ProgressCallback | None = None,
 ) -> dict[str, Any]:
-    rows = [
-        run_episode(
+    rows: list[dict[str, Any]] = []
+    for seed_index, seed in enumerate(seeds, start=1):
+        if progress_callback is not None:
+            progress_callback(
+                {
+                    "phase": "episode_start",
+                    "seed": seed,
+                    "seed_index": seed_index,
+                    "seed_total": len(seeds),
+                    "max_steps": max_steps,
+                }
+            )
+
+        def on_step(event: dict[str, Any]) -> None:
+            if progress_callback is not None:
+                progress_callback(
+                    {
+                        **event,
+                        "seed_index": seed_index,
+                        "seed_total": len(seeds),
+                    }
+                )
+
+        row = run_episode(
             scorer,
             config,
             seed=seed,
@@ -496,9 +557,22 @@ def episode_benchmark(
             height=height,
             max_steps=max_steps,
             stall_steps=stall_steps,
+            progress_callback=on_step,
         )
-        for seed in seeds
-    ]
+        rows.append(row)
+        if progress_callback is not None:
+            progress_callback(
+                {
+                    "phase": "episode_complete",
+                    "seed": seed,
+                    "seed_index": seed_index,
+                    "seed_total": len(seeds),
+                    "step": row["steps"],
+                    "max_steps": max_steps,
+                    "food_eaten": row["food_eaten"],
+                    "stop_reason": row["stop_reason"],
+                }
+            )
     return {
         "episodes": len(rows),
         "median_food_eaten": statistics.median(row["food_eaten"] for row in rows),

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import time
 import uuid
 from datetime import UTC, datetime
 from pathlib import Path
@@ -37,6 +38,160 @@ from .snake_controller_benchmark import (
 
 def _now() -> str:
     return datetime.now(UTC).isoformat().replace("+00:00", "Z")
+
+
+def _format_duration(seconds: float | None) -> str:
+    if seconds is None:
+        return "--:--:--"
+    whole = max(0, int(round(seconds)))
+    hours, remainder = divmod(whole, 3600)
+    minutes, secs = divmod(remainder, 60)
+    return f"{hours:02d}:{minutes:02d}:{secs:02d}"
+
+
+class _ProgressReporter:
+    """Human-readable progress without affecting benchmark evidence or protocol identity."""
+
+    episode_step_interval = 4
+
+    def __init__(
+        self,
+        *,
+        config_id: str,
+        config_index: int,
+        config_total: int,
+        matrix_started: float,
+    ) -> None:
+        self.config_id = config_id
+        self.config_index = config_index
+        self.config_total = config_total
+        self.matrix_started = matrix_started
+        self.config_started = time.perf_counter()
+        self.phase_started = self.config_started
+        self.episode_started: float | None = None
+        self.last_food_eaten: int | None = None
+
+    @property
+    def prefix(self) -> str:
+        return (
+            f"[snake {self.config_index}/{self.config_total} "
+            f"{self.config_id}]"
+        )
+
+    def start_fixed(self, total: int) -> None:
+        self.phase_started = time.perf_counter()
+        print(
+            f"{self.prefix} fixed 0/{total} | elapsed 00:00:00 | ETA --:--:--",
+            flush=True,
+        )
+
+    def start_episodes(self, total: int, max_steps: int) -> None:
+        self.phase_started = time.perf_counter()
+        print(
+            f"{self.prefix} episodes 0/{total} | max_steps={max_steps} "
+            "| elapsed 00:00:00",
+            flush=True,
+        )
+
+    def __call__(self, event: dict[str, Any]) -> None:
+        now = time.perf_counter()
+        phase = event["phase"]
+
+        if phase == "fixed":
+            completed = int(event["completed"])
+            total = int(event["total"])
+            elapsed = now - self.phase_started
+            eta = (
+                elapsed / completed * (total - completed)
+                if completed > 0
+                else None
+            )
+            percent = 100.0 * completed / total if total else 100.0
+            print(
+                f"{self.prefix} fixed {completed}/{total} | {percent:5.1f}% "
+                f"| case={event['case_id']} "
+                f"| elapsed {_format_duration(elapsed)} "
+                f"| ETA {_format_duration(eta)}",
+                flush=True,
+            )
+            return
+
+        if phase == "episode_start":
+            self.episode_started = now
+            self.last_food_eaten = 0
+            print(
+                f"{self.prefix} episode {event['seed_index']}/{event['seed_total']} "
+                f"seed={event['seed']} start | max_steps={event['max_steps']}",
+                flush=True,
+            )
+            return
+
+        if phase == "episode_step":
+            step = int(event["step"])
+            food_eaten = int(event["food_eaten"])
+            stop_reason = event.get("stop_reason")
+            food_changed = food_eaten != self.last_food_eaten
+            should_print = (
+                step <= 1
+                or step % self.episode_step_interval == 0
+                or food_changed
+                or stop_reason is not None
+            )
+            self.last_food_eaten = food_eaten
+            if not should_print:
+                return
+            elapsed = (
+                now - self.episode_started
+                if self.episode_started is not None
+                else 0.0
+            )
+            max_steps = int(event["max_steps"])
+            eta = (
+                elapsed / step * max(0, max_steps - step)
+                if step > 0
+                else None
+            )
+            suffix = f" | stop={stop_reason}" if stop_reason else ""
+            print(
+                f"{self.prefix} episode {event['seed_index']}/{event['seed_total']} "
+                f"seed={event['seed']} step {step}/{max_steps} "
+                f"| food={food_eaten} "
+                f"| elapsed {_format_duration(elapsed)} "
+                f"| ETA<={_format_duration(eta)}{suffix}",
+                flush=True,
+            )
+            return
+
+        if phase == "episode_complete":
+            elapsed = (
+                now - self.episode_started
+                if self.episode_started is not None
+                else 0.0
+            )
+            print(
+                f"{self.prefix} episode {event['seed_index']}/{event['seed_total']} "
+                f"seed={event['seed']} complete "
+                f"| steps={event['step']} food={event['food_eaten']} "
+                f"| stop={event['stop_reason']} "
+                f"| elapsed {_format_duration(elapsed)}",
+                flush=True,
+            )
+
+    def complete(self) -> None:
+        now = time.perf_counter()
+        config_elapsed = now - self.config_started
+        matrix_elapsed = now - self.matrix_started
+        remaining = self.config_total - self.config_index
+        overall_eta = (
+            matrix_elapsed / self.config_index * remaining
+            if self.config_index > 0
+            else None
+        )
+        print(
+            f"{self.prefix} complete | elapsed {_format_duration(config_elapsed)} "
+            f"| overall ETA~{_format_duration(overall_eta)}",
+            flush=True,
+        )
 
 
 def _requested_model_identity(args: argparse.Namespace) -> dict[str, Any]:
@@ -200,15 +355,33 @@ def run(args: argparse.Namespace) -> dict[str, Any]:
             },
         )
 
-        for config_id in args.configs:
+        matrix_started = time.perf_counter()
+        for config_index, config_id in enumerate(args.configs, start=1):
             config = CONFIGS[config_id]
             config_started = _now()
             fixed = episodes = runtime = None
+            progress = _ProgressReporter(
+                config_id=config_id,
+                config_index=config_index,
+                config_total=len(args.configs),
+                matrix_started=matrix_started,
+            )
             try:
                 backend.clear_repeated_state_cache()
                 backend.reset_runtime_metrics()
                 scorer = build_scorer(config, backend)
-                fixed = fixed_state_benchmark(cases, scorer, config, planner)
+                progress.start_fixed(len(cases))
+                fixed = fixed_state_benchmark(
+                    cases,
+                    scorer,
+                    config,
+                    planner,
+                    progress_callback=progress,
+                )
+                progress.start_episodes(
+                    len(args.episode_seeds),
+                    args.episode_max_steps,
+                )
                 episodes = episode_benchmark(
                     scorer,
                     config,
@@ -217,6 +390,7 @@ def run(args: argparse.Namespace) -> dict[str, Any]:
                     height=args.height,
                     max_steps=args.episode_max_steps,
                     stall_steps=args.stall_steps,
+                    progress_callback=progress,
                 )
                 runtime = runtime_metrics(backend)
                 row = _ledger_record(
@@ -243,6 +417,7 @@ def run(args: argparse.Namespace) -> dict[str, Any]:
                     f"median_food={episodes['median_food_eaten']}",
                     flush=True,
                 )
+                progress.complete()
             except Exception as exc:
                 try:
                     runtime = runtime or runtime_metrics(backend)
