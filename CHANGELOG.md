@@ -38,8 +38,8 @@ milestones rather than every experimental commit.
 
 - the pinned 2B short/fresh semantic-v2 gate remains **FAIL** on its unchanged criteria;
 - 0.8B real-model smoke proves fresh/reused correctness and physical-token reduction directionally;
-- repeated-state gate v3 on the pinned 2B CPU identity remains the scoped semantic promotion gate;
-- representative 2B Snake controller screening and a later holdout remain pending.
+- repeated-state gate v3 on the pinned 2B CPU identity is **FAIL** for semantic-v2 promotion while retaining strong cache-reuse evidence;
+- first representative 2B direct screening is retained: stateful/fresh semantics matched, but controller quality/order robustness were insufficient; direct v2 requires rerun before holdout.
 
 ### Still planned
 
