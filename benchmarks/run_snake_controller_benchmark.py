@@ -10,12 +10,12 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
-from decisio.compiler import LETTER_STATEFUL_PROMPT_VERSION
 from decisio.backends.llama_cpp import (
     LLAMA_CPP_PYTHON_VERSION,
     LlamaCppBackend,
     LlamaCppBackendConfig,
 )
+from decisio.compiler import LETTER_STATEFUL_PROMPT_VERSION
 from examples.snake.planner import PLANNER_VERSION, SnakePlanner
 
 from .snake_controller_benchmark import (
