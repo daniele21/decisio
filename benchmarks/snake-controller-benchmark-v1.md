@@ -124,6 +124,23 @@ CI uploads the ledger as a retained artifact. Multiple ledger files can be summa
 history summarizer groups only comparable
 `configuration + model SHA + fixture SHA + protocol SHA` identities.
 
+## First pinned-2B direct screening
+
+Clean `main` commit `263f7ba1274f6f798d7a93a3c0cf4fcfffeae92f` completed the first
+representative `direct-stateful-verbose` versus `direct-fresh-verbose` screening on the pinned
+Qwen3.5-2B Q4_K_M CPU identity.
+
+Stateful and fresh returned the same choices/scores and identical episode outcomes. Controller
+quality was not sufficient for holdout: 5/10 fixed-state optimal-set agreement, 20% catastrophic
+misses and 30% order changes. Stateful execution reused 151,808 / 503,070 logical tokens (~30.2%)
+with 593 hits, one miss and zero fallbacks. Fixed-state p50 improved from 40.44 s fresh to 5.11 s
+stateful, but repeated ~23 MB sequence-state snapshot/restore traffic erased that advantage in long
+episodes.
+
+That run remains valid **direct-v1 evidence**. Direct v2 canonicalizes candidate IDs before lettering
+and removes redundant snapshots on cache hits, so its rerun receives a different protocol fingerprint
+and must not be merged statistically with the v1 screening.
+
 ## Run
 
 ```bash
