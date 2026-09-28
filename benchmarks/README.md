@@ -112,6 +112,11 @@ The runner prints live progress/ETA. The evaluator includes the cold decision in
 group and applies the quality, order, cache/token and >=2x p50/p95 latency criteria frozen in the
 methodology document.
 
+The pinned 2B local run **FAILED** the frozen gate: cache reuse/order/zero-generation mechanics passed,
+but semantic-v2 scored 32/48 versus generated JSON 39/48 and failed the family/4-candidate quality
+guardrails; p50 met the 2x target while p95 narrowly missed it. This closes semantic-v2 promotion for
+the repeated-state scope without weakening the runtime/cache evidence.
+
 ## Snake controller benchmark v1
 
 [Snake controller benchmark v1](snake-controller-benchmark-v1.md) evaluates the Snake application
@@ -119,8 +124,10 @@ at two levels: fixed-state decisions against a bounded dynamic-body planner, and
 seeded episodes. It is the controller-quality benchmark; it is separate from scorer promotion gates
 and from the smaller input/cache diagnostic.
 
-The initial matrix compares the same stateful direct prompt under shared versus fresh execution,
-compact input, semantic v2/v1 and the adjacent-food application policy. Every run appends a
+The matrix compares the same stateful direct prompt under shared versus fresh execution, compact
+input, semantic v2/v1 and the adjacent-food application policy. Direct v2 canonicalizes candidate IDs
+before A/B/C lettering; its compiler version and ordering rule are part of the protocol fingerprint.
+Every run appends a
 `run_start` manifest plus terminal configuration results to a JSONL ledger. Evidence binds source
 commit, fixture/protocol hashes, exact GGUF/runtime identity, prompt/execution mode, controller
 parameters, decision-quality metrics, episode outcomes and runtime/token/cache metrics.
