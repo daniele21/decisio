@@ -36,7 +36,7 @@ For decision-shaped workloads, Decisio aims to provide:
 
 - **zero answer generation** — no decoding loop for the final decision;
 - **no mandatory training** — start from an existing open-weight causal LLM;
-- **semantic candidates** — score the meaning of each candidate rather than an arbitrary A/B/C label;
+- **bounded candidates** — rank runtime-defined alternatives directly without generating an answer;
 - **shared computation** — reuse state/question work across candidates and related decisions;
 - **typed outputs** — no JSON repair or free-form parsing on the decision path;
 - **honest probability semantics** — distinguish conditional model scores from calibrated probability of correctness;
@@ -46,30 +46,14 @@ For decision-shaped workloads, Decisio aims to provide:
 
 A normal causal LLM already contains enough semantic information in its logits/hidden state to support useful bounded decisions without generating text.
 
-The initial scorer hypothesis was that **comparative candidate-level binary semantic scoring**
-would be a better general decision primitive than arbitrary answer-token scoring or
-candidate-independent binary scoring.
+The initial comparative semantic-scoring hypothesis failed both its representative short/fresh
+gate and its later repeated-state promotion gate. Semantic v2 remains an experimental comparison,
+not the promoted v1 decision primitive.
 
-The first representative 2B short/fresh scorer gate did **not** support that as a general default.
-Semantic v2 therefore remains experimental, with the active question narrowed to repeated-state
-workloads. Direct A/B/C option-token scoring remains an explicit benchmark baseline and is also a
-legitimate low-latency application path for small bounded controls such as Snake.
-
-For semantic candidate `c_i`:
-
-```text
-state + question + all alternatives + candidate_i
-                         |
-                         v
-                    YES / NO logits
-              |
-              v
-score_i = logit(YES) - logit(NO)
-```
-
-Candidate scores are then normalized across the supplied alternatives.
-
-A separate answerability judgment estimates whether the state contains enough information to answer at all.
+The active v1 hypothesis is **stateful direct choice**: canonicalize candidate identities, compile one
+A/B/C/... prompt, evaluate it once, and read all option logits from the same final model position.
+Stateful execution must remain equivalent to that same compiled prompt evaluated fresh. Answerability
+remains a separate future judgment from candidate preference.
 
 ## Reference runtime
 
@@ -119,7 +103,7 @@ Decisio deliberately does not own:
 - **Decisions, not strings.** If the valid output space is bounded, do not generate prose to recover it.
 - **Training-free before trained.** Establish the inference-time ceiling before adding learned components.
 - **Constrain before score.** Deterministic validity/safety/business constraints stay with the owning domain and remove impossible candidates before probabilistic scoring.
-- **Choose the readout deliberately.** Prefer semantic candidate readouts when evidence supports them; direct option-token logits are valid for latency-oriented bounded controls, but scorer identity and order/verbalizer sensitivity must stay explicit.
+- **Choose the readout deliberately.** v1 promotes one-pass direct option logits for bounded choices; candidate IDs are canonicalized before A/B/C lettering, while scorer identity and verbalizer sensitivity remain explicit.
 - **Answerability is separate from preference.** "Which option?" and "Can this be answered?" are different questions.
 - **Scores are not confidence until calibrated.** API naming and metadata must preserve that distinction.
 - **State is first-class.** Split stable decision context from changing world state; process the stable prefix once wherever model/runtime semantics safely allow it.
@@ -146,10 +130,11 @@ The reference implementation can execute boolean and choice decisions with zero 
 
 ### Outcome
 
-On frozen evaluation sets, semantic candidate scoring is compared against:
+On frozen evaluation sets, the promoted stateful direct-choice path is compared against:
 
-- direct A/B/C or equivalent answer-token scoring;
-- autoregressive structured-output generation;
+- the exact same compiled prompt evaluated fresh;
+- autoregressive structured-output generation where useful;
+- experimental semantic scorers as non-promoted comparisons;
 - optional external references when legally/reproducibly available.
 
 The key question is not only "is it accurate?" but "does it improve the decision-specific trade-off?"

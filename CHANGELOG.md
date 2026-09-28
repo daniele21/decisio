@@ -10,6 +10,8 @@ milestones rather than every experimental commit.
 - local GGUF + llama.cpp reference runtime with exact artifact/runtime provenance;
 - reusable single-sequence model-state snapshot/restore with a bounded repeated-state cache;
 - stateful direct A/B/C action readout with zero generated answer tokens;
+- canonical candidate-ID ordering for direct-choice compiler v2, so caller presentation order does not change the prompt/readout mapping;
+- repeated-prefix cache hits reuse the existing captured sequence state instead of serializing the same prefix again;
 - comparative semantic v2, semantic v1, direct-letter and generated JSON evidence paths;
 - frozen short/fresh and repeated-state benchmark contracts with retained machine-readable evidence;
 - constraint-first Snake, support-routing and policy-gate examples;
@@ -36,8 +38,8 @@ milestones rather than every experimental commit.
 
 - the pinned 2B short/fresh semantic-v2 gate remains **FAIL** on its unchanged criteria;
 - 0.8B real-model smoke proves fresh/reused correctness and physical-token reduction directionally;
-- repeated-state gate v3 on the pinned 2B CPU identity remains the scoped semantic promotion gate;
-- representative 2B Snake controller screening and a later holdout remain pending.
+- repeated-state gate v3 on the pinned 2B CPU identity is **FAIL** for semantic-v2 promotion while retaining strong cache-reuse evidence;
+- first representative 2B direct screening is retained: stateful/fresh semantics matched, but controller quality/order robustness were insufficient; direct v2 requires rerun before holdout.
 
 ### Still planned
 

@@ -231,6 +231,7 @@ class _NativeLlamaCppRuntime:
             "shared_prefix_calls": 0,
             "shared_prefix_fallbacks": 0,
             "prefix_state_snapshot_bytes": 0,
+            "prefix_state_snapshots": 0,
             "prefix_state_restore_bytes": 0,
             "prefix_state_restores": 0,
             "repeated_state_cache_hits": 0,
@@ -582,10 +583,25 @@ class _NativeLlamaCppRuntime:
                     token_ids_batch[candidate_index]
                 )
 
-        prefix_state = self._capture_sequence_state(0)
-        self._metrics["prefix_state_snapshot_bytes"] += len(prefix_state)
+        suffix_branch_count = sum(
+            len(input_ids) > prefix_len for input_ids in input_ids_batch
+        )
+        prefix_state = None
         if cache_key is not None and cache_entry is None:
+            # Capture once on the cold path so later decisions can restore the stable prefix.
+            prefix_state = self._capture_sequence_state(0)
+            self._metrics["prefix_state_snapshot_bytes"] += len(prefix_state)
+            self._metrics["prefix_state_snapshots"] += 1
             self._store_repeated_prefix_state(cache_key, prefix_state)
+        elif suffix_branch_count > 1:
+            # Multiple prompt branches need a rollback point between suffixes. On a cache hit the
+            # cached state already is that rollback point when it covers the full decoded prefix.
+            if cache_entry is not None and cache_reused_tokens == prefix_len:
+                prefix_state = cache_entry.state
+            else:
+                prefix_state = self._capture_sequence_state(0)
+                self._metrics["prefix_state_snapshot_bytes"] += len(prefix_state)
+                self._metrics["prefix_state_snapshots"] += 1
         live_prefix_state = True
 
         for candidate_index, input_ids in enumerate(input_ids_batch):
@@ -593,6 +609,10 @@ class _NativeLlamaCppRuntime:
             if not suffix:
                 continue
             if not live_prefix_state:
+                if prefix_state is None:
+                    raise RuntimeError(
+                        "llama.cpp shared-prefix branch requires a reusable prefix state"
+                    )
                 self._clear_scoring_state()
                 restored = self._restore_sequence_state(prefix_state, 0)
                 self._metrics["prefix_state_restore_bytes"] += restored

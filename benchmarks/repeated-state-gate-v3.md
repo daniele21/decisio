@@ -1,6 +1,6 @@
 # Repeated-state gate v3
 
-Status: frozen before representative execution  
+Status: executed on pinned 2B reference identity — **FAIL**  
 Scope: many decisions over one unchanged application state  
 Reference runtime: Qwen3.5-2B Q4_K_M GGUF + llama.cpp CPU
 
@@ -12,6 +12,18 @@ decisions share one persistent state?
 This gate does **not** retry the failed general-purpose scorer-gate v2. A PASS can support only a
 repeated-state product scope. Scorer-gate v2 remains the authority for short/fresh general-purpose
 use and remains FAIL.
+
+## Representative result
+
+The unchanged pinned 2B local run failed the precommitted gate. Runtime/cache mechanics passed:
+8 misses, 40 hits, zero fallbacks, zero semantic order changes and 94,244 physical versus 1,058,852
+logical input tokens (~8.9%). Semantic-v2 quality did not: 32/48 correct versus generated JSON
+39/48, with failures in evidence entailment, rule application and the four-candidate guardrail.
+Group p50 met the 2x latency target (93.34 s versus 187.42 s), while p95 narrowly missed it
+(226.43 s versus 438.35 s).
+
+The result does not weaken any threshold and does not invalidate the state-reuse mechanism. It closes
+semantic-v2 promotion for this repeated-state scope.
 
 ## Why this gate exists
 

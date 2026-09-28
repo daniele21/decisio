@@ -291,6 +291,10 @@ def test_backend_load_failure_is_appended_and_reported(tmp_path: Path):
     rows = [json.loads(line) for line in ledger.read_text(encoding="utf-8").splitlines()]
     assert [row["record_type"] for row in rows] == ["run_start", "run_end"]
     assert rows[0]["model_runtime"]["artifact_filename"] == "missing.gguf"
+    assert rows[0]["protocol"]["direct_choice"] == {
+        "prompt_version": "letter-question-prefix-v2",
+        "candidate_order": "candidate_id_lexicographic",
+    }
     assert rows[0]["model_runtime"]["artifact_exists"] is False
     assert rows[-1]["status"] == "failed"
     assert "FileNotFoundError" in rows[-1]["error"]

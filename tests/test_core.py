@@ -69,6 +69,21 @@ class QueueBackend:
         return responses
 
 
+class TokenIdBackend:
+    def __init__(self, logits_by_token_id):
+        self.tokenizer = FakeTokenizer()
+        self.logits_by_token_id = dict(logits_by_token_id)
+        self.calls = []
+
+    @property
+    def identity(self):
+        return {"backend": "token-aware-fake", "model": "unit-test"}
+
+    def next_token_logits(self, input_ids, token_ids):
+        self.calls.append((input_ids, list(token_ids)))
+        return [self.logits_by_token_id[token_id] for token_id in token_ids]
+
+
 class SharedPrefixQueueBackend(QueueBackend):
     def __init__(self, responses):
         super().__init__(responses)
@@ -178,7 +193,59 @@ def test_independent_compiler_remains_available_as_v1_baseline():
 
 def test_letter_compiler_maps_ids_to_distinct_tokens():
     compiled = compile_letter_choice(FakeTokenizer(), request())
-    assert compiled.readout == {"billing": 100, "technical": 101, "sales": 102}
+    assert compiled.readout == {"billing": 100, "sales": 101, "technical": 102}
+    assert compiled.version == "letter-baseline-v2"
+
+
+@pytest.mark.parametrize("reuse_prefix", [False, True])
+def test_letter_compiler_is_invariant_to_candidate_presentation_order(reuse_prefix):
+    item = request()
+    reversed_request = ChoiceRequest(
+        id=item.id,
+        state=item.state,
+        question=item.question,
+        candidates=tuple(reversed(item.candidates)),
+    )
+
+    left = compile_letter_choice(FakeTokenizer(), item, reuse_prefix=reuse_prefix)
+    right = compile_letter_choice(
+        FakeTokenizer(), reversed_request, reuse_prefix=reuse_prefix
+    )
+
+    assert left.prompt == right.prompt
+    assert left.sha256 == right.sha256
+    assert left.readout == right.readout
+    assert left.version == right.version
+    assert left.version == (
+        "letter-question-prefix-v2" if reuse_prefix else "letter-baseline-v2"
+    )
+
+
+def test_letter_scorer_preserves_candidate_scores_when_caller_order_changes():
+    item = request()
+    reversed_request = ChoiceRequest(
+        id=item.id,
+        state=item.state,
+        question=item.question,
+        candidates=tuple(reversed(item.candidates)),
+    )
+    logits_by_token_id = {100: 5.0, 101: 1.0, 102: 3.0}
+    left_backend = TokenIdBackend(logits_by_token_id)
+    right_backend = TokenIdBackend(logits_by_token_id)
+
+    left = LetterTokenScorer(
+        left_backend, reuse_prefix=True, shared_prefix_execution=False
+    ).score(item)
+    right = LetterTokenScorer(
+        right_backend, reuse_prefix=True, shared_prefix_execution=False
+    ).score(reversed_request)
+
+    assert left_backend.calls[0][0] == right_backend.calls[0][0]
+    assert left.prompt_sha256 == right.prompt_sha256
+    assert left.scores == right.scores
+    assert left.distribution == right.distribution
+    assert left.choice == right.choice == "billing"
+    assert left.scorer == right.scorer == "letter_question_prefix_v2"
 
 
 def test_semantic_scorer_batches_candidate_prompts():

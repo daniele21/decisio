@@ -9,7 +9,7 @@ from decisio.schema import ChoiceRequest, DecisionResult
 
 
 class LetterTokenScorer:
-    name = "letter_token_baseline_v1"
+    name = "letter_token_baseline_v2"
 
     def __init__(
         self,
@@ -22,7 +22,7 @@ class LetterTokenScorer:
         self.reuse_prefix = reuse_prefix
         self.shared_prefix_execution = shared_prefix_execution
         if reuse_prefix:
-            self.name = "letter_question_prefix_v1"
+            self.name = "letter_question_prefix_v2"
 
     def score(self, request: ChoiceRequest) -> DecisionResult:
         compiled = compile_letter_choice(

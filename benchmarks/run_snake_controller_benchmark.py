@@ -15,6 +15,7 @@ from decisio.backends.llama_cpp import (
     LlamaCppBackend,
     LlamaCppBackendConfig,
 )
+from decisio.compiler import LETTER_STATEFUL_PROMPT_VERSION
 from examples.snake.planner import PLANNER_VERSION, SnakePlanner
 
 from .snake_controller_benchmark import (
@@ -289,6 +290,10 @@ def run(args: argparse.Namespace) -> dict[str, Any]:
             "height": args.height,
             "max_steps": args.episode_max_steps,
             "stall_steps": args.stall_steps,
+        },
+        "direct_choice": {
+            "prompt_version": LETTER_STATEFUL_PROMPT_VERSION,
+            "candidate_order": "candidate_id_lexicographic",
         },
     }
     protocol = {**protocol_payload, "sha256": canonical_sha256(protocol_payload)}

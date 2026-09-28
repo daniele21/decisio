@@ -12,7 +12,8 @@ from .schema import Candidate, ChoiceRequest
 
 SEMANTIC_PROMPT_VERSION = "semantic-comparative-v2"
 INDEPENDENT_SEMANTIC_PROMPT_VERSION = "semantic-binary-v1"
-LETTER_PROMPT_VERSION = "letter-baseline-v1"
+LETTER_PROMPT_VERSION = "letter-baseline-v2"
+LETTER_STATEFUL_PROMPT_VERSION = "letter-question-prefix-v2"
 
 SEMANTIC_SYSTEM = (
     "You are a precise comparative decision scorer. Use only the supplied evidence. "
@@ -230,11 +231,11 @@ def compile_letter_choice(
         raise ValueError("letter baseline supports at most 26 candidates")
     evidence = canonical_json(request.state)
     question = canonical_json(request.question)
+    canonical_candidates = tuple(sorted(request.candidates, key=lambda candidate: candidate.id))
+    letters = string.ascii_uppercase[: len(canonical_candidates)]
     lines = [
         f"{letter}. {canonical_json(candidate.description)}"
-        for letter, candidate in zip(
-            string.ascii_uppercase[: len(request.candidates)], request.candidates, strict=True
-        )
+        for letter, candidate in zip(letters, canonical_candidates, strict=True)
     ]
     user = (
         f"EVIDENCE:\n{evidence}\n\n"
@@ -252,9 +253,7 @@ def compile_letter_choice(
         )
     readout_texts = {
         candidate.id: letter
-        for candidate, letter in zip(
-            request.candidates, string.ascii_uppercase[: len(request.candidates)], strict=True
-        )
+        for candidate, letter in zip(canonical_candidates, letters, strict=True)
     }
     return _compile(
         tokenizer,
@@ -263,6 +262,6 @@ def compile_letter_choice(
             {"role": "user", "content": user},
         ],
         readout_texts=readout_texts,
-        version="letter-question-prefix-v1" if reuse_prefix else LETTER_PROMPT_VERSION,
+        version=LETTER_STATEFUL_PROMPT_VERSION if reuse_prefix else LETTER_PROMPT_VERSION,
         reusable_user_prefix=reusable_user_prefix,
     )

@@ -360,6 +360,73 @@ def test_native_sequence_state_round_trip_uses_llama_state_api():
     assert restored == 4
     assert runtime._llama_cpp.restored == [(b"test", 0)]
 
+def test_repeated_single_prompt_cache_hit_reuses_existing_snapshot():
+    from collections import OrderedDict, defaultdict
+
+    runtime = object.__new__(_NativeLlamaCppRuntime)
+    runtime.n_seq_max = 8
+    runtime.n_batch = 4
+    runtime.n_ctx = 128
+    runtime.n_vocab = 256
+    runtime._metrics = defaultdict(int)
+    runtime._require_open = lambda: None
+    runtime._repeated_state_cache_max_entries = 2
+    runtime._repeated_state_cache_max_bytes = 1024
+    runtime._repeated_state_cache = OrderedDict()
+    runtime._repeated_state_cache_bytes = 0
+
+    state = []
+    decoded = []
+    captures = []
+
+    runtime._clear_scoring_state = state.clear
+
+    def decode(tokens, *, seq_id, n_past):
+        assert seq_id == 0
+        assert len(state) == n_past
+        state.extend(tokens)
+        decoded.append(tuple(tokens))
+
+    def capture(seq_id):
+        assert seq_id == 0
+        captures.append(tuple(state))
+        return tuple(state)
+
+    def restore(snapshot, seq_id):
+        assert seq_id == 0
+        state[:] = snapshot
+        return len(snapshot)
+
+    runtime._decode_tokens = decode
+    runtime._capture_sequence_state = capture
+    runtime._restore_sequence_state = restore
+    runtime._selected_logits = lambda ids: [float(sum(state) + token) for token in ids]
+
+    first = runtime.shared_prefix_batch_next_token_logits(
+        [(1, 2, 3, 4, 10)],
+        [[1, 2]],
+        reusable_prefix_len=4,
+    )
+    second = runtime.shared_prefix_batch_next_token_logits(
+        [(1, 2, 3, 4, 11)],
+        [[1, 2]],
+        reusable_prefix_len=4,
+    )
+
+    assert first == [[21.0, 22.0]]
+    assert second == [[22.0, 23.0]]
+    assert captures == [(1, 2, 3, 4)]
+    assert runtime._metrics["repeated_state_cache_misses"] == 1
+    assert runtime._metrics["repeated_state_cache_hits"] == 1
+    assert runtime._metrics["prefix_state_snapshot_bytes"] == 4
+    assert runtime._metrics["prefix_state_snapshots"] == 1
+    assert runtime._metrics["prefix_state_restore_bytes"] == 4
+    assert runtime._metrics["prefix_state_restores"] == 1
+    assert runtime._metrics["logical_input_tokens"] == 10
+    assert runtime._metrics["physically_evaluated_tokens"] == 6
+    assert decoded == [(1, 2, 3, 4), (10,), (11,)]
+
+
 @pytest.mark.parametrize("count", [1, 8, 9, 77])
 def test_serial_candidate_reuse_is_independent_of_sequence_capacity(count):
     from collections import defaultdict

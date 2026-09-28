@@ -20,7 +20,8 @@ class DecisionSession:
     The supported v1 session intentionally exposes one evidence-backed readout: direct
     A/B/C/... option logits with zero generated answer tokens. The stable decision context is
     compiled into the reusable question prefix; each choose call supplies only changing state
-    and the currently valid candidates.
+    and the currently valid candidates. Candidate IDs are canonicalized before direct option
+    lettering, so caller presentation order does not change the compiled choice.
     """
 
     def __init__(

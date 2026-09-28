@@ -152,6 +152,33 @@ def test_session_reuses_stable_context_and_returns_runtime_metadata():
     assert session.closed is True
 
 
+def test_session_canonicalizes_candidate_presentation_order():
+    backend = None
+
+    def factory(config):
+        nonlocal backend
+        backend = FakeBackend(config)
+        return backend
+
+    with DecisionSession(
+        "model.gguf",
+        "Which support queue should own this ticket?",
+        _backend_factory=factory,
+    ) as session:
+        normal = session.choose(state={"ticket": "x"}, candidates=candidates())
+        reversed_result = session.choose(
+            state={"ticket": "x"},
+            candidates=tuple(reversed(candidates())),
+        )
+
+    assert backend is not None
+    assert normal.prompt_sha256 == reversed_result.prompt_sha256
+    assert normal.scores == reversed_result.scores
+    assert normal.distribution == reversed_result.distribution
+    assert normal.choice == reversed_result.choice
+    assert backend.shared_calls[0][0] == backend.shared_calls[1][0]
+
+
 def test_fresh_mode_uses_identical_prompt_but_bypasses_shared_execution():
     backend = None
 
