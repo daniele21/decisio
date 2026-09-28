@@ -17,8 +17,10 @@ export function modelLabel(model) {
 }
 
 export function scorerLabel(name) {
+  if (name === "letter_question_prefix_v2") return "DIRECT CHOICE · canonical A/B/C · reusable prefix";
   if (name === "letter_question_prefix_v1") return "DIRECT CHOICE · reusable question prefix";
   if (name === "snake_adjacent_food_policy_v1") return "FOOD POLICY · model skipped";
+  if (name === "letter_token_baseline_v2") return "DIRECT CHOICE · canonical A/B/C logits · 1 forward";
   if (name === "letter_token_baseline_v1") return "DIRECT CHOICE · A/B/C logits · 1 forward";
   if (name === "semantic_comparative_logodds_v2") return "SEMANTIC v2 · YES/NO per candidate";
   if (name === "semantic_binary_logodds_v1") return "SEMANTIC v1 · YES/NO per candidate";
@@ -76,7 +78,7 @@ export function renderMetrics(ui, displayState, status, lastRecord) {
   if (ui.modeBadge) {
     ui.modeBadge.textContent =
       mode === "model"
-        ? scorer === "letter_token_baseline_v1"
+        ? scorer?.startsWith("letter_")
           ? "DIRECT"
           : "MODEL"
         : mode
