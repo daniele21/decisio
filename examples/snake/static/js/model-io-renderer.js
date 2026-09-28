@@ -25,6 +25,14 @@ function positionText(value) {
   return `(${value.x}, ${value.y})`;
 }
 
+function modelCandidates(request, scorer) {
+  const candidates = [...(request?.candidates || [])];
+  if (scorer?.startsWith("letter_")) {
+    candidates.sort((left, right) => String(left.id).localeCompare(String(right.id)));
+  }
+  return candidates;
+}
+
 function skipReason(mode) {
   if (mode === "deterministic_adjacent_food_policy") {
     return "Adjacent-food policy: eat now with a safe next move available. Long-term safety is not guaranteed.";
@@ -121,7 +129,8 @@ function renderModelInput(ui, request, record, status) {
   const options = make("div", "io-block");
   options.append(make("span", "io-label", "OPTIONS SENT TO MODEL"));
   const optionList = make("div", "input-options");
-  (request.candidates || []).forEach((candidate, index) => {
+  const scorer = record?.decision?.scorer || status?.scorer;
+  modelCandidates(request, scorer).forEach((candidate, index) => {
     optionList.append(renderInputOption(candidate, index, features[candidate.id]));
   });
   options.append(optionList);
@@ -176,7 +185,7 @@ function renderModelOutput(ui, request, record, busy) {
     return;
   }
 
-  const candidates = request?.candidates || [];
+  const candidates = modelCandidates(request, decision.scorer);
   const selectedIndex = candidates.findIndex((candidate) => candidate.id === decision.choice);
   const selectedSlot = selectedIndex >= 0 ? LETTERS[selectedIndex] : "?";
   const hero = make("div", "readout-hero selected-output");
