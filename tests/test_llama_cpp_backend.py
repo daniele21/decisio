@@ -419,6 +419,7 @@ def test_repeated_single_prompt_cache_hit_reuses_existing_snapshot():
     assert runtime._metrics["repeated_state_cache_misses"] == 1
     assert runtime._metrics["repeated_state_cache_hits"] == 1
     assert runtime._metrics["prefix_state_snapshot_bytes"] == 4
+    assert runtime._metrics["prefix_state_snapshots"] == 1
     assert runtime._metrics["prefix_state_restore_bytes"] == 4
     assert runtime._metrics["prefix_state_restores"] == 1
     assert runtime._metrics["logical_input_tokens"] == 10
