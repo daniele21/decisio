@@ -192,10 +192,11 @@ The first matching decision warms reusable model context; later decisions can re
 compiler/runtime rules permit. `fresh=True` evaluates the **same prompt** without shared-prefix
 execution and is the supported oracle/debug path.
 
-This API deliberately exposes only the direct A/B/C/... readout in v1. It does not select among
-experimental scorers, does not turn normalized option scores into calibrated confidence, and does
-not replace deterministic application constraints. Remove impossible candidates before calling
-`choose`.
+This API deliberately exposes only the direct A/B/C/... readout in v1. Candidate IDs are
+canonicalized before lettering, so caller presentation order does not change the compiled choice.
+The API does not select among experimental scorers, turn normalized option scores into calibrated
+confidence, or replace deterministic application constraints. Remove impossible candidates before
+calling `choose`.
 
 ## Snake: the idea in one loop
 
