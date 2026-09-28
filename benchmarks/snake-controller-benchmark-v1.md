@@ -76,10 +76,15 @@ The initial matrix isolates controller/readout choices before broad model tuning
 | `generated-verbose` | generated JSON baseline | verbose | generated JSON v1 | generated | model (optional) |
 
 The stateful-vs-fresh direct comparison is deliberately controlled: both variants compile the exact
-same question-first stateful prompt and therefore the same prompt hash. Only execution changes:
-`shared` may restore the reusable prefix; `fresh` evaluates the same compiled prompt without
-shared-prefix execution. A prompt-order change is a different experiment and must not be attributed
-to caching.
+same question-first stateful prompt and therefore the same prompt hash. Direct v2 canonicalizes
+candidates lexicographically by stable candidate ID before assigning A/B/C/... readout labels, so
+caller presentation order cannot change the direct prompt or candidate-to-token mapping. Only
+execution changes: `shared` may restore the reusable prefix; `fresh` evaluates the same compiled
+prompt without shared-prefix execution.
+
+The benchmark protocol fingerprint records the direct prompt version and candidate-order strategy.
+This keeps direct-v1 screening evidence separate from direct-v2 reruns without changing or
+overwriting the append-only ledger.
 
 Do not expand into a model/quantization Cartesian product until this first matrix identifies useful
 controller families. Different model artifacts are separate evidence identities.
@@ -102,7 +107,7 @@ Each row records at least:
 - planner version and search/survival bounds;
 - configuration ID, scorer, input format, prompt mode, execution mode, effective prefix reuse and controller;
 - GGUF filename/SHA/size/quantization, llama.cpp binding/runtime, CPU/context/batch/thread settings;
-- selected fixed cases plus episode seeds/board/horizon/stall threshold, hashed as a protocol fingerprint;
+- selected fixed cases plus episode seeds/board/horizon/stall threshold and the direct compiler/order contract, hashed as a protocol fingerprint;
 - fixed-state metrics, oracle coverage, raw normal/reversed decision readouts and detailed
   per-case planner evidence;
 - episode metrics and per-seed outcomes;
