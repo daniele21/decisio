@@ -5,6 +5,7 @@ import pytest
 
 import benchmarks.snake_controller_benchmark as benchmark_module
 from benchmarks.run_snake_controller_benchmark import (
+    _format_duration,
     parser as controller_benchmark_parser,
 )
 from benchmarks.run_snake_controller_benchmark import (
@@ -14,6 +15,7 @@ from benchmarks.snake_controller_benchmark import (
     CONFIGS,
     SnakePlanner,
     append_ledger,
+    episode_benchmark,
     fixed_state_benchmark,
     game_from_case,
 )
@@ -112,6 +114,59 @@ def test_fixed_state_records_raw_decision_evidence():
     assert summary["oracle_coverage"] == 1.0
     assert record["decision"]["choice"] == "up"
     assert record["reverse_decision"]["choice"] == "down"
+
+
+def test_fixed_state_progress_callback_reports_completed_cases():
+    events = []
+    fixed_state_benchmark(
+        [_case()],
+        FirstCandidateScorer(),
+        CONFIGS["direct-stateful-verbose"],
+        SnakePlanner(max_nodes=10_000),
+        progress_callback=events.append,
+    )
+
+    assert events == [
+        {
+            "phase": "fixed",
+            "completed": 1,
+            "total": 1,
+            "case_id": "easy-up",
+        }
+    ]
+
+
+def test_episode_progress_callback_reports_seed_steps_and_completion():
+    events = []
+    episode_benchmark(
+        FirstCandidateScorer(),
+        CONFIGS["direct-stateful-verbose"],
+        seeds=[7],
+        width=8,
+        height=8,
+        max_steps=2,
+        stall_steps=2,
+        progress_callback=events.append,
+    )
+
+    assert events[0] == {
+        "phase": "episode_start",
+        "seed": 7,
+        "seed_index": 1,
+        "seed_total": 1,
+        "max_steps": 2,
+    }
+    assert any(event["phase"] == "episode_step" for event in events)
+    assert events[-1]["phase"] == "episode_complete"
+    assert events[-1]["seed"] == 7
+    assert events[-1]["seed_index"] == 1
+    assert events[-1]["seed_total"] == 1
+
+
+def test_progress_duration_format_is_terminal_friendly():
+    assert _format_duration(None) == "--:--:--"
+    assert _format_duration(0.0) == "00:00:00"
+    assert _format_duration(3661.2) == "01:01:01"
 
 def test_ledger_is_append_only_and_preserves_parameters(tmp_path: Path):
     ledger = tmp_path / "history.jsonl"
