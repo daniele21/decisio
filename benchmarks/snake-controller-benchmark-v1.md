@@ -129,6 +129,12 @@ uv run python -m benchmarks.run_snake_controller_benchmark \
   --threads 2 --threads-batch 2
 ```
 
+
+The runner prints live terminal progress without changing the benchmark protocol or evidence payload:
+fixed-state progress is reported after every case with elapsed time and ETA; episode progress reports
+seed start/completion plus every fourth step, food changes and terminal conditions. Episode ETA is an
+upper-bound estimate against `max_steps` because games may finish earlier.
+
 For a cheap smoke, reduce fixed states and episode length without relabelling it representative:
 
 ```bash
