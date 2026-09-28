@@ -10,6 +10,8 @@ milestones rather than every experimental commit.
 - local GGUF + llama.cpp reference runtime with exact artifact/runtime provenance;
 - reusable single-sequence model-state snapshot/restore with a bounded repeated-state cache;
 - stateful direct A/B/C action readout with zero generated answer tokens;
+- canonical candidate-ID ordering for direct-choice compiler v2, so caller presentation order does not change the prompt/readout mapping;
+- repeated-prefix cache hits reuse the existing captured sequence state instead of serializing the same prefix again;
 - comparative semantic v2, semantic v1, direct-letter and generated JSON evidence paths;
 - frozen short/fresh and repeated-state benchmark contracts with retained machine-readable evidence;
 - constraint-first Snake, support-routing and policy-gate examples;
