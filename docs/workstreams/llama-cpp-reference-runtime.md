@@ -64,9 +64,9 @@ Semantic-v2 remains a separate evidence lane. Its failed general-purpose gate is
 | W4 | DONE | 2B semantic scorer-gate identity frozen before results. |
 | W5 | FAILED | Semantic-v2 short/fresh general gate failed family + latency criteria. |
 | W5a | DONE | Repeated-state diagnostic justified a scoped semantic experiment. |
-| W5b | ACTIVE | Frozen repeated-state gate v3 decides only semantic-v2 repeated-state scope; pinned 2B execution is local/manual rather than automatic PR CI. |
-| W6 | BLOCKED | Record semantic-v2 scope from W5b without rewriting failed evidence. |
-| W7 | ACTIVE | Prove stateful direct Snake loop with fixed context and fresh/cache oracle. |
+| W5b | FAILED | Frozen repeated-state gate v3 passed cache mechanics but failed semantic-v2 quality and global p95 promotion criteria on pinned 2B local evidence. |
+| W6 | DONE | Semantic-v2 remains experimental/non-promoted; failed evidence is retained unchanged. |
+| W7 | ACTIVE | Direct v1 stateful/fresh equivalence is proven; canonical direct v2 + snapshot-reuse remediation requires pinned-2B rerun before holdout. |
 
 ## Runtime contract
 
@@ -116,9 +116,12 @@ The result remains authoritative for general short/fresh semantic-v2 use.
 
 Repeated-state diagnostic v2 later found equal observed quality on 6/7 unique cases and materially
 lower latency for semantic scoring with heavy context reuse. That justified the separately frozen
-48-decision repeated-state gate v3. A PASS can support only `NARROW_SCOPE`; it cannot erase v2.
+48-decision repeated-state gate v3. The pinned 2B gate then **FAILED**: exact cache behavior, order
+robustness and zero generation passed, but semantic-v2 scored 32/48 versus generated JSON 39/48,
+failed family/4-candidate quality guardrails and narrowly missed the global p95 >=2x latency target.
 
-Contract: `benchmarks/repeated-state-gate-v3.md`.
+Contract: `benchmarks/repeated-state-gate-v3.md`. The result closes semantic-v2 promotion for this
+scope without invalidating the underlying reuse mechanism.
 
 ## W7 stateful direct reference loop
 
@@ -158,10 +161,10 @@ build, method and calibration dataset. Without an exact match, output remains un
 
 Before this workstream can be finalized:
 
-1. record W5b from its unchanged criteria as the semantic-v2 scope decision;
-2. prove W7 fresh/cache equivalence plus physical-token reduction on an exact-head real-model smoke candidate;
-3. retain representative 2B Snake controller screening separately from runtime-reuse evidence;
+1. rerun W7 direct v2 on the pinned 2B identity after canonical candidate ordering and redundant-snapshot removal;
+2. retain stateful/fresh exact-equivalence, controller-quality and runtime evidence separately;
+3. freeze a Snake holdout only if the remediated screening quality is acceptable;
 4. keep durable docs synchronized with the evidence results;
-5. only then shape the smallest stable high-level session API and delete this workstream once its remaining obligations have durable owners.
+5. delete this workstream once the remaining evidence obligations have durable owners.
 
 Historical failed gates remain failed; the stateful product direction does not rewrite them.
