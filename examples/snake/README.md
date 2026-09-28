@@ -175,8 +175,9 @@ same configurations with two complementary signals:
   `board_filled` completion.
 
 The benchmark records exact model/runtime/configuration identity in an append-only JSONL ledger.
-The direct shared-vs-fresh pair uses the same question-first stateful prompt; only execution reuse
-changes. This keeps cache effects separate from prompt-order effects.
+The direct shared-vs-fresh pair uses the same canonical question-first stateful prompt; only
+execution reuse changes. Direct v2 sorts candidates by stable candidate ID before assigning A/B/C,
+so caller presentation order cannot silently change the direct prompt.
 
 ## Compare scoring strategies
 
@@ -248,8 +249,9 @@ Both the web and headless commands accept these independently selectable experim
   it) and encode candidate sensors in short fields. Full body coordinates remain available.
 - `--reuse-prefix`: direct/letters scoring only; explicitly force the default stateful path. It places the fixed decision context before changing state, marks its
   exact token prefix, and use the existing bounded sequence-state cache. This has a distinct
-  `letter_question_prefix_v1` scorer identity. It changes prompt order, so compare quality as well
-  as latency. Fresh backends evaluate the same prompt without reuse.
+  `letter_question_prefix_v2` scorer identity. Candidate IDs are canonicalized before A/B/C lettering,
+  so caller presentation order does not change the compiled direct-choice prompt. Fresh backends
+  evaluate that same prompt without reuse.
 - `--controller adjacent-food`: bypass the model when a safe action eats food and leaves at least one
   immediately safe next action. This is an application heuristic, not proof of long-term safety;
   traces identify it as `deterministic_adjacent_food_policy`. The default remains `model`.
