@@ -16,10 +16,10 @@ Active plans: [llama.cpp reference runtime evidence closure](workstreams/llama-c
 | llama.cpp reference runtime | DONE | local-GGUF backend/CLI and scorer primitives implemented |
 | Shared context-state fast path | DONE | native-batch-safe branching + bounded repeated-state cache |
 | Scorer gate v2 | FAILED | short independent workload does not justify v2 promotion |
-| Repeated-state gate v3 | ACTIVE | frozen 48-case/8-state scoped experiment; 2B reference execution is local/manual, not PR CI |
+| Repeated-state gate v3 | FAILED | cache/runtime criteria passed strongly, but semantic-v2 quality and p95 latency criteria failed on the pinned 2B local run |
 | Product foundation | ACTIVE | supported direct-choice DecisionSession integrated; answerability/calibration remain planned |
 | Snake stateful reference loop | ACTIVE | fixed decision context + current-only dynamic state + direct logits + fresh/cache oracle |
-| Snake controller quality benchmark | ACTIVE | bounded dynamic-body oracle + append-only fixed/episode matrix implemented; reference 2B screening evidence pending |
+| Snake controller quality benchmark | ACTIVE | first pinned-2B direct v1 screening completed; stateful/fresh matched exactly but quality/order robustness were insufficient; direct v2 remediation requires rerun |
 | Repository adoption hardening | DONE | one-command demo, docs, package metadata and public intake integrated; GitHub settings remain external (#9) |
 
 ## Reference identity
@@ -64,25 +64,41 @@ performance-regression case, semantic p50 was 14.98 s versus 68.40 s generated (
 generated zero answer tokens, and the semantic path evaluated 9,226 physical versus 181,258 logical
 tokens. This is diagnostic evidence, not promotion evidence.
 
-Repeated-state gate v3 is frozen before representative execution. The 2B reference run is intentionally local/manual rather than automatic PR CI; its fixture, scorer semantics and precommitted thresholds remain unchanged. Fixture SHA
-`f9e5f56128f93efb952f1fc3f4f38441150cb0c29906f688977ffa69ea61338a` covers 48 unique decisions
-in eight shared-state groups, four families, 2/4/8 candidates, short/medium/long state tiers and
-normal/reversed candidate order. Its precommitted gate requires comparable quality, zero semantic
-order changes, exact cache behavior, <=50% physical/logical tokens, and at least 2x p50/p95 group
-latency advantage over generated JSON. See `benchmarks/repeated-state-gate-v3.md`.
+The frozen repeated-state gate v3 was then executed locally on the pinned Qwen3.5-2B Q4_K_M CPU
+identity and **FAILED** without changing the fixture or thresholds. Cache reuse passed exactly:
+8 cold misses, 40 hits, zero fallbacks, zero semantic order changes and 94,244 physical versus
+1,058,852 logical input tokens (~8.9%). Semantic-v2 nevertheless scored 32/48 versus generated
+JSON 39/48, failing overall quality, evidence-entailment/rule-application family guardrails and the
+4-candidate guardrail. Group latency narrowly passed the 2x p50 target (93.34 s vs 187.42 s) but
+missed the 2x p95 target (226.43 s vs 438.35 s). This closes semantic-v2 promotion for the scoped
+repeated-state path while preserving the runtime/cache evidence. See
+`benchmarks/repeated-state-gate-v3.md`.
+
+## Snake direct screening evidence
+
+The first complete pinned-2B direct screening ran on clean `main` commit
+`263f7ba1274f6f798d7a93a3c0cf4fcfffeae92f`. Stateful and fresh direct execution produced the
+same fixed-state choices/scores and the same four episode outcomes, proving cache execution did not
+change semantics. Both variants achieved only 5/10 fixed-state optimal-set agreement, 20%
+catastrophic misses and 30% candidate-order changes; median episode food was 16 with 50% loop rate,
+75% stall rate and 25% controller-failure rate.
+
+The stateful path reused 151,808 of 503,070 logical input tokens (~30.2%) with 593 cache hits and one
+miss. Fixed-state p50 latency improved from 40.44 s fresh to 5.11 s stateful, but long episodes did
+not retain that advantage because the runtime snapshotted roughly 23 MB of prefix state on each
+shared call in addition to restoring cached state. Direct v2 therefore canonicalizes candidates by
+stable ID before A/B/C lettering and reuses the existing cached prefix snapshot instead of capturing
+it again on cache hits. The representative 2B screening must be rerun before holdout selection.
 
 ## Product direction
 
-The general semantic-v2 gate remains valid evidence about that scorer, but it no longer defines the
-whole product thesis. The primary direction is the stateful runtime contract demonstrated by Snake:
-fixed decision context, current-only dynamic state, deterministic candidate sensors, direct
-zero-generation choice readout and observable context reuse.
+Semantic-v2 now has two failed promotion gates and remains an experimental comparison path. The
+primary product hypothesis is stateful direct choice: canonical candidate ordering, one
+zero-generation option-logit readout, deterministic constraints first, and exact fresh equivalence.
 
 ## Next
 
-1. Validate the exact-head Snake stateful direct path on real-model smoke: cached and fresh stateful prompts must return identical choices/scores and cached execution must reduce physical token work.
-2. Run repeated-state gate v3 locally on the unchanged pinned 2B CPU identity and record PASS/FAIL with host/runtime identity, without broadening the semantic-v2 claim.
-3. Run the Snake controller screening matrix on the pinned reference 2B model; require oracle coverage, fixed-state quality, episode outcomes and append-only evidence before selecting a controller family.
-4. Freeze a holdout Snake fixture before prompt/controller tuning is treated as validated; cache efficiency is not controller quality.
-5. Exercise the supported DecisionSession contract in local 2B evidence without treating API stability as a quality/performance endorsement.
-6. Protect `main` and add GitHub description/topics/social preview through repository settings; source-controlled checks cannot substitute for those settings.
+1. Rerun the unchanged Snake controller screening on the pinned 2B model with direct v2 and compare stateful vs fresh exact outputs, quality, physical tokens, snapshot/restore bytes and latency.
+2. If the remediated direct controller has acceptable screening quality, freeze a separate holdout fixture before any further prompt/controller tuning.
+3. Exercise the supported DecisionSession contract on the pinned 2B model without treating API stability as a quality/performance endorsement.
+4. Protect `main` and add GitHub description/topics/social preview through repository settings; source-controlled checks cannot substitute for those settings.
