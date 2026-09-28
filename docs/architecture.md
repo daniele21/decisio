@@ -118,9 +118,8 @@ runtime tolerance. A cache hit is an implementation event, not evidence of corre
 
 ## Direct choice readout
 
-For small bounded action sets, Decisio canonicalizes candidates by stable candidate ID, assigns
-A/B/C/... labels deterministically, and reads the corresponding next-token logits from a single model
-evaluation:
+For bounded choices, Decisio sorts stable candidate IDs, assigns A/B/C/... deterministically and
+reads those next-token logits from one model evaluation:
 
 ```text
 state + question + options
@@ -138,11 +137,8 @@ state + question + options
     DecisionResult
 ```
 
-This is implemented by `LetterTokenScorer` and is the action readout used by the stateful Snake
-reference. It generates zero answer tokens and avoids one YES/NO evaluation per candidate. Direct v2
-sorts by candidate ID before lettering, so caller presentation order compiles to the same prompt and
-candidate-to-token mapping. Direct logits are an internal primitive, not the product differentiator;
-verbalizer sensitivity and uncalibrated probability semantics remain explicit.
+`LetterTokenScorer` implements this zero-generation readout. Direct v2's ID sort makes caller order
+compile identically; verbalizer sensitivity and uncalibrated score semantics remain explicit.
 
 `LetterTokenScorer(..., reuse_prefix=True)` marks an exact token prefix for model-context reuse.
 The generic scorer keeps this explicit; Snake selects it by default and offers `--fresh-prefix` as
@@ -229,14 +225,10 @@ stable decision context -> reusable model context -> changing state/question -> 
 
 Semantic candidate branching remains a second scoped use of the same exact snapshot/restore primitive.
 
-The semantic scorer exposes an optional backend fast path,
-`shared_prefix_batch_next_token_logits`. The compiler can also mark a token-safe reusable state
-prefix. The llama.cpp backend keeps one canonical sequence and repeated-state checkpoints in an LRU
-bounded by both entry count and serialized bytes. A cold reusable prefix is snapshotted once; cache
-hits restore that existing snapshot instead of serializing the same prefix again. Multi-prompt
-branches reuse the cached snapshot as their rollback point when it exactly covers the decoded prefix.
-Keys are exact token prefixes within one loaded runtime; unsupported boundaries fall back to ordinary
-shared-prefix evaluation.
+`shared_prefix_batch_next_token_logits` uses compiler-marked safe prefixes on one canonical
+sequence. Checkpoints live in an entry/byte-bounded LRU: cold prefixes snapshot once; exact hits
+restore the cached snapshot, which also serves as the rollback point for compatible branches.
+Unsupported boundaries fall back conservatively.
 Candidate branches execute serially on sequence 0, so their count is not limited by
 `max_sequences`. Native batch-aligned checkpoint requirements still apply; prompts without
 a safe checkpoint fall back to fresh evaluation.
@@ -355,11 +347,9 @@ These should be answered by evidence rather than preference:
 
 ## Current implementation boundary
 
-The canonical path is local GGUF through llama.cpp. The backend snapshots complete single-sequence
-model context state on the cold reusable-prefix path, restores that checkpoint on later exact hits,
-and avoids redundant re-snapshotting when the cached state already represents the required rollback
-point. Checkpoints stay in a byte-bounded LRU. This deliberately avoids a KV-only assumption for
-hybrid/recurrent Qwen3.5 state.
+The canonical path is local GGUF through llama.cpp. Cold reusable prefixes snapshot complete
+single-sequence state once; exact hits restore the cached checkpoint without re-snapshotting it.
+This avoids a KV-only assumption for hybrid/recurrent Qwen3.5 state.
 
 Snake now uses a fixed decision contract as the reusable direct-scoring prefix and sends only current
 world state plus deterministic candidate sensors on each model decision. The same prompt can be run
