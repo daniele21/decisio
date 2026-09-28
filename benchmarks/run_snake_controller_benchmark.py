@@ -10,6 +10,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
+from decisio.compiler import LETTER_STATEFUL_PROMPT_VERSION
 from decisio.backends.llama_cpp import (
     LLAMA_CPP_PYTHON_VERSION,
     LlamaCppBackend,
@@ -289,6 +290,10 @@ def run(args: argparse.Namespace) -> dict[str, Any]:
             "height": args.height,
             "max_steps": args.episode_max_steps,
             "stall_steps": args.stall_steps,
+        },
+        "direct_choice": {
+            "prompt_version": LETTER_STATEFUL_PROMPT_VERSION,
+            "candidate_order": "candidate_id_lexicographic",
         },
     }
     protocol = {**protocol_payload, "sha256": canonical_sha256(protocol_payload)}
