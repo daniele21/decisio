@@ -147,8 +147,8 @@
       ],
       "minimum_automated_fidelity": "host_or_fake",
       "residual_gaps": [
-        "repeated-state gate v3 decides only its frozen scoped semantic-v2 workload",
-        "the pinned 2B gate is intentionally executed locally and performance evidence remains bound to exact model/runtime/host identity"
+        "repeated-state gate v3 is a recorded semantic-v2 promotion FAIL while its cache/runtime evidence remains valid only for the frozen workload",
+        "the pinned 2B evidence is local and remains bound to exact model/runtime/host identity"
       ],
       "real_environment_confirmation": "required",
       "automation_gap_reason": null
@@ -166,8 +166,8 @@
       ],
       "minimum_automated_fidelity": "host_or_fake",
       "residual_gaps": [
-        "representative 2B controller screening is not established by the 0.8B smoke rollout",
-        "controller quality and holdout evidence remain separate from cache-efficiency proof"
+        "first representative 2B direct-v1 screening is retained but direct-v2 remediation requires a comparable rerun",
+        "controller quality and later holdout evidence remain separate from cache-efficiency proof"
       ],
       "real_environment_confirmation": "conditional",
       "automation_gap_reason": null
