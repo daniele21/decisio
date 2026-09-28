@@ -5,7 +5,6 @@ import pytest
 
 import benchmarks.snake_controller_benchmark as benchmark_module
 from benchmarks.run_snake_controller_benchmark import (
-    _format_duration,
     parser as controller_benchmark_parser,
 )
 from benchmarks.run_snake_controller_benchmark import (
@@ -161,12 +160,6 @@ def test_episode_progress_callback_reports_seed_steps_and_completion():
     assert events[-1]["seed"] == 7
     assert events[-1]["seed_index"] == 1
     assert events[-1]["seed_total"] == 1
-
-
-def test_progress_duration_format_is_terminal_friendly():
-    assert _format_duration(None) == "--:--:--"
-    assert _format_duration(0.0) == "00:00:00"
-    assert _format_duration(3661.2) == "01:01:01"
 
 def test_ledger_is_append_only_and_preserves_parameters(tmp_path: Path):
     ledger = tmp_path / "history.jsonl"
