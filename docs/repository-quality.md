@@ -66,9 +66,10 @@ Current evidence boundaries:
 - 0.8B CI real-model smoke proves the mechanism and directional token reduction;
 - pinned 2B reference gates are local/manual evidence, not automatic PR CI;
 - the pinned 2B short/fresh semantic-v2 gate remains a recorded FAIL and is not rewritten;
-- repeated-state gate v3 decides only the scoped semantic-v2 repeated-state question;
+- repeated-state gate v3 is a recorded FAIL: cache mechanics passed, semantic-v2 promotion did not;
 - Snake controller quality is separate from cache efficiency;
-- representative 2B Snake screening and a later holdout remain pending.
+- the first representative 2B direct screening is retained as v1 evidence; direct v2 remediation
+  requires a comparable rerun before holdout.
 
 Done when the relevant exact-head evidence is retained and `docs/current-state.md` records the
 result without broadening the claim beyond the benchmark contract.
@@ -185,8 +186,9 @@ Remaining:
 | One-command pinned Snake demo | DONE | download/checksum/launch behavior has deterministic tests |
 | Package discovery metadata | DONE | wheel metadata exposes keywords, classifiers and project URLs |
 | Structured issue intake | DONE | bug reports request reproducible runtime identity; proposals start from user outcome |
-| Exact-head 0.8B real-model smoke | PENDING | fresh/reused equivalence and physical-token reduction pass on candidate |
-| 2B repeated-state gate v3 | PENDING LOCAL EVIDENCE | run locally on the pinned artifact and retain PASS/FAIL plus host/runtime identity |
+| Exact-head 0.8B real-model smoke | PASS ON INTEGRATED PATH | fresh/reused equivalence and physical-token reduction covered by current real-model smoke |
+| 2B repeated-state gate v3 | FAILED | cache/runtime criteria passed; semantic-v2 quality and global p95 criteria failed |
+| 2B Snake direct screening v1 | EVIDENCE RETAINED | stateful/fresh exact semantics matched; quality/order robustness insufficient, so direct v2 rerun is required |
 | Stable `DecisionSession` | IMPLEMENTED NARROW SCOPE | direct-choice API only; 2B quality/performance evidence remains separate |
 | First alpha release | BLOCKED | API + release contract satisfied |
 | Branch protection / GitHub topics | PENDING REPOSITORY SETTING | source changes cannot substitute for the setting |
